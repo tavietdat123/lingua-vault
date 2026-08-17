@@ -19,6 +19,7 @@ import { api } from '../../services/api';
 
 export default function SettingsModal({ onClose, onDataRestored }) {
   const [apiKey, setApiKey] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -39,8 +40,9 @@ export default function SettingsModal({ onClose, onDataRestored }) {
   useEffect(() => {
     // Load existing Gemini settings
     api.getSettings().then(res => {
-      if (res.success && res.data?.gemini_api_key) {
-        setApiKey(res.data.gemini_api_key);
+      if (res.success && res.data) {
+        if (res.data.gemini_api_key) setApiKey(res.data.gemini_api_key);
+        if (res.data.gemini_model) setSelectedModel(res.data.gemini_model);
       }
     }).catch(err => console.error(err));
 
@@ -62,7 +64,10 @@ export default function SettingsModal({ onClose, onDataRestored }) {
     setSaveSuccess(false);
 
     try {
-      const res = await api.saveSettings({ gemini_api_key: apiKey.trim() });
+      const res = await api.saveSettings({ 
+        gemini_api_key: apiKey.trim(),
+        gemini_model: selectedModel
+      });
       if (res.success) {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
@@ -387,24 +392,63 @@ export default function SettingsModal({ onClose, onDataRestored }) {
               Mở khóa toàn bộ tính năng AI nâng cao (Bóc tách ngữ pháp, Sửa bài viết, Viết truyện). Key được lưu an toàn 100% trên máy của bạn.
             </p>
 
-            <form onSubmit={handleSaveApiKey} style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                type="password"
-                className="input-control"
-                placeholder="Dán AI Studio Key (AIzaSy...)"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                style={{ fontSize: '0.9rem' }}
-              />
-              <button type="submit" disabled={isSavingKey} className="btn-primary" style={{ flexShrink: 0 }}>
-                {isSavingKey ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                <span>Lưu Key</span>
-              </button>
+            <form onSubmit={handleSaveApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="password"
+                  className="input-control"
+                  placeholder="Dán AI Studio Key (AIzaSy...)"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  style={{ fontSize: '0.9rem' }}
+                />
+                <button type="submit" disabled={isSavingKey} className="btn-primary" style={{ flexShrink: 0 }}>
+                  {isSavingKey ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  <span>Lưu Cấu Hình</span>
+                </button>
+              </div>
+
+              {/* Model Choice Chips */}
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem' }}>
+                  🤖 Chọn Mô Hình AI (Google Model):
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem' }}>
+                  {[
+                    { id: 'gemini-2.0-flash', name: '⚡ Gemini 2.0 Flash', desc: 'Mới nhất, siêu nhanh & 15 req/phút' },
+                    { id: 'gemini-1.5-pro', name: '🧠 Gemini 1.5 Pro', desc: 'Suy luận sâu nhất (2 req/phút)' },
+                    { id: 'gemini-2.0-flash-thinking-exp-01-21', name: '💡 2.0 Flash Thinking', desc: 'Suy luận từng bước' },
+                    { id: 'gemini-1.5-flash', name: '🚀 Gemini 1.5 Flash', desc: 'Bản chuẩn ổn định' }
+                  ].map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSelectedModel(m.id)}
+                      style={{
+                        padding: '0.6rem 0.8rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: selectedModel === m.id ? 'var(--accent-primary-light)' : 'var(--bg-tertiary)',
+                        border: '1px solid',
+                        borderColor: selectedModel === m.id ? 'var(--accent-primary)' : 'var(--border-color)',
+                        textAlign: 'left',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: selectedModel === m.id ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                        {m.name}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {m.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </form>
 
             {saveSuccess && (
               <span style={{ fontSize: '0.85rem', color: 'var(--accent-success)', fontWeight: 600 }}>
-                ✓ Đã lưu API Key thành công!
+                ✓ Đã lưu API Key và Mô hình AI thành công!
               </span>
             )}
           </div>

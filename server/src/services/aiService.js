@@ -1,15 +1,21 @@
-/**
- * AI Service for LinguaVault (Google Gemini API & Smart Fallback)
- * 100% Free Tier compatible (Gemini 1.5/2.0 Flash)
- */
+import { getDb } from '../db/database.js';
 
-export async function callGemini(prompt, apiKey = null, audioData = null) {
+export function getSelectedModel() {
+  try {
+    const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get('gemini_model');
+    if (row && row.value) return row.value;
+  } catch (e) {}
+  return 'gemini-2.0-flash';
+}
+
+export async function callGemini(prompt, apiKey = null, audioData = null, customModel = null) {
   const key = apiKey || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error('Chưa cấu hình Gemini API Key. Vui lòng nhập API Key miễn phí trong mục Cài đặt.');
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const model = customModel || getSelectedModel();
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
   const parts = [];
 

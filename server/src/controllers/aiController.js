@@ -86,13 +86,14 @@ export const aiController = {
 
   saveSettings: (req, res) => {
     try {
-      const { gemini_api_key, speech_voice, review_daily_goal } = req.body;
+      const { gemini_api_key, gemini_model, speech_voice, review_daily_goal } = req.body;
       const stmt = db.prepare(`
         INSERT INTO settings (key, value) VALUES (?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
       `);
 
       if (gemini_api_key !== undefined) stmt.run('gemini_api_key', gemini_api_key.trim());
+      if (gemini_model !== undefined) stmt.run('gemini_model', gemini_model.trim());
       if (speech_voice !== undefined) stmt.run('speech_voice', speech_voice);
       if (review_daily_goal !== undefined) stmt.run('review_daily_goal', String(review_daily_goal));
 
