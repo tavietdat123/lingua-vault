@@ -22,8 +22,8 @@ export const speakingController = {
   // POST /api/speaking/analyze-read-aloud
   analyzeReadAloud: async (req, res) => {
     try {
-      const { targetText, spokenText, duration } = req.body;
-      const result = await analyzeReadAloud({ targetText, spokenText, duration });
+      const { targetText, spokenText, audioData, duration } = req.body;
+      const result = await analyzeReadAloud({ targetText, spokenText, audioData, duration });
       res.json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, error: err.message });
@@ -33,8 +33,8 @@ export const speakingController = {
   // POST /api/speaking/analyze-qa
   analyzeQA: async (req, res) => {
     try {
-      const { question, topic, spokenText } = req.body;
-      const result = await analyzeQASpeaking({ question, topic, spokenText });
+      const { question, topic, spokenText, audioData } = req.body;
+      const result = await analyzeQASpeaking({ question, topic, spokenText, audioData });
       res.json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, error: err.message });

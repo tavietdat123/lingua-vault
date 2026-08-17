@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, 
-  MicOff, 
-  Play, 
   Square, 
   RotateCcw, 
   Volume2, 
@@ -18,7 +16,10 @@ import {
   TrendingUp, 
   Brain,
   MessageSquare,
-  Ear
+  Ear,
+  Play,
+  Pause,
+  Radio
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { audioService } from '../../services/audioService';
@@ -31,23 +32,35 @@ export default function SpeakingLab({ onSaveWord }) {
   const [customText, setCustomText] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
 
-  // Recording State
+  // Raw Audio Recording & Web Audio State
   const [isRecording, setIsRecording] = useState(false);
   const [recordTimer, setRecordTimer] = useState(0);
   const [spokenTranscript, setSpokenTranscript] = useState('');
+  const [userAudioBlob, setUserAudioBlob] = useState(null);
+  const [userAudioUrl, setUserAudioUrl] = useState(null);
+  const [userAudioBase64, setUserAudioBase64] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const timerRef = useRef(null);
-  const recognitionRef = useRef(null);
+
+  // Audio Playback
+  const [isPlayingUserAudio, setIsPlayingUserAudio] = useState(false);
+  const [isPlayingReference, setIsPlayingReference] = useState(false);
+  const [audioSpeed, setAudioSpeed] = useState(audioService.getSpeed());
+  const [audioAccent, setAudioAccent] = useState(audioService.getAccent());
 
   // Results State
   const [readAloudResult, setReadAloudResult] = useState(null);
   const [qaResult, setQaResult] = useState(null);
   const [activeWordTip, setActiveWordTip] = useState(null);
 
-  // Audio Playback & Accent
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioSpeed, setAudioSpeed] = useState(audioService.getSpeed());
-  const [audioAccent, setAudioAccent] = useState(audioService.getAccent());
+  // Refs
+  const timerRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const canvasRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const userAudioPlayerRef = useRef(null);
 
   // Load Prompts Bank
   useEffect(() => {
@@ -87,76 +100,182 @@ export default function SpeakingLab({ onSaveWord }) {
     if (isRecording) stopRecording();
     setRecordTimer(0);
     setSpokenTranscript('');
+    setUserAudioBlob(null);
+    setUserAudioUrl(null);
+    setUserAudioBase64(null);
     setReadAloudResult(null);
     setQaResult(null);
     setActiveWordTip(null);
+    setIsPlayingUserAudio(false);
   };
 
-  // Start Speech Recognition
-  const startRecording = () => {
+  // Convert Blob to Base64
+  const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result.split(',')[1];
+        resolve(base64data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // Start Raw Audio Recording with Live Canvas Soundwave
+  const startRecording = async () => {
     resetSession();
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Trình duyệt của bạn chưa hỗ trợ Web Speech Recognition. Hãy dùng Google Chrome hoặc Safari để có trải nghiệm tốt nhất!');
-      return;
-    }
-
     try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = audioAccent === 'en-GB' ? 'en-GB' : 'en-US';
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // 1. Setup MediaRecorder for Raw Audio File
+      const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : MediaRecorder.isTypeSupported('audio/mp4')
+          ? { mimeType: 'audio/mp4' }
+          : {};
 
-      let accumulated = '';
+      const mediaRecorder = new MediaRecorder(stream, options);
+      audioChunksRef.current = [];
 
-      recognition.onresult = (event) => {
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            accumulated += event.results[i][0].transcript + ' ';
-          } else {
-            interim += event.results[i][0].transcript;
-          }
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
-        setSpokenTranscript((accumulated + interim).trim());
       };
 
-      recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error);
+      mediaRecorder.onstop = async () => {
+        const mimeType = options.mimeType || 'audio/webm';
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        setUserAudioBlob(blob);
+        setUserAudioUrl(URL.createObjectURL(blob));
+
+        const base64 = await blobToBase64(blob);
+        setUserAudioBase64(base64);
+
+        // Stop all tracks in stream
+        stream.getTracks().forEach(track => track.stop());
       };
 
-      recognition.start();
-      recognitionRef.current = recognition;
+      mediaRecorder.start(200); // 200ms chunk slices
+      mediaRecorderRef.current = mediaRecorder;
+
+      // 2. Setup Web Audio API Waveform Visualizer
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+        audioContextRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        source.connect(analyser);
+
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const canvasCtx = canvas.getContext('2d');
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+
+          const draw = () => {
+            animationFrameRef.current = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            const barWidth = (canvas.width / bufferLength) * 1.5;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+              const barHeight = (dataArray[i] / 255) * canvas.height;
+              canvasCtx.fillStyle = '#0284c7';
+              canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+              x += barWidth + 1;
+            }
+          };
+          draw();
+        }
+      } catch (e) {
+        console.warn('AudioContext visualizer not supported:', e);
+      }
+
+      // 3. Setup Web Speech Recognition for Live Transcript Display
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = audioAccent === 'en-GB' ? 'en-GB' : 'en-US';
+
+          let accumulated = '';
+          recognition.onresult = (event) => {
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                accumulated += event.results[i][0].transcript + ' ';
+              } else {
+                interim += event.results[i][0].transcript;
+              }
+            }
+            setSpokenTranscript((accumulated + interim).trim());
+          };
+          recognition.start();
+          recognitionRef.current = recognition;
+        } catch (e) {}
+      }
+
       setIsRecording(true);
-    } catch (e) {
-      console.error('Cannot start speech recognition:', e);
+    } catch (err) {
+      alert('Không thể truy cập Microphone: ' + err.message + '. Vui lòng cấp quyền Micro trong trình duyệt.');
     }
   };
 
   const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {}
+    }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch (e) {}
     }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {}
+    }
+
     setIsRecording(false);
   };
 
-  // Submit and Analyze with AI
+  // Submit and Analyze with AI (Multimodal Audio Understanding)
   const handleAnalyze = async () => {
-    if (!spokenTranscript.trim()) {
-      alert('Chưa nhận diện được giọng nói. Vui lòng bấm micro và nói vào mic nhé!');
+    if (!userAudioBase64 && !spokenTranscript.trim()) {
+      alert('Chưa có file thu âm giọng nói. Vui lòng bấm micro và nói vào mic nhé!');
       return;
     }
 
     setIsAnalyzing(true);
     try {
+      const audioPayload = userAudioBase64 ? {
+        data: userAudioBase64,
+        mimeType: userAudioBlob?.type || 'audio/webm'
+      } : null;
+
       if (activeMode === 'read-aloud') {
         const target = isCustomMode ? customText : (selectedPrompt?.targetText || '');
         const res = await api.analyzeReadAloud({
           targetText: target,
           spokenText: spokenTranscript,
+          audioData: audioPayload,
           duration: recordTimer
         });
         if (res.success) {
@@ -166,7 +285,8 @@ export default function SpeakingLab({ onSaveWord }) {
         const res = await api.analyzeQASpeaking({
           question: selectedPrompt?.question || '',
           topic: selectedPrompt?.topic || 'General',
-          spokenText: spokenTranscript
+          spokenText: spokenTranscript,
+          audioData: audioPayload
         });
         if (res.success) {
           setQaResult(res.data);
@@ -179,11 +299,25 @@ export default function SpeakingLab({ onSaveWord }) {
     }
   };
 
-  // Play Reference Audio
+  // Play Reference Native Audio
   const handlePlayReference = (textToPlay) => {
-    setIsPlayingAudio(true);
+    setIsPlayingReference(true);
     audioService.speak(textToPlay, audioAccent, audioSpeed);
-    setTimeout(() => setIsPlayingAudio(false), 3500);
+    setTimeout(() => setIsPlayingReference(false), 3500);
+  };
+
+  // Play User's Own Recorded Audio
+  const togglePlayUserAudio = () => {
+    if (!userAudioUrl) return;
+    if (isPlayingUserAudio) {
+      userAudioPlayerRef.current?.pause();
+      setIsPlayingUserAudio(false);
+    } else {
+      userAudioPlayerRef.current = new Audio(userAudioUrl);
+      userAudioPlayerRef.current.onended = () => setIsPlayingUserAudio(false);
+      userAudioPlayerRef.current.play();
+      setIsPlayingUserAudio(true);
+    }
   };
 
   const currentCategoryPrompts = prompts.filter(p => p.category === activeMode);
@@ -215,14 +349,14 @@ export default function SpeakingLab({ onSaveWord }) {
               letterSpacing: '0.04em',
               marginBottom: '0.5rem'
             }}>
-              <Sparkles size={14} />
-              <span>AI ACOUSTIC & PRONUNCIATION LAB</span>
+              <Radio size={14} />
+              <span>MULTIMODAL ACOUSTIC PHONETICS ENGINE</span>
             </div>
             <h2 style={{ fontSize: '1.85rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              Chấm Điểm & Phân Tích Giọng Nói AI
+              Chấm Điểm Phát Âm & Speaking Chuẩn Xác
             </h2>
             <p style={{ opacity: 0.9, fontSize: '0.95rem', marginTop: '0.3rem' }}>
-              Phân tích độ chuẩn xác từng âm vị IPA, độ trôi chảy, ngữ điệu và phản xạ đối thoại thông minh.
+              Lắng nghe trực tiếp file âm thanh micro: Soi kỹ từng phụ âm đuôi (/s/, /t/, /d/), nguyên âm IPA và ngữ điệu câu.
             </p>
           </div>
 
@@ -381,7 +515,7 @@ export default function SpeakingLab({ onSaveWord }) {
               title="Nghe audio người bản xứ đọc mẫu"
             >
               <Volume2 size={16} style={{ color: 'var(--accent-primary)' }} />
-              <span>{isPlayingAudio ? 'Đang đọc mẫu...' : 'Nghe Giọng Mẫu 🔊'}</span>
+              <span>{isPlayingReference ? 'Đang đọc mẫu...' : 'Nghe Giọng Mẫu 🔊'}</span>
             </button>
           </div>
 
@@ -413,17 +547,30 @@ export default function SpeakingLab({ onSaveWord }) {
           )}
         </div>
 
-        {/* RECORDING CONTROLS & LIVE WAVEFORM */}
+        {/* RECORDING CONTROLS & LIVE ACOUSTIC SOUNDWAVE */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: '1.25rem',
-          padding: '1.5rem',
+          padding: '1.75rem',
           background: 'var(--bg-secondary)',
           borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-color)'
+          border: '1px solid var(--border-color)',
+          position: 'relative'
         }}>
+          {/* Live Soundwave Canvas */}
+          <canvas
+            ref={canvasRef}
+            width={260}
+            height={36}
+            style={{
+              display: isRecording ? 'block' : 'none',
+              borderRadius: 'var(--radius-md)',
+              opacity: 0.85
+            }}
+          />
+
           {/* Timer */}
           <div style={{
             fontSize: '1.5rem',
@@ -457,8 +604,52 @@ export default function SpeakingLab({ onSaveWord }) {
           </button>
 
           <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isRecording ? 'var(--accent-danger)' : 'var(--text-secondary)' }}>
-            {isRecording ? '🔴 Đang lắng nghe giọng bạn... Bấm để kết thúc' : 'Bấm Micro để bắt đầu nói'}
+            {isRecording ? '🔴 Đang thu âm âm thanh gốc... Bấm để dừng' : 'Bấm Micro để bắt đầu thu âm bài nói'}
           </span>
+
+          {/* User Audio Playback Bar */}
+          {userAudioUrl && !isRecording && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              width: '100%',
+              maxWidth: '480px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              padding: '0.75rem 1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              marginTop: '0.5rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <button
+                  onClick={togglePlayUserAudio}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'var(--accent-primary)',
+                    color: '#ffffff',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isPlayingUserAudio ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  🎧 Nghe Lại Bản Thu Của Bạn ({recordTimer}s)
+                </span>
+              </div>
+
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', background: 'rgba(16,185,129,0.15)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                ĐÃ THU ÂM FILE
+              </span>
+            </div>
+          )}
 
           {/* Real-time speech transcript box */}
           {spokenTranscript && (
@@ -471,7 +662,7 @@ export default function SpeakingLab({ onSaveWord }) {
               marginTop: '0.5rem'
             }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>
-                Giọng nói nhận diện được:
+                Nhận diện giọng nói tham chiếu:
               </span>
               <p style={{ fontSize: '1rem', color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: 1.5 }}>
                 "{spokenTranscript}"
@@ -480,7 +671,7 @@ export default function SpeakingLab({ onSaveWord }) {
           )}
 
           {/* Analyze CTA button */}
-          {spokenTranscript && !isRecording && (
+          {(userAudioBase64 || spokenTranscript) && !isRecording && (
             <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>
               <button
                 onClick={resetSession}
@@ -488,7 +679,7 @@ export default function SpeakingLab({ onSaveWord }) {
                 style={{ padding: '0.75rem 1.25rem', fontWeight: 700 }}
               >
                 <RotateCcw size={16} />
-                <span>Nói lại</span>
+                <span>Thu âm lại</span>
               </button>
 
               <button
@@ -498,7 +689,7 @@ export default function SpeakingLab({ onSaveWord }) {
                 style={{ padding: '0.75rem 2rem', fontWeight: 800, fontSize: '1rem' }}
               >
                 <Sparkles size={18} />
-                <span>{isAnalyzing ? 'AI Đang Phân Tích & Chấm Điểm...' : 'Chấm Điểm Giọng Nói ➔'}</span>
+                <span>{isAnalyzing ? 'AI Đang Phân Tích Audio Gốc...' : 'Chấm Điểm Chuẩn Xác ➔'}</span>
               </button>
             </div>
           )}
@@ -526,7 +717,7 @@ export default function SpeakingLab({ onSaveWord }) {
               </div>
 
               <div className="card" style={{ textAlign: 'center', padding: '1.25rem', background: 'var(--bg-tertiary)' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>ĐỘ CHUẨN PHÁT ÂM</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>ĐỘ CHUẨN ÂM VỊ</span>
                 <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', marginTop: '0.2rem' }}>
                   {readAloudResult.accuracyScore}%
                 </h3>
@@ -551,12 +742,12 @@ export default function SpeakingLab({ onSaveWord }) {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <h4 style={{ fontSize: '1rem', fontWeight: 800 }}>
-                  🔍 Phân Tích Độ Chuẩn Từng Từ (Bấm vào từ để nghe phát âm):
+                  🔍 Soi Chi Tiết Từng Từ (Bấm vào từ để nghe phát âm & xem IPA):
                 </h4>
                 <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', fontWeight: 700 }}>
                   <span style={{ color: '#10b981' }}>🟢 Chuẩn xác</span>
-                  <span style={{ color: '#f59e0b' }}>🟡 Cần chỉnh</span>
-                  <span style={{ color: '#ef4444' }}>🔴 Bỏ sót / Sai</span>
+                  <span style={{ color: '#f59e0b' }}>🟡 Nuốt âm / Lệch</span>
+                  <span style={{ color: '#ef4444' }}>🔴 Sai / Bỏ sót</span>
                 </div>
               </div>
 

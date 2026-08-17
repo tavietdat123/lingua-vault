@@ -98,9 +98,9 @@ function getApiKey() {
 }
 
 /**
- * 1. Analyze Read-Aloud & Shadowing Speaking Attempt
+ * 1. Analyze Read-Aloud & Shadowing Speaking Attempt (Direct Audio & Acoustic Phonetics)
  */
-export async function analyzeReadAloud({ targetText, spokenText, duration = 0 }) {
+export async function analyzeReadAloud({ targetText, spokenText = '', audioData = null, duration = 0 }) {
   if (!targetText || !targetText.trim()) {
     throw new Error('Target text is required');
   }
@@ -114,39 +114,46 @@ export async function analyzeReadAloud({ targetText, spokenText, duration = 0 })
 
   const apiKey = getApiKey();
 
-  if (apiKey && cleanSpoken) {
+  if (apiKey && (cleanSpoken || audioData)) {
     try {
       const prompt = `
-Bạn là một chuyên gia khảo thí phát âm tiếng Anh (IELTS & Cambridge English Speaking Examiner).
-Nhiệm vụ: Chấm điểm bài đọc mẫu (Read-Aloud / Shadowing) của học viên dựa trên văn bản gốc và văn bản nhận diện được từ giọng nói.
+Bạn là một chuyên gia ngữ âm học và giám khảo khảo thí phát âm tiếng Anh quốc tế (Linguistic Phonetics & IELTS Speaking Examiner).
+${audioData ? 'HÃY LẮNG NGHE TRỰC TIẾP FILE ÂM THANH ĐÍNH KÈM' : 'HÃY ĐÁNH GIÁ BÀI NÓI DỰA TRÊN TRANSCRIPT'}.
 
-- VĂN BẢN GỐC (TARGET): "${cleanTarget}"
-- VĂN BẢN HỌC VIÊN ĐỌC (SPOKEN): "${cleanSpoken}"
+MỤC TIÊU KHẢO THÍ:
+- VĂN BẢN GỐC CẦN ĐỌC (TARGET TEXT): "${cleanTarget}"
+- VĂN BẢN TRANSCRIPT BỔ TRỢ: "${cleanSpoken}"
+
+TIÊU CHÍ SOI KỸ PHÁT ÂM (CHÍNH XÁC TUYỆT ĐỐI):
+1. Âm cuối & Phụ âm đuôi (Ending Consonants): Kiểm tra xem người nói có bỏ sót các âm đuôi quan trọng (/s/, /z/, /t/, /d/, /ed/, /θ/, /ð/, /ks/) hay không.
+2. Nguyên âm chuẩn xác (Vowel Precision): Phân biệt nguyên âm dài/ngắn (ví dụ: /iː/ vs /ɪ/, /uː/ vs /ʊ/).
+3. Trọng âm từ (Word Stress): Đặt trọng âm đúng âm tiết hay bị nói ngang/sai vị trí.
+4. Độ trôi chảy & ngắt nghỉ (Fluency & Chunking): Tốc độ tự nhiên, không ngập ngừng quá dài.
 
 HÃY ĐÁNH GIÁ VÀ TRẢ VỀ DUY NHẤT MỘT ĐỊNH DẠNG JSON (Không kèm markdown \`\`\`json):
 {
-  "overallScore": 85, // Số nguyên 0 - 100
-  "accuracyScore": 90, // Độ chuẩn xác từng từ (0 - 100)
-  "fluencyScore": 80, // Độ trôi chảy, nhịp điệu (0 - 100)
-  "completenessScore": 85, // Mức độ đọc đầy đủ câu (0 - 100)
+  "overallScore": 88, // Số nguyên 0 - 100
+  "accuracyScore": 85, // Độ chuẩn xác âm vị từng từ (0 - 100)
+  "fluencyScore": 90, // Độ trôi chảy & nhịp điệu (0 - 100)
+  "completenessScore": 95, // Mức độ đọc đầy đủ câu (0 - 100)
   "wordsAnalysis": [
-    // Phân tích từng từ trong VĂN BẢN GỐC:
-    // status: "correct" (phát âm tốt, chuẩn), "mispronounced" (phát âm sai/ngọng/thiếu âm đuôi), "missing" (bỏ qua từ này)
+    // Phân tích MỌI từ trong VĂN BẢN GỐC theo thứ tự:
+    // status: "correct" (phát âm rõ và chuẩn), "mispronounced" (phát âm sai, nuốt âm đuôi, sai trọng âm), "missing" (bỏ qua từ này)
     {
       "word": "từ_gốc",
       "status": "correct",
-      "phonetic": "/IPA/",
-      "feedback": "Nhận xét ngắn gọn nếu phát âm sai hoặc null nếu đúng"
+      "phonetic": "/IPA_chuẩn/",
+      "feedback": "Nhận xét chi tiết âm nào bị sai/thiếu (hoặc null nếu phát âm chuẩn)"
     }
   ],
   "phoneticTips": [
-    "Lời khuyên ngắn gọn 1 về khẩu hình hoặc âm đuôi bị thiếu",
-    "Lời khuyên 2 về ngắt nhịp hoặc nối âm"
+    "Lời khuyên 1 về khẩu hình hoặc âm đuôi cụ thể cần sửa",
+    "Lời khuyên 2 về ngữ điệu hoặc nối âm"
   ],
-  "generalFeedback": "Nhận xét tổng quan động viên và điểm cần cải thiện"
+  "generalFeedback": "Nhận xét chuyên sâu, chân thực và có tính xây dựng"
 }
 `;
-      const aiResponse = await callGemini(prompt, apiKey);
+      const aiResponse = await callGemini(prompt, apiKey, audioData);
       const cleaned = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
       return parsed;
@@ -209,9 +216,9 @@ HÃY ĐÁNH GIÁ VÀ TRẢ VỀ DUY NHẤT MỘT ĐỊNH DẠNG JSON (Không kè
 }
 
 /**
- * 2. Analyze Interactive Q&A Speaking Response
+ * 2. Analyze Interactive Q&A Speaking Response (Direct Audio & Multimodal Rubric)
  */
-export async function analyzeQASpeaking({ question, topic = 'General', spokenText }) {
+export async function analyzeQASpeaking({ question, topic = 'General', spokenText = '', audioData = null }) {
   if (!question || !question.trim()) {
     throw new Error('Question is required');
   }
@@ -219,7 +226,7 @@ export async function analyzeQASpeaking({ question, topic = 'General', spokenTex
   const cleanQuestion = question.trim();
   const cleanSpoken = (spokenText || '').trim();
 
-  if (!cleanSpoken) {
+  if (!cleanSpoken && !audioData) {
     throw new Error('Vui lòng nói câu trả lời của bạn qua micro trước khi chấm điểm.');
   }
 
@@ -229,13 +236,14 @@ export async function analyzeQASpeaking({ question, topic = 'General', spokenTex
     try {
       const prompt = `
 Bạn là Trưởng ban Khảo thí Speaking IELTS & Hội đồng Chấm thi Quốc tế (IELTS Examiner Band 9.0).
-Nhiệm vụ: Phân tích và chấm điểm chi tiết câu trả lời Speaking tự do của học viên dựa trên câu hỏi sau:
+${audioData ? 'HÃY LẮNG NGHE TRỰC TIẾP FILE ÂM THANH CỦA THÍ SINH ĐÍNH KÈM' : 'HÃY ĐÁNH GIÁ DỰA TRÊN TRANSCRIPT'}.
 
+THÔNG TIN BÀI THI:
 - CHỦ ĐỀ (TOPIC): "${topic}"
 - CÂU HỎI (QUESTION): "${cleanQuestion}"
-- CÂU TRẢ LỜI CỦA THÍ SINH (TRANSCRIPT): "${cleanSpoken}"
+- BẢN TRANSCRIPT THAM CHIẾU: "${cleanSpoken}"
 
-HÃY CHẤM ĐIỂM THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JSON HỢP LỆ (Không có markdown \`\`\`json):
+HÃY CHẤM ĐIỂM CHÍNH XÁC THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JSON HỢP LỆ (Không có markdown \`\`\`json):
 {
   "overallBand": 7.0, // Điểm IELTS ước tính (4.0 - 9.0, bước 0.5)
   "overallScore": 75, // Thang điểm 0 - 100
@@ -243,12 +251,12 @@ HÃY CHẤM ĐIỂM THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JS
     "fluency": {
       "score": 75, // 0 - 100
       "band": 7.0,
-      "feedback": "Nhận xét độ trôi chảy, phản xạ, ngắt nghỉ"
+      "feedback": "Nhận xét độ trôi chảy, phản xạ, ngắt nghỉ thực tế"
     },
     "pronunciation": {
       "score": 70, // 0 - 100
       "band": 7.0,
-      "feedback": "Nhận xét ngữ điệu, trọng âm từ, âm vị"
+      "feedback": "Nhận xét chi tiết ngữ điệu, trọng âm từ và âm vị nghe được từ audio"
     },
     "grammar": {
       "score": 80, // 0 - 100
@@ -262,12 +270,12 @@ HÃY CHẤM ĐIỂM THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JS
     }
   },
   "strengths": [
-    "Điểm mạnh nổi bật 1 trong câu trả lời",
+    "Điểm mạnh nổi bật 1 trong bài nói",
     "Điểm mạnh 2"
   ],
   "grammarMistakes": [
     {
-      "original": "cụm từ sai ngữ pháp",
+      "original": "cụm từ sai ngữ pháp / cách dùng",
       "corrected": "cụm từ chuẩn xác",
       "explanation": "Giải thích ngắn gọn tại sao sai"
     }
@@ -281,7 +289,7 @@ HÃY CHẤM ĐIỂM THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JS
   ]
 }
 `;
-      const aiResponse = await callGemini(prompt, apiKey);
+      const aiResponse = await callGemini(prompt, apiKey, audioData);
       const cleaned = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
       return parsed;
@@ -315,3 +323,4 @@ HÃY CHẤM ĐIỂM THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JS
     ]
   };
 }
+

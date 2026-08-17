@@ -3,7 +3,7 @@
  * 100% Free Tier compatible (Gemini 1.5/2.0 Flash)
  */
 
-export async function callGemini(prompt, apiKey = null) {
+export async function callGemini(prompt, apiKey = null, audioData = null) {
   const key = apiKey || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error('Chưa cấu hình Gemini API Key. Vui lòng nhập API Key miễn phí trong mục Cài đặt.');
@@ -11,14 +11,29 @@ export async function callGemini(prompt, apiKey = null) {
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
 
+  const parts = [];
+
+  // If raw audio is supplied, attach it as inline_data
+  if (audioData && audioData.data) {
+    parts.push({
+      inline_data: {
+        mime_type: audioData.mimeType || 'audio/webm',
+        data: audioData.data
+      }
+    });
+  }
+
+  // Attach text instruction prompt
+  parts.push({ text: prompt });
+
   const payload = {
     contents: [
       {
-        parts: [{ text: prompt }]
+        parts
       }
     ],
     generationConfig: {
-      temperature: 0.4,
+      temperature: 0.2, // Lower temperature for maximum precision & strict phonetic scrutiny
       topK: 32,
       topP: 0.95,
       maxOutputTokens: 2048,
