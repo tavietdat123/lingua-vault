@@ -14,7 +14,7 @@ import {
   Platform,
   Modal
 } from 'react-native';
-import { mobileApi } from './src/services/api';
+import { mobileApi, getServerUrl, setServerUrl } from './src/services/api';
 import {
   IconHome,
   IconZap,
@@ -224,9 +224,20 @@ export default function App() {
   const [speakingReadResult, setSpeakingReadResult] = useState(null);
   const [speakingQAResult, setSpeakingQAResult] = useState(null);
 
+  // Server URL Configuration State
+  const [serverUrlState, setServerUrlState] = useState(getServerUrl());
+  const [serverConnected, setServerConnected] = useState(true);
+  const [showServerModal, setShowServerModal] = useState(false);
+  const [isTestingServer, setIsTestingServer] = useState(false);
+  const [serverTestResult, setServerTestResult] = useState('');
+
   // Load All App Data
   const loadData = async () => {
     try {
+      const health = await mobileApi.checkHealth();
+      setServerConnected(health.success);
+      setServerTestResult(health.success ? 'online' : 'offline');
+
       const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes] = await Promise.all([
         mobileApi.getStats(),
         mobileApi.getDueItems(),
@@ -273,6 +284,28 @@ export default function App() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleSaveServerUrl = async () => {
+    setIsTestingServer(true);
+    const updated = setServerUrl(serverUrlState);
+    const test = await mobileApi.checkHealth(updated);
+    setIsTestingServer(false);
+    if (test.success) {
+      setServerConnected(true);
+      setServerTestResult('online');
+      Alert.alert('Thành công 🎉', `Đã kết nối thành công tới Server:\n${updated}`);
+      setShowServerModal(false);
+      setLoading(true);
+      loadData();
+    } else {
+      setServerConnected(false);
+      setServerTestResult('offline');
+      Alert.alert(
+        'Không thể kết nối 🔴',
+        `Không tìm thấy Server tại:\n${updated}\n\n💡 Mẹo khắc phục:\n1. Đảm bảo máy tính đang chạy: 'node run-dev.js'\n2. Điện thoại và máy tính cùng kết nối 1 mạng Wi-Fi\n3. Kiểm tra đúng địa chỉ IP máy tính (ví dụ: http://192.168.1.x:5001)`
+      );
     }
   };
 
@@ -795,6 +828,27 @@ export default function App() {
         </View>
 
         <View style={styles.topRightActions}>
+          {/* SERVER CONNECTION PILL */}
+          <TouchableOpacity
+            onPress={() => setShowServerModal(true)}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 8,
+              paddingVertical: 5,
+              borderRadius: 16,
+              backgroundColor: serverConnected ? (isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.12)') : 'rgba(239, 68, 68, 0.15)',
+              borderWidth: 1,
+              borderColor: serverConnected ? '#10b981' : '#ef4444',
+            }}
+          >
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: serverConnected ? '#10b981' : '#ef4444', marginRight: 4 }} />
+            <Text style={{ fontSize: 10, fontWeight: '800', color: serverConnected ? '#10b981' : '#ef4444' }}>
+              {serverConnected ? 'API OK' : 'API IP ⚙️'}
+            </Text>
+          </TouchableOpacity>
+
           {/* THEME TOGGLE BUTTON */}
           <TouchableOpacity
             onPress={toggleTheme}
@@ -2674,6 +2728,27 @@ export default function App() {
                 </View>
               </TouchableOpacity>
 
+              {/* Server URL Config in Drawer */}
+              <TouchableOpacity
+                style={[styles.drawerItem, { marginTop: 6, backgroundColor: theme.drawerCardBg }]}
+                onPress={() => {
+                  setIsNavDrawerOpen(false);
+                  setShowServerModal(true);
+                }}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: serverConnected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
+                  <IconZap size={18} color={serverConnected ? '#10b981' : '#ef4444'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerItemTitle, { color: theme.textPrimary }]}>
+                    Cấu Hình IP Máy Chủ API
+                  </Text>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>
+                    {serverUrlState} ({serverConnected ? 'Đã kết nối' : 'Chưa kết nối'})
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
               {/* Quick Theme Switcher in Drawer */}
               <TouchableOpacity
                 style={[styles.drawerItem, { marginTop: 6, backgroundColor: theme.drawerCardBg }]}
@@ -2702,6 +2777,119 @@ export default function App() {
             </View>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* SERVER URL CONFIGURATION MODAL */}
+      <Modal
+        visible={showServerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowServerModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 440, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 1, borderColor: theme.cardBorder }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: theme.textPrimary }}>⚙️ Kết Nối Máy Chủ API</Text>
+              <TouchableOpacity onPress={() => setShowServerModal(false)}>
+                <IconX size={22} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 14, lineHeight: 19 }}>
+              Nhập địa chỉ IP máy tính đang chạy Server hoặc đường dẫn Cloud/ngrok để điện thoại kết nối và đồng bộ dữ liệu:
+            </Text>
+
+            <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, marginBottom: 6, letterSpacing: 0.5 }}>
+              ĐỊA CHỈ SERVER (PORT 5001):
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: theme.inputBg,
+                color: theme.textPrimary,
+                borderWidth: 1,
+                borderColor: theme.cardBorder,
+                borderRadius: 12,
+                padding: 12,
+                fontSize: 14,
+                fontWeight: '600',
+                marginBottom: 12
+              }}
+              placeholder="http://192.168.1.x:5001"
+              placeholderTextColor={theme.textMuted}
+              value={serverUrlState}
+              onChangeText={setServerUrlState}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            {/* Quick Suggestion IP Chips */}
+            <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted, marginBottom: 6 }}>
+              GỢI Ý NHANH:
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+              {['http://192.168.110.47:5001', 'http://localhost:5001', 'http://127.0.0.1:5001'].map(ip => (
+                <TouchableOpacity
+                  key={ip}
+                  onPress={() => setServerUrlState(ip)}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    backgroundColor: theme.drawerCardBg,
+                    borderWidth: 1,
+                    borderColor: serverUrlState === ip ? theme.accent : theme.cardBorder
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: serverUrlState === ip ? theme.accent : theme.textSecondary, fontWeight: '600' }}>
+                    {ip}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => setShowServerModal(false)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  backgroundColor: theme.drawerCardBg,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textSecondary }}>Đóng</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSaveServerUrl}
+                disabled={isTestingServer}
+                style={{
+                  flex: 2,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  backgroundColor: theme.accent,
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 6
+                }}
+              >
+                {isTestingServer ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <IconCheck size={16} color="#ffffff" />
+                )}
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>
+                  {isTestingServer ? 'Đang Kiểm Tra...' : 'Lưu & Kết Nối'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );

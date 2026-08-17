@@ -1,19 +1,52 @@
-// Dynamic Server URL for Simulator & Physical Devices
-const getBackendUrl = () => {
-  if (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname !== 'localhost') {
-    return `http://${window.location.hostname}:5001`;
+// Dynamic Server URL for Simulator, LAN Wi-Fi & Remote Cloud Tunnel
+let currentServerUrl = 'http://192.168.110.47:5001';
+
+// Load saved server URL from storage if available
+if (typeof localStorage !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('linguavault_server_url');
+    if (saved) currentServerUrl = saved;
+  } catch (e) {}
+}
+
+export const getServerUrl = () => currentServerUrl;
+
+export const setServerUrl = (url) => {
+  if (!url) return currentServerUrl;
+  let formatted = url.trim().replace(/\/+$/, '');
+  if (!formatted.startsWith('http://') && !formatted.startsWith('https://')) {
+    formatted = 'http://' + formatted;
   }
-  // Default Mac LAN IP for physical mobile phone over Wi-Fi
-  return 'http://192.168.110.47:5001';
+  currentServerUrl = formatted;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('linguavault_server_url', formatted);
+    } catch (e) {}
+  }
+  return currentServerUrl;
 };
 
-export const SERVER_URL = getBackendUrl();
-
 export const mobileApi = {
+  // Health & Connection Ping Test
+  checkHealth: async (testUrl = null) => {
+    const base = testUrl ? setServerUrl(testUrl) : getServerUrl();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`${base}/api/health`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+      return { success: true, data, url: base };
+    } catch (e) {
+      return { success: false, error: e.message, url: base };
+    }
+  },
+
   // 1. Stats & SRS
   getStats: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/srs/stats`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/srs/stats`);
       return await res.json();
     } catch (e) {
       console.warn('API error:', e);
@@ -23,7 +56,8 @@ export const mobileApi = {
 
   getDueItems: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/srs/due`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/srs/due`);
       return await res.json();
     } catch (e) {
       console.warn('API error:', e);
@@ -33,7 +67,8 @@ export const mobileApi = {
 
   submitReview: async (id, type, rating) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/srs/review`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/srs/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, type, rating })
@@ -47,7 +82,8 @@ export const mobileApi = {
   // 2. Vocabulary
   getWords: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/vocab`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/vocab`);
       return await res.json();
     } catch (e) {
       return { success: false, data: [] };
@@ -56,7 +92,8 @@ export const mobileApi = {
 
   createWord: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/vocab`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/vocab`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -69,7 +106,8 @@ export const mobileApi = {
 
   deleteWord: async (id) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/vocab/${id}`, { method: 'DELETE' });
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/vocab/${id}`, { method: 'DELETE' });
       return await res.json();
     } catch (e) {
       return { success: false, error: e.message };
@@ -78,7 +116,8 @@ export const mobileApi = {
 
   autoLookup: async (word) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/vocab/lookup?word=${encodeURIComponent(word)}`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/vocab/lookup?word=${encodeURIComponent(word)}`);
       return await res.json();
     } catch (e) {
       return { success: false };
@@ -88,7 +127,8 @@ export const mobileApi = {
   // 3. Patterns (Mẫu câu)
   getPatterns: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/patterns`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/patterns`);
       return await res.json();
     } catch (e) {
       return { success: false, data: [] };
@@ -97,7 +137,8 @@ export const mobileApi = {
 
   createPattern: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/patterns`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/patterns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -110,7 +151,8 @@ export const mobileApi = {
 
   deletePattern: async (id) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/patterns/${id}`, { method: 'DELETE' });
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/patterns/${id}`, { method: 'DELETE' });
       return await res.json();
     } catch (e) {
       return { success: false, error: e.message };
@@ -120,7 +162,8 @@ export const mobileApi = {
   // 4. Notes / Smart Reader
   getNotes: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/notes`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/notes`);
       return await res.json();
     } catch (e) {
       return { success: false, data: [] };
@@ -129,7 +172,8 @@ export const mobileApi = {
 
   createNote: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/notes`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -142,7 +186,8 @@ export const mobileApi = {
 
   deleteNote: async (id) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/notes/${id}`, { method: 'DELETE' });
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/notes/${id}`, { method: 'DELETE' });
       return await res.json();
     } catch (e) {
       return { success: false, error: e.message };
@@ -152,7 +197,8 @@ export const mobileApi = {
   // 5. AI Services
   parseSentenceAI: async (sentence) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/ai/parse-sentence`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/ai/parse-sentence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sentence })
@@ -165,7 +211,8 @@ export const mobileApi = {
 
   checkSentenceAI: async (targetItem, userSentence) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/ai/check-sentence`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/ai/check-sentence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetItem, userSentence })
@@ -178,7 +225,8 @@ export const mobileApi = {
 
   generateStoryAI: async (words = []) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/ai/generate-story`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/ai/generate-story`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ words })
@@ -192,7 +240,8 @@ export const mobileApi = {
   // 6. Settings & API Key
   getSettings: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/settings`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/settings`);
       return await res.json();
     } catch (e) {
       return { success: false, data: {} };
@@ -201,7 +250,8 @@ export const mobileApi = {
 
   saveSettings: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/settings`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -215,7 +265,8 @@ export const mobileApi = {
   // 7. Quiz Hub
   getQuizTopics: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/quiz/topics`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/quiz/topics`);
       return await res.json();
     } catch (e) {
       return { success: false, data: [] };
@@ -224,7 +275,8 @@ export const mobileApi = {
 
   generateQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed' }) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/quiz/generate`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/quiz/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params)
@@ -237,7 +289,8 @@ export const mobileApi = {
 
   submitQuiz: async (answers = []) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/quiz/submit`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/quiz/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers })
@@ -251,7 +304,8 @@ export const mobileApi = {
   // 8. Telegram & Daily Goals
   getTelegramSettings: async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/telegram/settings`);
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/telegram/settings`);
       return await res.json();
     } catch (e) {
       return { success: false, data: {} };
@@ -260,7 +314,8 @@ export const mobileApi = {
 
   saveTelegramSettings: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/telegram/settings`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/telegram/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -273,7 +328,8 @@ export const mobileApi = {
 
   sendTelegramTest: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/telegram/test`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/telegram/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -287,7 +343,8 @@ export const mobileApi = {
   // 9. AI Speaking Lab
   getSpeakingPrompts: async (category = null) => {
     try {
-      const url = category ? `${SERVER_URL}/api/speaking/prompts?category=${category}` : `${SERVER_URL}/api/speaking/prompts`;
+      const base = getServerUrl();
+      const url = category ? `${base}/api/speaking/prompts?category=${category}` : `${base}/api/speaking/prompts`;
       const res = await fetch(url);
       return await res.json();
     } catch (e) {
@@ -297,7 +354,8 @@ export const mobileApi = {
 
   analyzeReadAloud: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/speaking/analyze-read-aloud`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/speaking/analyze-read-aloud`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -310,7 +368,8 @@ export const mobileApi = {
 
   analyzeQASpeaking: async (data) => {
     try {
-      const res = await fetch(`${SERVER_URL}/api/speaking/analyze-qa`, {
+      const base = getServerUrl();
+      const res = await fetch(`${base}/api/speaking/analyze-qa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
