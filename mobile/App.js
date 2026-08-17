@@ -95,14 +95,17 @@ const themes = {
   }
 };
 
-// Audio Player for Mobile
-const playMobileAudio = (wordText) => {
+// Dynamic Audio Player for Mobile with Granular Speed & Accent
+let globalMobileSpeed = 0.9;
+let globalMobileAccent = 'en-US';
+
+const playMobileAudio = (wordText, rate = null, lang = null) => {
   try {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(wordText);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.9;
+      utterance.lang = lang || globalMobileAccent;
+      utterance.rate = Math.max(0.4, Math.min(2.0, rate || globalMobileSpeed));
       window.speechSynthesis.speak(utterance);
     }
   } catch (e) {
@@ -176,7 +179,7 @@ export default function App() {
   const [aiStoryResult, setAiStoryResult] = useState(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Settings & Telegram State
+  // Settings, Audio & Telegram State
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [dailyGoal, setDailyGoal] = useState(10);
@@ -186,6 +189,18 @@ export default function App() {
   const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [mobileSpeed, setMobileSpeed] = useState(0.9);
+  const [mobileAccent, setMobileAccent] = useState('en-US');
+
+  const handleUpdateMobileSpeed = (val) => {
+    setMobileSpeed(val);
+    globalMobileSpeed = val;
+  };
+
+  const handleUpdateMobileAccent = (acc) => {
+    setMobileAccent(acc);
+    globalMobileAccent = acc;
+  };
 
   // Mobile Quiz State
   const [quizTopics, setQuizTopics] = useState([]);
@@ -1832,6 +1847,76 @@ export default function App() {
                       )}
                     </TouchableOpacity>
                   </View>
+                </View>
+
+                {/* AUDIO SPEED & ACCENT SETTINGS CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <IconVolume2 size={18} color={theme.accent} />
+                    <Text style={[styles.formTitle, { color: theme.textPrimary, marginBottom: 0 }]}>Âm Thanh & Tốc Độ Phát Âm</Text>
+                  </View>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Tùy chỉnh tốc độ đọc chi tiết phù hợp với trình độ nghe hiểu và luyện Shadowing.
+                  </Text>
+
+                  {/* Speed Presets */}
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>
+                    ⚡ Tốc độ hiện tại: <Text style={{ color: theme.accent, fontWeight: '800' }}>{mobileSpeed.toFixed(2)}x</Text>
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                    {[0.6, 0.75, 0.85, 1.0, 1.25].map(spd => (
+                      <TouchableOpacity
+                        key={spd}
+                        onPress={() => handleUpdateMobileSpeed(spd)}
+                        style={[
+                          styles.filterChip,
+                          { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Math.abs(mobileSpeed - spd) < 0.01 ? theme.btnPrimaryBg : theme.drawerCardBg, borderColor: theme.cardBorder }
+                        ]}
+                      >
+                        <Text style={{ fontWeight: '800', color: Math.abs(mobileSpeed - spd) < 0.01 ? '#ffffff' : theme.textPrimary, fontSize: 12 }}>
+                          {spd}x
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Accent Selector */}
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>🗣️ Chất giọng phát âm:</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => handleUpdateMobileAccent('en-US')}
+                      style={[
+                        styles.filterChip,
+                        { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: mobileAccent === 'en-US' ? theme.accentPill : theme.drawerCardBg, borderColor: mobileAccent === 'en-US' ? theme.accent : theme.cardBorder }
+                      ]}
+                    >
+                      <Text style={{ fontWeight: '700', color: mobileAccent === 'en-US' ? theme.accent : theme.textPrimary, fontSize: 13 }}>
+                        🇺🇸 Anh - Mỹ (US)
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleUpdateMobileAccent('en-GB')}
+                      style={[
+                        styles.filterChip,
+                        { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: mobileAccent === 'en-GB' ? theme.accentPill : theme.drawerCardBg, borderColor: mobileAccent === 'en-GB' ? theme.accent : theme.cardBorder }
+                      ]}
+                    >
+                      <Text style={{ fontWeight: '700', color: mobileAccent === 'en-GB' ? theme.accent : theme.textPrimary, fontSize: 13 }}>
+                        🇬🇧 Anh - Anh (UK)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Test Playback */}
+                  <TouchableOpacity
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, marginTop: 14 }]}
+                    onPress={() => playMobileAudio('LinguaVault empowers you to master English pronunciation.', mobileSpeed, mobileAccent)}
+                  >
+                    <Text style={[styles.primaryActionBtnText, { color: theme.accent, fontSize: 13 }]}>
+                      🔊 Nghe Thử Tốc Độ Này ({mobileSpeed.toFixed(2)}x)
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* AI CONFIG CARD */}

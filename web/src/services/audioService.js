@@ -1,17 +1,46 @@
 /**
- * Audio pronunciation service using Native MP3 or Web Speech Synthesis API
+ * Smart Audio pronunciation service with Granular Speed Control (0.5x - 1.5x)
+ * Supports Native MP3 + Web Speech Synthesis API (US / UK Accents)
  */
 
-export const playAudio = (text, audioUrl = null, lang = 'en-US') => {
+let globalAudioSpeed = parseFloat(localStorage.getItem('linguavault_audio_speed')) || 0.9;
+let globalAudioAccent = localStorage.getItem('linguavault_audio_accent') || 'en-US';
+
+export const setGlobalAudioSpeed = (speed) => {
+  const num = parseFloat(speed);
+  if (!isNaN(num) && num >= 0.4 && num <= 2.0) {
+    globalAudioSpeed = Math.round(num * 100) / 100;
+    localStorage.setItem('linguavault_audio_speed', globalAudioSpeed.toString());
+  }
+  return globalAudioSpeed;
+};
+
+export const getGlobalAudioSpeed = () => globalAudioSpeed;
+
+export const setGlobalAudioAccent = (accent) => {
+  if (accent === 'en-US' || accent === 'en-GB') {
+    globalAudioAccent = accent;
+    localStorage.setItem('linguavault_audio_accent', accent);
+  }
+  return globalAudioAccent;
+};
+
+export const getGlobalAudioAccent = () => globalAudioAccent;
+
+export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
   if (!text && !audioUrl) return;
 
-  // 1. If direct MP3 audio URL exists, play it
+  const targetRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
+  const targetLang = lang || globalAudioAccent;
+
+  // 1. If direct MP3 audio URL exists, play it with exact playbackRate
   if (audioUrl && audioUrl.trim()) {
     try {
       const audio = new Audio(audioUrl);
+      audio.playbackRate = targetRate;
       audio.play().catch(() => {
-        // Fallback to speech synthesis if audio fails
-        speakText(text, lang);
+        // Fallback to speech synthesis if audio playback fails
+        speakText(text, targetLang, targetRate);
       });
       return;
     } catch (e) {
@@ -20,38 +49,50 @@ export const playAudio = (text, audioUrl = null, lang = 'en-US') => {
   }
 
   // 2. Web Speech Synthesis API (100% Free, Built-in browser)
-  speakText(text, lang);
+  speakText(text, targetLang, targetRate);
 };
 
-export const speakText = (text, lang = 'en-US') => {
+export const speakText = (text, lang = null, rate = null) => {
   if (!window.speechSynthesis) {
     console.warn('Web Speech API is not supported in this browser.');
     return;
   }
 
+  const targetRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
+  const targetLang = lang || globalAudioAccent;
+
   // Cancel any ongoing speech
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang;
-  utterance.rate = 0.9; // Slightly slower for better learning clarity
+  utterance.lang = targetLang;
+  utterance.rate = Math.max(0.4, Math.min(2.0, targetRate));
   utterance.pitch = 1.0;
 
-  // Find English voice
+  // Find natural English voice matching target accent
   const voices = window.speechSynthesis.getVoices();
-  const englishVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Daniel')));
-  if (englishVoice) {
-    utterance.voice = englishVoice;
+  const preferredVoice = voices.find(v => {
+    const isLang = targetLang === 'en-GB' ? (v.lang === 'en-GB' || v.lang === 'en_GB') : v.lang.startsWith('en');
+    return isLang && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Arthur'));
+  }) || voices.find(v => v.lang.startsWith('en'));
+
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
   }
 
   window.speechSynthesis.speak(utterance);
 };
 
 export const audioService = {
-  play: playAudio,
-  speak: (text) => playAudio(text),
+  play: (text, audioUrl, lang, rate) => playAudio(text, audioUrl, lang, rate),
+  speak: (text, lang, rate) => playAudio(text, null, lang, rate),
   playAudio,
-  speakText
+  speakText,
+  setSpeed: setGlobalAudioSpeed,
+  getSpeed: getGlobalAudioSpeed,
+  setAccent: setGlobalAudioAccent,
+  getAccent: getGlobalAudioAccent
 };
 
 export default audioService;
+

@@ -15,6 +15,7 @@ import QuizCenter from './components/quiz/QuizCenter';
 import AILab from './components/ai/AILab';
 import SettingsModal from './components/settings/SettingsModal';
 import { api } from './services/api';
+import { audioService } from './services/audioService';
 
 export default function App() {
   const location = useLocation();
@@ -25,7 +26,7 @@ export default function App() {
   const currentTab = path || 'dashboard';
 
   const [isDark, setIsDark] = useState(true);
-  const [audioSpeed, setAudioSpeed] = useState(0.9);
+  const [audioSpeed, setAudioSpeed] = useState(audioService.getSpeed());
 
   // Data States
   const [words, setWords] = useState([]);
@@ -50,6 +51,11 @@ export default function App() {
 
   const handleNavigate = (tab) => {
     navigate(tab === 'dashboard' ? '/' : `/${tab}`);
+  };
+
+  const handleAudioSpeedChange = (newSpeed) => {
+    const updated = audioService.setSpeed(newSpeed);
+    setAudioSpeed(updated);
   };
 
   const addToast = (message, type = 'success') => {
@@ -82,14 +88,6 @@ export default function App() {
     document.body.className = nextDark ? 'theme-dark' : 'theme-light';
     localStorage.setItem('linguavault_theme', nextDark ? 'dark' : 'light');
     addToast(nextDark ? 'Đã chuyển sang Giao diện Tối' : 'Đã chuyển sang Giao diện Sáng', 'info');
-  };
-
-  const toggleAudioSpeed = () => {
-    const speeds = [0.75, 0.9, 1.1];
-    const nextIdx = (speeds.indexOf(audioSpeed) + 1) % speeds.length;
-    const nextSpeed = speeds[nextIdx];
-    setAudioSpeed(nextSpeed);
-    addToast(`Tốc độ phát âm: ${nextSpeed}x`, 'info');
   };
 
   // Load All App Data
@@ -256,7 +254,7 @@ export default function App() {
           stats={stats}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           audioSpeed={audioSpeed}
-          onToggleAudioSpeed={toggleAudioSpeed}
+          onAudioSpeedChange={handleAudioSpeedChange}
         />
 
         <div className="app-content">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Moon, Sun, Search, Sparkles, Flame, Volume2, Command } from 'lucide-react';
+import AudioSpeedPopover from './AudioSpeedPopover';
 
 export default function Header({ 
   currentTab, 
@@ -8,7 +9,7 @@ export default function Header({
   stats, 
   onOpenCommandPalette,
   audioSpeed = 0.9,
-  onToggleAudioSpeed
+  onAudioSpeedChange
 }) {
   const titles = {
     dashboard: { title: 'Tổng Quan Tiến Độ', desc: 'Theo dõi chỉ số ghi nhớ, chuỗi ngày học và hàng đợi ôn tập hôm nay' },
@@ -72,16 +73,11 @@ export default function Header({
           </div>
         </button>
 
-        {/* Audio Speed Toggle */}
-        <button
-          onClick={onToggleAudioSpeed}
-          className="btn-secondary"
-          style={{ padding: '0.55rem 0.85rem', fontSize: '0.8rem', fontWeight: 700 }}
-          title="Tốc độ phát âm (0.75x, 0.9x, 1.1x)"
-        >
-          <Volume2 size={15} style={{ color: 'var(--accent-primary)' }} />
-          <span>{audioSpeed}x</span>
-        </button>
+        {/* Audio Speed Granular Popover */}
+        <AudioSpeedPopover
+          audioSpeed={audioSpeed}
+          onSpeedChange={onAudioSpeedChange}
+        />
 
         {/* Dark/Light mode button */}
         <button
