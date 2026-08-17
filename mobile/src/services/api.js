@@ -282,5 +282,42 @@ export const mobileApi = {
     } catch (e) {
       return { success: false, error: e.message };
     }
+  },
+
+  // 9. AI Speaking Lab
+  getSpeakingPrompts: async (category = null) => {
+    try {
+      const url = category ? `${SERVER_URL}/api/speaking/prompts?category=${category}` : `${SERVER_URL}/api/speaking/prompts`;
+      const res = await fetch(url);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  analyzeReadAloud: async (data) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/speaking/analyze-read-aloud`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  analyzeQASpeaking: async (data) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/speaking/analyze-qa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   }
 };

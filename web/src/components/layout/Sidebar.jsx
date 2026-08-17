@@ -12,7 +12,8 @@ import {
   Plus,
   Command,
   TrendingUp,
-  Target
+  Target,
+  Mic
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickAdd, onOpenSettings, onOpenCommandPalette }) {
@@ -37,6 +38,13 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
       path: '/quiz',
       label: 'Quiz Theo Topic', 
       icon: Target,
+      isNew: true
+    },
+    { 
+      id: 'speaking', 
+      path: '/speaking',
+      label: 'AI Speaking Lab', 
+      icon: Mic,
       isNew: true
     },
     { 

@@ -36,7 +36,8 @@ import {
   IconSun,
   IconMoon,
   IconTarget,
-  IconBell
+  IconBell,
+  IconMic
 } from './src/components/VectorIcons';
 
 const { width } = Dimensions.get('window');
@@ -214,10 +215,19 @@ export default function App() {
   const [quizResult, setQuizResult] = useState(null);
   const [isQuizLoading, setIsQuizLoading] = useState(false);
 
+  // Mobile Speaking Lab State
+  const [speakingPrompts, setSpeakingPrompts] = useState([]);
+  const [speakingActiveMode, setSpeakingActiveMode] = useState('read-aloud');
+  const [selectedSpeakingPrompt, setSelectedSpeakingPrompt] = useState(null);
+  const [speakingSpokenText, setSpeakingSpokenText] = useState('');
+  const [isAnalyzingSpeaking, setIsAnalyzingSpeaking] = useState(false);
+  const [speakingReadResult, setSpeakingReadResult] = useState(null);
+  const [speakingQAResult, setSpeakingQAResult] = useState(null);
+
   // Load All App Data
   const loadData = async () => {
     try {
-      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes] = await Promise.all([
+      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes] = await Promise.all([
         mobileApi.getStats(),
         mobileApi.getDueItems(),
         mobileApi.getWords(),
@@ -225,7 +235,8 @@ export default function App() {
         mobileApi.getNotes(),
         mobileApi.getSettings(),
         mobileApi.getTelegramSettings(),
-        mobileApi.getQuizTopics()
+        mobileApi.getQuizTopics(),
+        mobileApi.getSpeakingPrompts()
       ]);
 
       if (statsRes?.success) setStats(statsRes.data);
@@ -251,6 +262,11 @@ export default function App() {
       }
       if (topicsRes?.success) {
         setQuizTopics(topicsRes.data || []);
+      }
+      if (promptsRes?.success && promptsRes.data) {
+        setSpeakingPrompts(promptsRes.data);
+        const first = promptsRes.data.find(p => p.category === 'read-aloud');
+        if (first) setSelectedSpeakingPrompt(first);
       }
     } catch (e) {
       console.warn('Load data error:', e);
@@ -671,6 +687,44 @@ export default function App() {
       } finally {
         setIsQuizLoading(false);
       }
+    }
+  };
+
+  // Mobile Speaking Lab Handlers
+  const handleAnalyzeSpeaking = async () => {
+    if (!speakingSpokenText.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập hoặc nói câu tiếng Anh của bạn trước khi chấm điểm.');
+      return;
+    }
+
+    setIsAnalyzingSpeaking(true);
+    try {
+      if (speakingActiveMode === 'read-aloud') {
+        const res = await mobileApi.analyzeReadAloud({
+          targetText: selectedSpeakingPrompt?.targetText || '',
+          spokenText: speakingSpokenText
+        });
+        if (res?.success) {
+          setSpeakingReadResult(res.data);
+        } else {
+          Alert.alert('Lỗi', res?.error || 'Không thể phân tích bài đọc');
+        }
+      } else {
+        const res = await mobileApi.analyzeQASpeaking({
+          question: selectedSpeakingPrompt?.question || '',
+          topic: selectedSpeakingPrompt?.topic || 'General',
+          spokenText: speakingSpokenText
+        });
+        if (res?.success) {
+          setSpeakingQAResult(res.data);
+        } else {
+          Alert.alert('Lỗi', res?.error || 'Không thể chấm điểm câu trả lời');
+        }
+      }
+    } catch (e) {
+      Alert.alert('Lỗi chấm điểm', e.message);
+    } finally {
+      setIsAnalyzingSpeaking(false);
     }
   };
 
@@ -1447,6 +1501,233 @@ export default function App() {
                         <Text style={styles.primaryActionBtnText}>🚀 Bắt Đầu Làm Bài Quiz</Text>
                       )}
                     </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+
+            {/* TAB: AI SPEAKING & PRONUNCIATION LAB */}
+            {currentTab === 'speaking' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* Mode Selector */}
+                <View style={{ flexDirection: 'row', backgroundColor: theme.drawerCardBg, borderRadius: 12, padding: 4, marginBottom: 14 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterChip,
+                      { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: speakingActiveMode === 'read-aloud' ? theme.btnPrimaryBg : 'transparent', borderWidth: 0 }
+                    ]}
+                    onPress={() => {
+                      setSpeakingActiveMode('read-aloud');
+                      setSpeakingReadResult(null);
+                      setSpeakingQAResult(null);
+                      const m = speakingPrompts.find(p => p.category === 'read-aloud');
+                      if (m) setSelectedSpeakingPrompt(m);
+                    }}
+                  >
+                    <Text style={{ fontWeight: '800', color: speakingActiveMode === 'read-aloud' ? '#ffffff' : theme.textSecondary, fontSize: 12 }}>
+                      🗣️ 1. Đọc Đoạn Văn
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.filterChip,
+                      { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: speakingActiveMode === 'qa' ? theme.btnPrimaryBg : 'transparent', borderWidth: 0 }
+                    ]}
+                    onPress={() => {
+                      setSpeakingActiveMode('qa');
+                      setSpeakingReadResult(null);
+                      setSpeakingQAResult(null);
+                      const m = speakingPrompts.find(p => p.category === 'qa');
+                      if (m) setSelectedSpeakingPrompt(m);
+                    }}
+                  >
+                    <Text style={{ fontWeight: '800', color: speakingActiveMode === 'qa' ? '#ffffff' : theme.textSecondary, fontSize: 12 }}>
+                      🎙️ 2. Hỏi Đáp Speaking
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Prompt Chips */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {speakingPrompts.filter(p => p.category === speakingActiveMode).map(p => (
+                      <TouchableOpacity
+                        key={p.id}
+                        onPress={() => {
+                          setSelectedSpeakingPrompt(p);
+                          setSpeakingReadResult(null);
+                          setSpeakingQAResult(null);
+                        }}
+                        style={[
+                          styles.filterChip,
+                          {
+                            backgroundColor: selectedSpeakingPrompt?.id === p.id ? theme.accentPill : theme.card,
+                            borderColor: selectedSpeakingPrompt?.id === p.id ? theme.accent : theme.cardBorder
+                          }
+                        ]}
+                      >
+                        <Text style={{ fontWeight: '700', color: selectedSpeakingPrompt?.id === p.id ? theme.accent : theme.textPrimary, fontSize: 12 }}>
+                          {p.topic}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {/* Target Prompt Box */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>
+                      {speakingActiveMode === 'read-aloud' ? 'Văn Bản Cần Đọc' : 'Câu Hỏi Khảo Thí'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => playMobileAudio(speakingActiveMode === 'read-aloud' ? selectedSpeakingPrompt?.targetText : selectedSpeakingPrompt?.question)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.accentPill, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}
+                    >
+                      <IconVolume2 size={14} color={theme.accent} />
+                      <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '700' }}>Nghe Mẫu 🔊</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: theme.textPrimary, lineHeight: 24 }}>
+                    {speakingActiveMode === 'read-aloud' ? selectedSpeakingPrompt?.targetText : selectedSpeakingPrompt?.question}
+                  </Text>
+
+                  {selectedSpeakingPrompt?.tips && speakingActiveMode === 'read-aloud' && (
+                    <View style={{ backgroundColor: theme.innerCard, padding: 8, borderRadius: 8, marginTop: 10 }}>
+                      <Text style={{ fontSize: 12, color: theme.textSecondary }}>💡 {selectedSpeakingPrompt.tips}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Input / Spoken transcript box */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, marginTop: 12 }]}>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                    Nói hoặc nhập câu trả lời tiếng Anh của bạn:
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, minHeight: 70 }]}
+                    placeholder={speakingActiveMode === 'read-aloud' ? 'Nhập hoặc nói bài đọc của bạn...' : 'Nói câu trả lời của bạn vào đây...'}
+                    placeholderTextColor={theme.textMuted}
+                    value={speakingSpokenText}
+                    onChangeText={setSpeakingSpokenText}
+                    multiline
+                  />
+
+                  <TouchableOpacity
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 14 }]}
+                    onPress={handleAnalyzeSpeaking}
+                    disabled={isAnalyzingSpeaking}
+                  >
+                    {isAnalyzingSpeaking ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.primaryActionBtnText}>✨ Chấm Điểm & Phân Tích Giọng Nói ➔</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Results View: Read-Aloud */}
+                {speakingReadResult && speakingActiveMode === 'read-aloud' && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, marginTop: 14 }]}>
+                    <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '700' }}>TỔNG ĐIỂM PHÁT ÂM</Text>
+                      <Text style={{ fontSize: 32, fontWeight: '900', color: theme.accent, marginTop: 2 }}>
+                        {speakingReadResult.overallScore}%
+                      </Text>
+                    </View>
+
+                    {/* Criteria stats */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                      <View style={[styles.statBoxCard, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, flex: 1, padding: 8 }]}>
+                        <Text style={{ fontSize: 10, color: theme.textMuted }}>Độ Chuẩn</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: '#10b981' }}>{speakingReadResult.accuracyScore}%</Text>
+                      </View>
+                      <View style={[styles.statBoxCard, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, flex: 1, padding: 8 }]}>
+                        <Text style={{ fontSize: 10, color: theme.textMuted }}>Trôi Chảy</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: '#f59e0b' }}>{speakingReadResult.fluencyScore}%</Text>
+                      </View>
+                      <View style={[styles.statBoxCard, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, flex: 1, padding: 8 }]}>
+                        <Text style={{ fontSize: 10, color: theme.textMuted }}>Hoàn Chỉnh</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: '#a855f7' }}>{speakingReadResult.completenessScore}%</Text>
+                      </View>
+                    </View>
+
+                    {/* Word-by-word diff */}
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: theme.textPrimary, marginBottom: 8 }}>
+                      🔍 Phân Tích Từng Từ (Chạm để nghe phát âm):
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                      {speakingReadResult.wordsAnalysis?.map((w, idx) => {
+                        let badgeBg = 'rgba(16, 185, 129, 0.15)';
+                        let textColor = '#10b981';
+                        if (w.status === 'mispronounced') {
+                          badgeBg = 'rgba(245, 158, 11, 0.15)';
+                          textColor = '#f59e0b';
+                        } else if (w.status === 'missing') {
+                          badgeBg = 'rgba(239, 68, 68, 0.15)';
+                          textColor = '#ef4444';
+                        }
+
+                        return (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => playMobileAudio(w.word)}
+                            style={{ backgroundColor: badgeBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}
+                          >
+                            <Text style={{ fontWeight: '700', fontSize: 13, color: textColor }}>{w.word}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {/* Phonetic Tips */}
+                    {speakingReadResult.phoneticTips?.map((tip, idx) => (
+                      <Text key={idx} style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4 }}>
+                        ✓ {tip}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Results View: Q&A Assessment */}
+                {speakingQAResult && speakingActiveMode === 'qa' && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, marginTop: 14 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: theme.textPrimary }}>Kết Quả Phỏng Vấn</Text>
+                      <View style={{ backgroundColor: '#10b981', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+                        <Text style={{ color: '#ffffff', fontWeight: '900', fontSize: 14 }}>Band {speakingQAResult.overallBand}</Text>
+                      </View>
+                    </View>
+
+                    {/* 4 criteria breakdown */}
+                    <View style={{ gap: 8, marginBottom: 14 }}>
+                      {Object.entries(speakingQAResult.criteria || {}).map(([k, v]) => (
+                        <View key={k} style={{ backgroundColor: theme.innerCard, padding: 10, borderRadius: 8 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontWeight: '800', fontSize: 12, color: theme.textPrimary, textTransform: 'capitalize' }}>{k}</Text>
+                            <Text style={{ fontWeight: '800', fontSize: 12, color: theme.accent }}>Band {v.band}</Text>
+                          </View>
+                          <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>{v.feedback}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Band 8.5 Model Answer */}
+                    {speakingQAResult.modelAnswerBand85 && (
+                      <View style={{ backgroundColor: theme.innerCard, padding: 12, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: theme.accent }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <Text style={{ fontWeight: '800', color: theme.accent, fontSize: 13 }}>Câu Trả Lời Mẫu Band 8.5+:</Text>
+                          <TouchableOpacity onPress={() => playMobileAudio(speakingQAResult.modelAnswerBand85)}>
+                            <IconVolume2 size={16} color={theme.accent} />
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={{ fontSize: 13, color: theme.textPrimary, fontStyle: 'italic', lineHeight: 18 }}>
+                          "{speakingQAResult.modelAnswerBand85}"
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </ScrollView>
@@ -2272,6 +2553,26 @@ export default function App() {
                     </View>
                   </View>
                   <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Trắc nghiệm, phản xạ & điền từ</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'speaking' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('speaking')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.accentPill }]}>
+                  <IconMic size={18} color={theme.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'speaking' ? theme.accent : theme.textPrimary }]}>
+                      🎙️ AI Speaking Lab
+                    </Text>
+                    <View style={[styles.levelPill, { backgroundColor: '#0284c7' }]}>
+                      <Text style={[styles.levelPillText, { color: '#ffffff' }]}>AI</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Chấm phát âm & Hỏi đáp đối thoại</Text>
                 </View>
               </TouchableOpacity>
 

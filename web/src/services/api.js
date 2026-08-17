@@ -263,5 +263,34 @@ export const api = {
     } catch (e) {
       return { success: false, data: {} };
     }
+  },
+
+  // AI Speaking Lab & Pronunciation Assessment
+  getSpeakingPrompts: async (category = null) => {
+    try {
+      const url = category ? `${API_BASE}/speaking/prompts?category=${category}` : `${API_BASE}/speaking/prompts`;
+      const res = await fetch(url);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  analyzeReadAloud: async (data) => {
+    const res = await fetch(`${API_BASE}/speaking/analyze-read-aloud`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  analyzeQASpeaking: async (data) => {
+    const res = await fetch(`${API_BASE}/speaking/analyze-qa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
   }
 };

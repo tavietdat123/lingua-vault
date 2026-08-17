@@ -155,7 +155,7 @@ export default function Dashboard({ stats, recentWords = [], onStartReview, onNa
             style={{
               background: 'rgba(255,255,255,0.15)',
               color: '#ffffff',
-              padding: '0.9rem 1.5rem',
+              padding: '0.9rem 1.35rem',
               borderRadius: 'var(--radius-lg)',
               fontWeight: 700,
               fontSize: '0.95rem',
@@ -168,7 +168,28 @@ export default function Dashboard({ stats, recentWords = [], onStartReview, onNa
             className="glow-hover"
           >
             <Target size={18} />
-            <span>Làm Quiz Theo Topic</span>
+            <span>Làm Quiz</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('speaking')}
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              color: '#ffffff',
+              padding: '0.9rem 1.35rem',
+              borderRadius: 'var(--radius-lg)',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.35)'
+            }}
+            className="glow-hover"
+          >
+            <Sparkles size={18} />
+            <span>Luyện Speaking AI</span>
           </button>
         </div>
       </div>

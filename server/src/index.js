@@ -11,6 +11,7 @@ import { aiController } from './controllers/aiController.js';
 import { backupController } from './controllers/backupController.js';
 import { quizController } from './controllers/quizController.js';
 import { telegramController } from './controllers/telegramController.js';
+import { speakingController } from './controllers/speakingController.js';
 import { schedulerService } from './services/schedulerService.js';
 
 dotenv.config();
@@ -87,6 +88,11 @@ app.post('/api/telegram/settings', telegramController.saveSettings);
 app.post('/api/telegram/test', telegramController.sendTest);
 app.get('/api/telegram/progress', telegramController.getProgress);
 app.post('/api/telegram/trigger-reminder', telegramController.triggerReminder);
+
+// AI Speaking Lab & Pronunciation Assessment Routes
+app.get('/api/speaking/prompts', speakingController.getPrompts);
+app.post('/api/speaking/analyze-read-aloud', speakingController.analyzeReadAloud);
+app.post('/api/speaking/analyze-qa', speakingController.analyzeQA);
 
 // 4. Start Server & Scheduler
 schedulerService.start();
