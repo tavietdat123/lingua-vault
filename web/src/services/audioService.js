@@ -46,3 +46,12 @@ export const speakText = (text, lang = 'en-US') => {
 
   window.speechSynthesis.speak(utterance);
 };
+
+export const audioService = {
+  play: playAudio,
+  speak: (text) => playAudio(text),
+  playAudio,
+  speakText
+};
+
+export default audioService;
