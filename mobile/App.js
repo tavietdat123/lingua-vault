@@ -34,7 +34,9 @@ import {
   IconCheck,
   IconArrowRight,
   IconSun,
-  IconMoon
+  IconMoon,
+  IconTarget,
+  IconBell
 } from './src/components/VectorIcons';
 
 const { width } = Dimensions.get('window');
@@ -174,20 +176,41 @@ export default function App() {
   const [aiStoryResult, setAiStoryResult] = useState(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Settings State
+  // Settings & Telegram State
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [isSavingKey, setIsSavingKey] = useState(false);
+  const [dailyGoal, setDailyGoal] = useState(10);
+  const [reminderTime, setReminderTime] = useState('20:00');
+  const [botToken, setBotToken] = useState('');
+  const [chatId, setChatId] = useState('');
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+  const [isSavingTelegram, setIsSavingTelegram] = useState(false);
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+
+  // Mobile Quiz State
+  const [quizTopics, setQuizTopics] = useState([]);
+  const [selectedQuizTopic, setSelectedQuizTopic] = useState('All');
+  const [quizQuestionCount, setQuizQuestionCount] = useState(5);
+  const [quizData, setQuizData] = useState(null);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [quizUserAnswers, setQuizUserAnswers] = useState([]);
+  const [quizSelectedOption, setQuizSelectedOption] = useState(null);
+  const [quizIsAnswered, setQuizIsAnswered] = useState(false);
+  const [quizResult, setQuizResult] = useState(null);
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
 
   // Load All App Data
   const loadData = async () => {
     try {
-      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes] = await Promise.all([
+      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes] = await Promise.all([
         mobileApi.getStats(),
         mobileApi.getDueItems(),
         mobileApi.getWords(),
         mobileApi.getPatterns(),
         mobileApi.getNotes(),
-        mobileApi.getSettings()
+        mobileApi.getSettings(),
+        mobileApi.getTelegramSettings(),
+        mobileApi.getQuizTopics()
       ]);
 
       if (statsRes?.success) setStats(statsRes.data);
@@ -203,6 +226,16 @@ export default function App() {
       if (notesRes?.success) setNotes(notesRes.data || []);
       if (settingsRes?.success && settingsRes.data?.gemini_api_key) {
         setApiKeyInput(settingsRes.data.gemini_api_key);
+      }
+      if (telegramRes?.success && telegramRes.data) {
+        setDailyGoal(telegramRes.data.daily_word_goal || 10);
+        setReminderTime(telegramRes.data.telegram_reminder_time || '20:00');
+        setBotToken(telegramRes.data.telegram_bot_token || '');
+        setChatId(telegramRes.data.telegram_chat_id || '');
+        setTelegramEnabled(Boolean(telegramRes.data.telegram_enabled));
+      }
+      if (topicsRes?.success) {
+        setQuizTopics(topicsRes.data || []);
       }
     } catch (e) {
       console.warn('Load data error:', e);
@@ -498,6 +531,131 @@ export default function App() {
       Alert.alert('Lỗi', e.message);
     } finally {
       setIsSavingKey(false);
+    }
+  };
+
+  // Telegram Settings Save
+  const handleSaveTelegram = async () => {
+    setIsSavingTelegram(true);
+    try {
+      const res = await mobileApi.saveTelegramSettings({
+        daily_word_goal: parseInt(dailyGoal, 10) || 10,
+        telegram_reminder_time: reminderTime,
+        telegram_bot_token: botToken.trim(),
+        telegram_chat_id: chatId.trim(),
+        telegram_enabled: telegramEnabled
+      });
+      if (res?.success) {
+        Alert.alert('Thành công', 'Đã lưu cấu hình Mục tiêu & Bot Telegram!');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsSavingTelegram(false);
+    }
+  };
+
+  // Telegram Test Message
+  const handleTestTelegram = async () => {
+    if (!botToken || !chatId) {
+      Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ Telegram Bot Token và Chat ID trước!');
+      return;
+    }
+
+    setIsTestingTelegram(true);
+    try {
+      const res = await mobileApi.sendTelegramTest({
+        telegram_bot_token: botToken.trim(),
+        telegram_chat_id: chatId.trim()
+      });
+      if (res?.success) {
+        Alert.alert('🎉 Thành công', 'Đã gửi tin nhắn test tới Telegram của bạn!');
+      } else {
+        Alert.alert('Lỗi gửi test', res?.error || 'Không thể kết nối Telegram bot');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsTestingTelegram(false);
+    }
+  };
+
+  // Mobile Quiz Handlers
+  const handleStartMobileQuiz = async () => {
+    setIsQuizLoading(true);
+    try {
+      const res = await mobileApi.generateQuiz({
+        topic: selectedQuizTopic,
+        count: quizQuestionCount,
+        mode: 'mixed'
+      });
+
+      if (res?.success && res.data.questions?.length > 0) {
+        setQuizData(res.data);
+        setQuizIndex(0);
+        setQuizUserAnswers([]);
+        setQuizSelectedOption(null);
+        setQuizIsAnswered(false);
+        setQuizResult(null);
+
+        if (res.data.questions[0].type === 'listening') {
+          playMobileAudio(res.data.questions[0].word);
+        }
+      } else {
+        Alert.alert('Thông báo', res?.error || 'Không đủ từ vựng để tạo bài Quiz.');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi tạo Quiz', e.message);
+    } finally {
+      setIsQuizLoading(false);
+    }
+  };
+
+  const handleSelectQuizOption = (option) => {
+    if (quizIsAnswered || !quizData) return;
+
+    setQuizSelectedOption(option);
+    setQuizIsAnswered(true);
+
+    const currentQ = quizData.questions[quizIndex];
+    const newAnswers = [
+      ...quizUserAnswers,
+      {
+        id: currentQ.id,
+        word: currentQ.word,
+        questionText: currentQ.questionText,
+        correctAnswer: currentQ.correctAnswer,
+        userAnswer: option
+      }
+    ];
+    setQuizUserAnswers(newAnswers);
+  };
+
+  const handleNextQuizQuestion = async () => {
+    if (!quizData) return;
+
+    if (quizIndex + 1 < quizData.questions.length) {
+      const nextIdx = quizIndex + 1;
+      setQuizIndex(nextIdx);
+      setQuizSelectedOption(null);
+      setQuizIsAnswered(false);
+
+      if (quizData.questions[nextIdx].type === 'listening') {
+        playMobileAudio(quizData.questions[nextIdx].word);
+      }
+    } else {
+      setIsQuizLoading(true);
+      try {
+        const res = await mobileApi.submitQuiz(quizUserAnswers);
+        if (res?.success) {
+          setQuizResult(res.data);
+          loadData();
+        }
+      } catch (e) {
+        Alert.alert('Lỗi nộp bài', e.message);
+      } finally {
+        setIsQuizLoading(false);
+      }
     }
   };
 
@@ -1004,6 +1162,281 @@ export default function App() {
               </ScrollView>
             )}
 
+            {/* TAB: INTERACTIVE QUIZ HUB */}
+            {currentTab === 'quiz' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* 1. QUIZ RESULT SCREEN */}
+                {quizResult ? (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, alignItems: 'center', paddingVertical: 24 }]}>
+                    <View style={[styles.heroIconBox, { backgroundColor: quizResult.score >= 80 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', width: 64, height: 64, borderRadius: 32 }]}>
+                      <Text style={{ fontSize: 28 }}>{quizResult.score >= 80 ? '🏆' : '🎯'}</Text>
+                    </View>
+                    <Text style={[styles.heroTitle, { color: theme.textPrimary, marginTop: 12 }]}>
+                      {quizResult.score >= 80 ? 'Xuất Sắc! Hoàn Thành' : 'Hoàn Thành Bài Tập!'}
+                    </Text>
+                    <Text style={[styles.heroSubtitle, { color: theme.textSecondary, textAlign: 'center' }]}>
+                      Bạn trả lời đúng {quizResult.correctCount} / {quizResult.totalQuestions} câu hỏi
+                    </Text>
+
+                    {/* Stats Row */}
+                    <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 20 }}>
+                      <View style={[styles.statBoxCard, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, flex: 1 }]}>
+                        <Text style={[styles.statBoxLabel, { color: theme.textMuted }]}>Điểm Số</Text>
+                        <Text style={[styles.statBoxNumber, { color: theme.accent }]}>{quizResult.score}%</Text>
+                      </View>
+                      <View style={[styles.statBoxCard, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, flex: 1 }]}>
+                        <Text style={[styles.statBoxLabel, { color: theme.textMuted }]}>Kinh Nghiệm</Text>
+                        <Text style={[styles.statBoxNumber, { color: '#f59e0b' }]}>+{quizResult.xpEarned} XP</Text>
+                      </View>
+                    </View>
+
+                    {/* Breakdown */}
+                    <View style={{ width: '100%', marginTop: 20 }}>
+                      <Text style={[styles.sectionTitle, { color: theme.textPrimary, fontSize: 15, marginBottom: 10 }]}>
+                        Chi Tiết Câu Trả Lời:
+                      </Text>
+                      {quizResult.results.map((item, idx) => (
+                        <View 
+                          key={idx} 
+                          style={[
+                            styles.vocabListItem, 
+                            { 
+                              backgroundColor: theme.innerCard, 
+                              borderColor: theme.cardBorder, 
+                              borderLeftColor: item.isCorrect ? '#10b981' : '#ef4444',
+                              borderLeftWidth: 4,
+                              marginBottom: 8
+                            }
+                          ]}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontWeight: '800', color: theme.textPrimary, fontSize: 15 }}>{item.word}</Text>
+                            <Text style={{ fontSize: 14 }}>{item.isCorrect ? '✅' : '❌'}</Text>
+                          </View>
+                          <Text style={{ fontSize: 13, color: item.isCorrect ? '#10b981' : '#ef4444', marginTop: 4 }}>
+                            Bạn chọn: {item.userAnswer}
+                          </Text>
+                          {!item.isCorrect && (
+                            <Text style={{ fontSize: 13, color: '#10b981', fontWeight: '600', marginTop: 2 }}>
+                              Đáp án đúng: {item.correctAnswer}
+                            </Text>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={{ width: '100%', gap: 10, marginTop: 20 }}>
+                      <TouchableOpacity
+                        style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg }]}
+                        onPress={handleStartMobileQuiz}
+                      >
+                        <Text style={styles.primaryActionBtnText}>🔄 Làm Lại Bài Quiz Này</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder }]}
+                        onPress={() => { setQuizData(null); setQuizResult(null); }}
+                      >
+                        <Text style={[styles.primaryActionBtnText, { color: theme.textPrimary }]}>📚 Chọn Topic Khác</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : quizData ? (
+                  /* 2. PLAYING ACTIVE QUESTION */
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    {/* Header */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={{ fontWeight: '800', color: theme.accent, fontSize: 14 }}>
+                        CÂU {quizIndex + 1} / {quizData.questions.length}
+                      </Text>
+                      <View style={{ backgroundColor: theme.innerCard, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}>
+                        <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700' }}>🏷️ {quizData.topic}</Text>
+                      </View>
+                    </View>
+
+                    {/* Question Box */}
+                    {(() => {
+                      const currentQ = quizData.questions[quizIndex];
+                      return (
+                        <>
+                          <View style={[styles.innerCard, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, alignItems: 'center', paddingVertical: 24 }]}>
+                            <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8, textAlign: 'center' }}>
+                              {currentQ.promptSubtitle}
+                            </Text>
+
+                            {currentQ.type === 'listening' ? (
+                              <TouchableOpacity
+                                style={{
+                                  width: 68,
+                                  height: 68,
+                                  borderRadius: 34,
+                                  backgroundColor: theme.accent,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  marginVertical: 10
+                                }}
+                                onPress={() => playMobileAudio(currentQ.word)}
+                              >
+                                <IconVolume2 size={32} color="#ffffff" />
+                              </TouchableOpacity>
+                            ) : (
+                              <>
+                                <Text style={{ fontSize: 22, fontWeight: '800', color: theme.textPrimary, textAlign: 'center', lineHeight: 30 }}>
+                                  {currentQ.questionText}
+                                </Text>
+                                {currentQ.phonetic && currentQ.type !== 'reverse_en' && (
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                                    <Text style={{ color: theme.textMuted, fontSize: 14, fontFamily: 'monospace' }}>{currentQ.phonetic}</Text>
+                                    <TouchableOpacity onPress={() => playMobileAudio(currentQ.word)}>
+                                      <IconVolume2 size={16} color={theme.accent} />
+                                    </TouchableOpacity>
+                                  </View>
+                                )}
+                              </>
+                            )}
+                          </View>
+
+                          {/* 4 Options */}
+                          <View style={{ gap: 10, marginTop: 16 }}>
+                            {currentQ.options.map((option, idx) => {
+                              const isSelected = option === quizSelectedOption;
+                              const isCorrect = option.trim().toLowerCase() === currentQ.correctAnswer.trim().toLowerCase();
+
+                              let btnBg = theme.innerCard;
+                              let btnBorder = theme.cardBorder;
+                              let textColor = theme.textPrimary;
+
+                              if (quizIsAnswered) {
+                                if (isCorrect) {
+                                  btnBg = 'rgba(16, 185, 129, 0.2)';
+                                  btnBorder = '#10b981';
+                                  textColor = '#10b981';
+                                } else if (isSelected) {
+                                  btnBg = 'rgba(239, 68, 68, 0.2)';
+                                  btnBorder = '#ef4444';
+                                  textColor = '#ef4444';
+                                }
+                              }
+
+                              return (
+                                <TouchableOpacity
+                                  key={idx}
+                                  style={[
+                                    styles.vocabListItem,
+                                    {
+                                      backgroundColor: btnBg,
+                                      borderColor: btnBorder,
+                                      borderWidth: 1.5,
+                                      paddingVertical: 14,
+                                      paddingHorizontal: 16,
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between'
+                                    }
+                                  ]}
+                                  onPress={() => handleSelectQuizOption(option)}
+                                  disabled={quizIsAnswered}
+                                >
+                                  <Text style={{ fontSize: 15, fontWeight: '600', color: textColor, flex: 1 }}>
+                                    {option}
+                                  </Text>
+                                  {quizIsAnswered && isCorrect && (
+                                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#10b981' }}>✓</Text>
+                                  )}
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+
+                          {/* Next Button */}
+                          {quizIsAnswered && (
+                            <TouchableOpacity
+                              style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 20 }]}
+                              onPress={handleNextQuizQuestion}
+                            >
+                              <Text style={styles.primaryActionBtnText}>
+                                {quizIndex + 1 < quizData.questions.length ? 'Câu Tiếp Theo ➔' : 'Xem Kết Quả 📊'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </View>
+                ) : (
+                  /* 3. LOBBY SCREEN (CHOOSE TOPIC) */
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                      <View style={[styles.heroBadge, { backgroundColor: theme.accentPill }]}>
+                        <Text style={[styles.heroBadgeText, { color: theme.accent }]}>🎯 INTERACTIVE QUIZ HUB</Text>
+                      </View>
+                      <Text style={[styles.heroTitle, { color: theme.textPrimary, fontSize: 20, textAlign: 'center', marginTop: 8 }]}>
+                        Luyện Quiz Trắc Nghiệm
+                      </Text>
+                      <Text style={[styles.heroSubtitle, { color: theme.textSecondary, textAlign: 'center', fontSize: 13 }]}>
+                        Phản xạ từ vựng và củng cố trí nhớ theo từng chủ đề
+                      </Text>
+                    </View>
+
+                    {/* Choose Topic */}
+                    <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
+                      1. Chọn Chủ Đề (Topic):
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                      {quizTopics.map(t => (
+                        <TouchableOpacity
+                          key={t.name}
+                          style={[
+                            styles.filterChip,
+                            { backgroundColor: selectedQuizTopic === t.name ? theme.accent : theme.innerCard, borderColor: theme.cardBorder }
+                          ]}
+                          onPress={() => setSelectedQuizTopic(t.name)}
+                        >
+                          <Text style={[styles.filterChipText, { color: selectedQuizTopic === t.name ? '#ffffff' : theme.textSecondary, fontWeight: selectedQuizTopic === t.name ? '800' : '500' }]}>
+                            {t.name} ({t.count})
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Question Count */}
+                    <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
+                      2. Số Lượng Câu Hỏi:
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
+                      {[5, 10, 15].map(cnt => (
+                        <TouchableOpacity
+                          key={cnt}
+                          style={[
+                            styles.filterChip,
+                            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, backgroundColor: quizQuestionCount === cnt ? theme.accentPill : theme.innerCard, borderColor: quizQuestionCount === cnt ? theme.accent : theme.cardBorder }
+                          ]}
+                          onPress={() => setQuizQuestionCount(cnt)}
+                        >
+                          <Text style={{ fontWeight: '800', color: quizQuestionCount === cnt ? theme.accent : theme.textPrimary, fontSize: 14 }}>
+                            {cnt} câu
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Start Button */}
+                    <TouchableOpacity
+                      style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg }]}
+                      onPress={handleStartMobileQuiz}
+                      disabled={isQuizLoading}
+                    >
+                      {isQuizLoading ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text style={styles.primaryActionBtnText}>🚀 Bắt Đầu Làm Bài Quiz</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+
             {/* TAB 5: SMART READER */}
             {currentTab === 'reader' && (
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -1287,6 +1720,116 @@ export default function App() {
                       <Text style={[styles.themeOptionText, { color: isDark ? '#38bdf8' : theme.textSecondary }]}>
                         Dark Mode (Tối)
                       </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* DAILY GOAL & TELEGRAM BOT SETTING CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <IconBell size={18} color={theme.accent} />
+                    <Text style={[styles.formTitle, { color: theme.textPrimary, marginBottom: 0 }]}>Mục Tiêu & Bot Telegram Cảnh Báo</Text>
+                  </View>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Đặt mục tiêu tối thiểu mỗi ngày. Bot Telegram sẽ tự động gửi tin nhắn nhắc nhở bảo vệ chuỗi Streak 🔥 nếu chưa hoàn thành trước giờ hẹn!
+                  </Text>
+
+                  {/* Daily Goal Chips */}
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>🎯 Mục tiêu số từ mỗi ngày:</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                    {[5, 10, 15, 20].map(cnt => (
+                      <TouchableOpacity
+                        key={cnt}
+                        onPress={() => setDailyGoal(cnt)}
+                        style={[
+                          styles.filterChip,
+                          { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: dailyGoal === cnt ? theme.btnPrimaryBg : theme.drawerCardBg, borderColor: theme.cardBorder }
+                        ]}
+                      >
+                        <Text style={{ fontWeight: '800', color: dailyGoal === cnt ? '#ffffff' : theme.textPrimary, fontSize: 13 }}>
+                          {cnt} từ
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Reminder Time */}
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>⏰ Giờ nhắc nhở mỗi ngày:</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 4 }]}
+                    placeholder="20:00"
+                    placeholderTextColor={theme.textMuted}
+                    value={reminderTime}
+                    onChangeText={setReminderTime}
+                  />
+
+                  {/* Bot Token */}
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>🔑 Telegram Bot Token (@BotFather):</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 4 }]}
+                    placeholder="123456789:ABCdef..."
+                    placeholderTextColor={theme.textMuted}
+                    value={botToken}
+                    onChangeText={setBotToken}
+                    secureTextEntry
+                  />
+
+                  {/* Chat ID */}
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>💬 Telegram Chat ID (@userinfobot):</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 4 }]}
+                    placeholder="VD: 987654321"
+                    placeholderTextColor={theme.textMuted}
+                    value={chatId}
+                    onChangeText={setChatId}
+                  />
+
+                  {/* Toggle Notification */}
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}
+                    onPress={() => setTelegramEnabled(!telegramEnabled)}
+                  >
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 6,
+                      borderWidth: 2,
+                      borderColor: telegramEnabled ? theme.accent : theme.cardBorder,
+                      backgroundColor: telegramEnabled ? theme.accent : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {telegramEnabled && <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '900' }}>✓</Text>}
+                    </View>
+                    <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 14 }}>
+                      Bật thông báo tự động qua Telegram
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Actions */}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                    <TouchableOpacity
+                      style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, flex: 1 }]}
+                      onPress={handleTestTelegram}
+                      disabled={isTestingTelegram}
+                    >
+                      {isTestingTelegram ? (
+                        <ActivityIndicator size="small" color={theme.accent} />
+                      ) : (
+                        <Text style={[styles.primaryActionBtnText, { color: theme.accent, fontSize: 13 }]}>🔔 Gửi Test Thử</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, flex: 1.2 }]}
+                      onPress={handleSaveTelegram}
+                      disabled={isSavingTelegram}
+                    >
+                      {isSavingTelegram ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text style={[styles.primaryActionBtnText, { fontSize: 13 }]}>Lưu Cài Đặt</Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1624,6 +2167,26 @@ export default function App() {
                     <Text style={[styles.drawerItemCount, { color: theme.textSecondary }]}>{patterns.length}</Text>
                   </View>
                   <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Ngữ pháp theo sắc thái tone</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'quiz' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('quiz')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.accentPill }]}>
+                  <IconTarget size={18} color={theme.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'quiz' ? theme.accent : theme.textPrimary }]}>
+                      🎯 Quiz Theo Topic
+                    </Text>
+                    <View style={[styles.levelPill, { backgroundColor: '#10b981' }]}>
+                      <Text style={[styles.levelPillText, { color: '#ffffff' }]}>Mới</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Trắc nghiệm, phản xạ & điền từ</Text>
                 </View>
               </TouchableOpacity>
 

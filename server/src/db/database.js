@@ -13,6 +13,7 @@ if (!fs.existsSync(DATA_DIR)) {
 
 const DB_PATH = path.join(DATA_DIR, 'lingua_vault.db');
 export const db = new DatabaseSync(DB_PATH);
+export const getDb = () => db;
 
 export function initializeDatabase() {
   // 1. Words Table

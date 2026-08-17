@@ -107,27 +107,27 @@ export default function Dashboard({ stats, recentWords = [], onStartReview, onNa
           </p>
         </div>
 
-        <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {totalDue > 0 ? (
             <button
               onClick={onStartReview}
               style={{
                 background: '#ffffff',
                 color: '#0369a1',
-                padding: '1rem 2rem',
+                padding: '1rem 1.75rem',
                 borderRadius: 'var(--radius-lg)',
                 fontWeight: 800,
-                fontSize: '1.1rem',
+                fontSize: '1.05rem',
                 boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem',
+                gap: '0.65rem',
                 transition: 'all var(--transition-bounce)'
               }}
               className="glow-hover"
             >
               <span>Bắt Đầu Ôn Tập Ngay</span>
-              <ArrowRight size={22} />
+              <ArrowRight size={20} />
             </button>
           ) : (
             <button
@@ -135,10 +135,10 @@ export default function Dashboard({ stats, recentWords = [], onStartReview, onNa
               style={{
                 background: 'rgba(255,255,255,0.2)',
                 color: '#ffffff',
-                padding: '0.9rem 1.75rem',
+                padding: '0.9rem 1.5rem',
                 borderRadius: 'var(--radius-lg)',
                 fontWeight: 700,
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.6rem',
@@ -149,6 +149,27 @@ export default function Dashboard({ stats, recentWords = [], onStartReview, onNa
               <ArrowRight size={18} />
             </button>
           )}
+
+          <button
+            onClick={() => onNavigate('quiz')}
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              color: '#ffffff',
+              padding: '0.9rem 1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.35)'
+            }}
+            className="glow-hover"
+          >
+            <Target size={18} />
+            <span>Làm Quiz Theo Topic</span>
+          </button>
         </div>
       </div>
 

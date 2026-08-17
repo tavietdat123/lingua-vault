@@ -10,6 +10,7 @@ import PatternHub from './components/patterns/PatternHub';
 import PatternModal from './components/patterns/PatternModal';
 import SmartReader from './components/reader/SmartReader';
 import SRSReviewCenter from './components/review/SRSReviewCenter';
+import QuizCenter from './components/quiz/QuizCenter';
 import AILab from './components/ai/AILab';
 import SettingsModal from './components/settings/SettingsModal';
 import { api } from './services/api';
@@ -273,6 +274,12 @@ export default function App() {
               onAddPattern={handleAddPattern}
               onEditPattern={handleEditPattern}
               onDeletePattern={handleDeletePattern}
+            />
+          )}
+
+          {currentTab === 'quiz' && (
+            <QuizCenter
+              onOpenReview={() => setCurrentTab('review')}
             />
           )}
 

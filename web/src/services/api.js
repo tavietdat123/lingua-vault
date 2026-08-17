@@ -198,5 +198,70 @@ export const api = {
       body: JSON.stringify({ data })
     });
     return res.json();
+  },
+
+  // Quiz Hub
+  getQuizTopics: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/quiz/topics`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  generateQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed' }) => {
+    const res = await fetch(`${API_BASE}/quiz/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return res.json();
+  },
+
+  submitQuiz: async (answers = []) => {
+    const res = await fetch(`${API_BASE}/quiz/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers })
+    });
+    return res.json();
+  },
+
+  // Telegram Bot & Daily Goal
+  getTelegramSettings: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/telegram/settings`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: {} };
+    }
+  },
+
+  saveTelegramSettings: async (data) => {
+    const res = await fetch(`${API_BASE}/telegram/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  sendTelegramTest: async (data) => {
+    const res = await fetch(`${API_BASE}/telegram/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  getDailyProgress: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/telegram/progress`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: {} };
+    }
   }
 };

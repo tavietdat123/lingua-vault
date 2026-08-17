@@ -210,5 +210,77 @@ export const mobileApi = {
     } catch (e) {
       return { success: false, error: e.message };
     }
+  },
+
+  // 7. Quiz Hub
+  getQuizTopics: async () => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/quiz/topics`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  generateQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed' }) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/quiz/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  submitQuiz: async (answers = []) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/quiz/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers })
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // 8. Telegram & Daily Goals
+  getTelegramSettings: async () => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/telegram/settings`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: {} };
+    }
+  },
+
+  saveTelegramSettings: async (data) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/telegram/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  sendTelegramTest: async (data) => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/telegram/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   }
 };

@@ -9,6 +9,9 @@ import { noteController } from './controllers/noteController.js';
 import { srsController } from './controllers/srsController.js';
 import { aiController } from './controllers/aiController.js';
 import { backupController } from './controllers/backupController.js';
+import { quizController } from './controllers/quizController.js';
+import { telegramController } from './controllers/telegramController.js';
+import { schedulerService } from './services/schedulerService.js';
 
 dotenv.config();
 
@@ -73,7 +76,21 @@ app.post('/api/settings', aiController.saveSettings);
 app.get('/api/backup/export', backupController.exportData);
 app.post('/api/backup/import', backupController.importData);
 
-// 4. Start Server
+// Quiz by Topic Routes
+app.get('/api/quiz/topics', quizController.getTopics);
+app.post('/api/quiz/generate', quizController.generateQuiz);
+app.post('/api/quiz/submit', quizController.submitQuiz);
+
+// Telegram Bot & Daily Goal Routes
+app.get('/api/telegram/settings', telegramController.getSettings);
+app.post('/api/telegram/settings', telegramController.saveSettings);
+app.post('/api/telegram/test', telegramController.sendTest);
+app.get('/api/telegram/progress', telegramController.getProgress);
+app.post('/api/telegram/trigger-reminder', telegramController.triggerReminder);
+
+// 4. Start Server & Scheduler
+schedulerService.start();
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 🚀 ===================================================

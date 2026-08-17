@@ -139,3 +139,19 @@ export const IconMoon = ({ size = 20, color = '#ffffff' }) => (
     <Path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </Svg>
 );
+
+export const IconTarget = ({ size = 20, color = '#ffffff' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="10" />
+    <Circle cx="12" cy="12" r="6" />
+    <Circle cx="12" cy="12" r="2" />
+  </Svg>
+);
+
+export const IconBell = ({ size = 20, color = '#ffffff' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <Path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </Svg>
+);
+

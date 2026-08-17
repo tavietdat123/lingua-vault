@@ -14,6 +14,7 @@ export default function Header({
     dashboard: { title: 'Tổng Quan Tiến Độ', desc: 'Theo dõi chỉ số ghi nhớ, chuỗi ngày học và hàng đợi ôn tập hôm nay' },
     vocab: { title: 'Kho Từ Vựng & Collocations', desc: 'Quản lý vốn từ, ngữ cảnh thực tế và cấu trúc cụm từ' },
     patterns: { title: 'Mẫu Câu & Cấu Trúc Ngữ Pháp', desc: 'Làm chủ khung xương diễn đạt tự nhiên như người bản xứ' },
+    quiz: { title: 'Interactive Quiz Hub', desc: 'Luyện tập trắc nghiệm, phản xạ và ghi nhớ sâu theo từng chủ đề Topic' },
     reader: { title: 'Ghi Chú & Trình Đọc Thông Minh', desc: 'Đọc tài liệu và bôi đen để lưu từ vựng hoặc phân tích AI tức thì' },
     review: { title: 'Cỗ Máy Ôn Luyện SRS (SM-2)', desc: 'Chống quên theo chu kỳ lặp lại ngắt quãng khoa học' },
     'ai-lab': { title: 'AI English Lab', desc: 'Trợ lý AI phân tích câu, sửa ngữ pháp và sáng tác truyện ôn tập (0đ)' }

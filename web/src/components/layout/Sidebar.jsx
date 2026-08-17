@@ -10,7 +10,8 @@ import {
   Flame,
   Plus,
   Command,
-  TrendingUp
+  TrendingUp,
+  Target
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickAdd, onOpenSettings, onOpenCommandPalette }) {
@@ -27,6 +28,12 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
       label: 'Mẫu Câu & Cấu Trúc', 
       icon: Layers, 
       count: stats?.patterns?.total || 0 
+    },
+    { 
+      id: 'quiz', 
+      label: 'Quiz Theo Topic', 
+      icon: Target,
+      isNew: true
     },
     { 
       id: 'reader', 
@@ -135,6 +142,12 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
               {item.count !== undefined && !item.dueCount && (
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                   {item.count}
+                </span>
+              )}
+
+              {item.isNew && (
+                <span className="badge badge-emerald" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
+                  Mới
                 </span>
               )}
 
