@@ -1,58 +1,63 @@
-name: Build iOS IPA for Physical iPhone
+name: Build iOS IPA (Sideloadly / AltStore)
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-ipa:
-    runs-on: macos-15
+    runs-on: macos-14
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: mobile/package.json
 
-      - name: Install dependencies
-        working-directory: mobile
-        run: npm install
-
-      - name: Generate Native iOS Project (Expo Prebuild)
-        working-directory: mobile
-        run: npx expo prebuild --platform ios --clean
-
-      - name: Install CocoaPods
-        working-directory: mobile/ios
-        run: pod install
-
-      - name: Build Xcode Archive for Physical iPhone (arm64-iphoneos)
-        working-directory: mobile/ios
+      - name: 📦 Install Mobile Dependencies
         run: |
-          xcodebuild -workspace LinguaVault.xcworkspace \
+          cd mobile
+          npm install
+
+      - name: 🛠️ Generate Native iOS Project (Expo Prebuild)
+        run: |
+          cd mobile
+          npx expo prebuild --platform ios --clean
+
+      - name: 🔨 Install CocoaPods Dependencies
+        run: |
+          cd mobile/ios
+          pod install
+
+      - name: 🚀 Compile Native iOS App (Xcodebuild)
+        run: |
+          cd mobile
+          xcodebuild -workspace ios/LinguaVault.xcworkspace \
             -scheme LinguaVault \
             -configuration Release \
             -destination "generic/platform=iOS" \
-            -archivePath ../build/LinguaVault.xcarchive \
-            archive \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            PROVISIONING_PROFILE_SPECIFIER=""
+            CODE_SIGNING_REQUIRED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
 
-      - name: Package .xcarchive into .ipa
+      - name: 📦 Package into Sideloadable .ipa (Payload)
         run: |
+          cd mobile
           mkdir -p Payload
-          cp -r mobile/build/LinguaVault.xcarchive/Products/Applications/LinguaVault.app Payload/
+          cp -R build/Build/Products/Release-iphoneos/LinguaVault.app Payload/
           zip -r LinguaVault.ipa Payload
-          echo "LinguaVault.ipa created successfully!"
+          ls -la LinguaVault.ipa
 
-      - name: Upload IPA Artifact
+      - name: 📤 Upload LinguaVault.ipa Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LinguaVault-Physical-iPhone-IPA
-          path: LinguaVault.ipa
-          retention-days: 7
+          name: LinguaVault-iOS-IPA
+          path: mobile/LinguaVault.ipa
+          retention-days: 14
