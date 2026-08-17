@@ -6,6 +6,20 @@
 let globalAudioSpeed = parseFloat(localStorage.getItem('linguavault_audio_speed')) || 0.9;
 let globalAudioAccent = localStorage.getItem('linguavault_audio_accent') || 'en-US';
 
+let availableVoices = [];
+
+// Preload and cache voices
+const loadVoices = () => {
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    availableVoices = window.speechSynthesis.getVoices() || [];
+  }
+};
+
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
 export const setGlobalAudioSpeed = (speed) => {
   const num = parseFloat(speed);
   if (!isNaN(num) && num >= 0.4 && num <= 2.0) {
@@ -27,19 +41,61 @@ export const setGlobalAudioAccent = (accent) => {
 
 export const getGlobalAudioAccent = () => globalAudioAccent;
 
+/**
+ * Get the best matching voice for the given accent
+ */
+const getVoiceForAccent = (targetLang) => {
+  if (availableVoices.length === 0) {
+    loadVoices();
+  }
+
+  const isUK = targetLang === 'en-GB';
+
+  if (isUK) {
+    // 1. Look for British English voices (en-GB / en_GB)
+    const ukVoice = availableVoices.find(v => 
+      (v.lang === 'en-GB' || v.lang === 'en_GB') && 
+      (v.name.includes('Daniel') || v.name.includes('Oliver') || v.name.includes('Stephanie') || v.name.includes('Google UK') || v.name.includes('Serena') || v.name.includes('Arthur') || v.name.includes('George') || v.name.includes('Kate'))
+    ) || availableVoices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB');
+
+    if (ukVoice) return ukVoice;
+  } else {
+    // 2. Look for American English voices (en-US / en_US)
+    const usVoice = availableVoices.find(v => 
+      (v.lang === 'en-US' || v.lang === 'en_US') && 
+      (v.name.includes('Samantha') || v.name.includes('Google US') || v.name.includes('Ava') || v.name.includes('Alex') || v.name.includes('Allison') || v.name.includes('Victoria') || v.name.includes('Tom'))
+    ) || availableVoices.find(v => v.lang === 'en-US' || v.lang === 'en_US');
+
+    if (usVoice) return usVoice;
+  }
+
+  // Fallback to any English voice
+  return availableVoices.find(v => v.lang && v.lang.startsWith('en')) || null;
+};
+
 export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
   if (!text && !audioUrl) return;
 
   const targetRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
   const targetLang = lang || globalAudioAccent;
+  const isUK = targetLang === 'en-GB';
 
-  // 1. If direct MP3 audio URL exists, play it with exact playbackRate
+  // If direct MP3 audio URL exists
   if (audioUrl && audioUrl.trim()) {
+    let matchedAudioUrl = audioUrl;
+
+    // If user prefers UK and URL is US, try UK MP3 counterpart
+    if (isUK && audioUrl.includes('-us.mp3')) {
+      matchedAudioUrl = audioUrl.replace('-us.mp3', '-uk.mp3');
+    } else if (!isUK && audioUrl.includes('-uk.mp3')) {
+      matchedAudioUrl = audioUrl.replace('-uk.mp3', '-us.mp3');
+    }
+
     try {
-      const audio = new Audio(audioUrl);
+      const audio = new Audio(matchedAudioUrl);
       audio.playbackRate = targetRate;
       audio.play().catch(() => {
-        // Fallback to speech synthesis if audio playback fails
+        // Fallback to synthesis voice if custom accent MP3 does not exist
         speakText(text, targetLang, targetRate);
       });
       return;
@@ -48,7 +104,7 @@ export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
     }
   }
 
-  // 2. Web Speech Synthesis API (100% Free, Built-in browser)
+  // Web Speech Synthesis API
   speakText(text, targetLang, targetRate);
 };
 
@@ -69,15 +125,9 @@ export const speakText = (text, lang = null, rate = null) => {
   utterance.rate = Math.max(0.4, Math.min(2.0, targetRate));
   utterance.pitch = 1.0;
 
-  // Find natural English voice matching target accent
-  const voices = window.speechSynthesis.getVoices();
-  const preferredVoice = voices.find(v => {
-    const isLang = targetLang === 'en-GB' ? (v.lang === 'en-GB' || v.lang === 'en_GB') : v.lang.startsWith('en');
-    return isLang && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Arthur'));
-  }) || voices.find(v => v.lang.startsWith('en'));
-
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
+  const matchedVoice = getVoiceForAccent(targetLang);
+  if (matchedVoice) {
+    utterance.voice = matchedVoice;
   }
 
   window.speechSynthesis.speak(utterance);
@@ -95,4 +145,5 @@ export const audioService = {
 };
 
 export default audioService;
+
 
