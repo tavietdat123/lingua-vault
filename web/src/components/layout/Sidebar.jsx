@@ -1,4 +1,5 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -16,33 +17,38 @@ import {
 
 export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickAdd, onOpenSettings, onOpenCommandPalette }) {
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { 
       id: 'vocab', 
+      path: '/vocab',
       label: 'Kho Từ Vựng', 
       icon: BookOpen, 
       count: stats?.words?.total || 0 
     },
     { 
       id: 'patterns', 
+      path: '/patterns',
       label: 'Mẫu Câu & Cấu Trúc', 
       icon: Layers, 
       count: stats?.patterns?.total || 0 
     },
     { 
       id: 'quiz', 
+      path: '/quiz',
       label: 'Quiz Theo Topic', 
       icon: Target,
       isNew: true
     },
     { 
       id: 'reader', 
+      path: '/reader',
       label: 'Ghi Chú & Bài Đọc', 
       icon: FileText, 
       count: stats?.notes?.total || 0 
     },
     { 
       id: 'review', 
+      path: '/review',
       label: 'Ôn Tập SRS', 
       icon: Sparkles, 
       dueCount: stats?.total_due_today || 0,
@@ -50,6 +56,7 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
     },
     { 
       id: 'ai-lab', 
+      path: '/ai-lab',
       label: 'AI English Lab', 
       icon: BrainCircuit,
       isAi: true
@@ -62,7 +69,10 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
   return (
     <aside className="app-sidebar">
       {/* Brand Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0 0.4rem' }}>
+      <NavLink 
+        to="/" 
+        style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0 0.4rem', textDecoration: 'none', color: 'inherit' }}
+      >
         <div style={{ 
           background: 'linear-gradient(135deg, #0284c7, #38bdf8)', 
           width: '40px', 
@@ -82,7 +92,7 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
           </h1>
           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Pro Max Hub</span>
         </div>
-      </div>
+      </NavLink>
 
       {/* Quick Add Action Button */}
       <button 
@@ -98,12 +108,12 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
         {navItems.map(item => {
           const Icon = item.icon;
-          const isActive = currentTab === item.id;
+          const isActive = currentTab === item.id || (item.id === 'dashboard' && currentTab === '');
 
           return (
-            <button
+            <NavLink
               key={item.id}
-              onClick={() => setCurrentTab(item.id)}
+              to={item.path}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -116,7 +126,8 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
                 fontWeight: isActive ? 700 : 500,
                 fontSize: '0.92rem',
                 transition: 'all var(--transition-fast)',
-                border: isActive ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid transparent'
+                border: isActive ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid transparent',
+                textDecoration: 'none'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -156,7 +167,7 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
                   AI 0đ
                 </span>
               )}
-            </button>
+            </NavLink>
           );
         })}
       </nav>

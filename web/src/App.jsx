@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import CommandPalette from './components/layout/CommandPalette';
@@ -16,7 +17,13 @@ import SettingsModal from './components/settings/SettingsModal';
 import { api } from './services/api';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Derive currentTab from URL path (e.g. /vocab -> 'vocab', / -> 'dashboard')
+  const path = location.pathname.replace(/^\//, '');
+  const currentTab = path || 'dashboard';
+
   const [isDark, setIsDark] = useState(true);
   const [audioSpeed, setAudioSpeed] = useState(0.9);
 
@@ -40,6 +47,10 @@ export default function App() {
 
   // Toast notifications state
   const [toasts, setToasts] = useState([]);
+
+  const handleNavigate = (tab) => {
+    navigate(tab === 'dashboard' ? '/' : `/${tab}`);
+  };
 
   const addToast = (message, type = 'success') => {
     const id = Date.now();
@@ -192,7 +203,7 @@ export default function App() {
   // Smart Reader Highlight -> AI Lab
   const handleSendToAiLab = (text) => {
     setAiLabSentence(text);
-    setCurrentTab('ai-lab');
+    handleNavigate('ai-lab');
   };
 
   // SRS Review Submit
@@ -229,7 +240,7 @@ export default function App() {
       {/* 1. Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={handleNavigate}
         stats={stats}
         onOpenQuickAdd={handleAddWord}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -249,72 +260,102 @@ export default function App() {
         />
 
         <div className="app-content">
-          {currentTab === 'dashboard' && (
-            <Dashboard
-              stats={stats}
-              recentWords={words}
-              onStartReview={() => setCurrentTab('review')}
-              onNavigate={(tab) => setCurrentTab(tab)}
-              audioSpeed={audioSpeed}
+          <Routes>
+            <Route 
+              path="/" 
+              element={
+                <Dashboard
+                  stats={stats}
+                  recentWords={words}
+                  onStartReview={() => handleNavigate('review')}
+                  onNavigate={handleNavigate}
+                  audioSpeed={audioSpeed}
+                />
+              } 
             />
-          )}
-
-          {currentTab === 'vocab' && (
-            <VocabVault
-              words={words}
-              onAddWord={handleAddWord}
-              onEditWord={handleEditWord}
-              onDeleteWord={handleDeleteWord}
+            <Route 
+              path="/dashboard" 
+              element={
+                <Dashboard
+                  stats={stats}
+                  recentWords={words}
+                  onStartReview={() => handleNavigate('review')}
+                  onNavigate={handleNavigate}
+                  audioSpeed={audioSpeed}
+                />
+              } 
             />
-          )}
-
-          {currentTab === 'patterns' && (
-            <PatternHub
-              patterns={patterns}
-              onAddPattern={handleAddPattern}
-              onEditPattern={handleEditPattern}
-              onDeletePattern={handleDeletePattern}
+            <Route 
+              path="/vocab" 
+              element={
+                <VocabVault
+                  words={words}
+                  onAddWord={handleAddWord}
+                  onEditWord={handleEditWord}
+                  onDeleteWord={handleDeleteWord}
+                />
+              } 
             />
-          )}
-
-          {currentTab === 'quiz' && (
-            <QuizCenter
-              onOpenReview={() => setCurrentTab('review')}
+            <Route 
+              path="/patterns" 
+              element={
+                <PatternHub
+                  patterns={patterns}
+                  onAddPattern={handleAddPattern}
+                  onEditPattern={handleEditPattern}
+                  onDeletePattern={handleDeletePattern}
+                />
+              } 
             />
-          )}
-
-          {currentTab === 'reader' && (
-            <SmartReader
-              notes={notes}
-              words={words}
-              onSaveNote={handleSaveNote}
-              onDeleteNote={handleDeleteNote}
-              onSaveWordFromSelection={handleSaveWordFromSelection}
-              onSendToAiLab={handleSendToAiLab}
+            <Route 
+              path="/quiz" 
+              element={
+                <QuizCenter
+                  onOpenReview={() => handleNavigate('review')}
+                />
+              } 
             />
-          )}
-
-          {currentTab === 'review' && (
-            <SRSReviewCenter
-              dueItems={dueItems}
-              onReviewSubmit={handleReviewSubmit}
-              onFinishSession={() => {
-                refreshAllData();
-                setCurrentTab('dashboard');
-                addToast('Chúc mừng bạn đã hoàn thành phiên ôn tập hôm nay!');
-              }}
+            <Route 
+              path="/reader" 
+              element={
+                <SmartReader
+                  notes={notes}
+                  words={words}
+                  onSaveNote={handleSaveNote}
+                  onDeleteNote={handleDeleteNote}
+                  onSaveWordFromSelection={handleSaveWordFromSelection}
+                  onSendToAiLab={handleSendToAiLab}
+                />
+              } 
             />
-          )}
-
-          {currentTab === 'ai-lab' && (
-            <AILab
-              initialSentence={aiLabSentence}
-              onSaveExtractedWord={(item) => {
-                setEditingWord(item);
-                setIsQuickAddOpen(true);
-              }}
+            <Route 
+              path="/review" 
+              element={
+                <SRSReviewCenter
+                  dueItems={dueItems}
+                  onReviewSubmit={handleReviewSubmit}
+                  onFinishSession={() => {
+                    refreshAllData();
+                    handleNavigate('dashboard');
+                    addToast('Chúc mừng bạn đã hoàn thành phiên ôn tập hôm nay!');
+                  }}
+                />
+              } 
             />
-          )}
+            <Route 
+              path="/ai-lab" 
+              element={
+                <AILab
+                  initialSentence={aiLabSentence}
+                  onSaveExtractedWord={(item) => {
+                    setEditingWord(item);
+                    setIsQuickAddOpen(true);
+                  }}
+                />
+              } 
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
       </main>
 
@@ -325,7 +366,7 @@ export default function App() {
         words={words}
         patterns={patterns}
         notes={notes}
-        onNavigate={(tab) => setCurrentTab(tab)}
+        onNavigate={handleNavigate}
         onOpenQuickAdd={handleAddWord}
         onToggleTheme={toggleTheme}
         isDark={isDark}
