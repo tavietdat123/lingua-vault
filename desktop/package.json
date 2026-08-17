@@ -1,0 +1,13 @@
+{
+  "name": "lingua-vault-desktop",
+  "version": "1.0.0",
+  "description": "LinguaVault Native macOS & Mobile Simulator",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "mobile": "electron mobile-simulator.js"
+  },
+  "dependencies": {
+    "electron": "^33.2.1"
+  }
+}

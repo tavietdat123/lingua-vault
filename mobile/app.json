@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "LinguaVault",
+    "slug": "lingua-vault",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#090d16"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.linguavault.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.linguavault.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#090d16"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3d6722d8-5393-4a2b-9a84-255bdfef7ca8"
+      }
+    }
+  }
+}

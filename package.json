@@ -1,0 +1,31 @@
+{
+  "name": "lingua-vault-monorepo",
+  "version": "1.0.0",
+  "description": "LinguaVault - Personal English & Spaced Repetition Hub (Web, Mobile, Desktop, Server)",
+  "scripts": {
+    "dev": "node run-dev.js",
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "dev:mobile": "npm --prefix mobile run start",
+    "app:mac": "npm --prefix desktop run start",
+    "app:mobile": "npm --prefix desktop run mobile",
+    "build:web": "npm --prefix web run build",
+    "test:all": "node server/test-all-features.js"
+  },
+  "keywords": [
+    "english",
+    "spaced-repetition",
+    "sm2",
+    "srs",
+    "gemini-ai",
+    "sqlite",
+    "react",
+    "expo",
+    "electron"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

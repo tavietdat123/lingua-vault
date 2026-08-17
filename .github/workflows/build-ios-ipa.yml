@@ -1,0 +1,58 @@
+name: Build iOS IPA for Physical iPhone
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm install
+
+      - name: Generate Native iOS Project (Expo Prebuild)
+        working-directory: mobile
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Build Xcode Archive for Physical iPhone (arm64-iphoneos)
+        working-directory: mobile/ios
+        run: |
+          xcodebuild -workspace LinguaVault.xcworkspace \
+            -scheme LinguaVault \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath ../build/LinguaVault.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Package .xcarchive into .ipa
+        run: |
+          mkdir -p Payload
+          cp -r mobile/build/LinguaVault.xcarchive/Products/Applications/LinguaVault.app Payload/
+          zip -r LinguaVault.ipa Payload
+          echo "LinguaVault.ipa created successfully!"
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinguaVault-Physical-iPhone-IPA
+          path: LinguaVault.ipa
+          retention-days: 7

@@ -1,0 +1,2476 @@
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Platform,
+  Modal
+} from 'react-native';
+import { mobileApi } from './src/services/api';
+import {
+  IconHome,
+  IconZap,
+  IconBookOpen,
+  IconLayers,
+  IconFileText,
+  IconSparkles,
+  IconPlus,
+  IconSettings,
+  IconVolume2,
+  IconTrash,
+  IconSearch,
+  IconRefresh,
+  IconFlame,
+  IconMenu,
+  IconX,
+  IconCheck,
+  IconArrowRight,
+  IconSun,
+  IconMoon
+} from './src/components/VectorIcons';
+
+const { width } = Dimensions.get('window');
+
+// Themes Definition
+const themes = {
+  dark: {
+    isDark: true,
+    bg: '#070a13',
+    card: '#111827',
+    cardBorder: 'rgba(255, 255, 255, 0.08)',
+    innerCard: '#0d1322',
+    inputBg: '#0a0f1d',
+    textPrimary: '#ffffff',
+    textSecondary: '#94a3b8',
+    textMuted: '#64748b',
+    topBarBg: '#070a13',
+    bottomBarBg: '#0a0f1d',
+    drawerBg: '#0d1322',
+    drawerCardBg: '#131b2e',
+    statusBarStyle: 'light-content',
+    accent: '#38bdf8',
+    accentPill: 'rgba(56, 189, 248, 0.15)',
+    accentPillBorder: 'rgba(56, 189, 248, 0.35)',
+    btnPrimaryBg: '#0284c7',
+    btnPrimaryText: '#ffffff',
+    formulaBg: '#0a0f1d',
+    exampleBg: 'rgba(56, 189, 248, 0.08)',
+    exampleBorder: '#38bdf8',
+    exampleText: '#e2e8f0',
+  },
+  light: {
+    isDark: false,
+    bg: '#f8fafc',
+    card: '#ffffff',
+    cardBorder: 'rgba(0, 0, 0, 0.08)',
+    innerCard: '#f1f5f9',
+    inputBg: '#f8fafc',
+    textPrimary: '#0f172a',
+    textSecondary: '#475569',
+    textMuted: '#94a3b8',
+    topBarBg: '#ffffff',
+    bottomBarBg: '#ffffff',
+    drawerBg: '#ffffff',
+    drawerCardBg: '#f1f5f9',
+    statusBarStyle: 'dark-content',
+    accent: '#0284c7',
+    accentPill: 'rgba(2, 132, 199, 0.1)',
+    accentPillBorder: 'rgba(2, 132, 199, 0.25)',
+    btnPrimaryBg: '#0284c7',
+    btnPrimaryText: '#ffffff',
+    formulaBg: '#f1f5f9',
+    exampleBg: 'rgba(2, 132, 199, 0.06)',
+    exampleBorder: '#0284c7',
+    exampleText: '#1e293b',
+  }
+};
+
+// Audio Player for Mobile
+const playMobileAudio = (wordText) => {
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(wordText);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+  } catch (e) {
+    console.warn('Audio playback error:', e);
+  }
+};
+
+export default function App() {
+  // Theme State
+  const [isDark, setIsDark] = useState(true);
+  const theme = isDark ? themes.dark : themes.light;
+
+  const toggleTheme = () => {
+    setIsDark(prev => !prev);
+  };
+
+  // Navigation: 'home' | 'review' | 'vocab' | 'patterns' | 'reader' | 'ai-lab' | 'add' | 'settings'
+  const [currentTab, setCurrentTab] = useState('home');
+  const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
+  
+  // Data States
+  const [stats, setStats] = useState(null);
+  const [dueItems, setDueItems] = useState([]);
+  const [words, setWords] = useState([]);
+  const [patterns, setPatterns] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // SRS Review State
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Vocab Filter State
+  const [vocabSearch, setVocabSearch] = useState('');
+  const [vocabFilter, setVocabFilter] = useState('all');
+
+  // Quick Add Word State
+  const [newWord, setNewWord] = useState('');
+  const [newMeaningVi, setNewMeaningVi] = useState('');
+  const [newMeaningEn, setNewMeaningEn] = useState('');
+  const [newPhonetic, setNewPhonetic] = useState('');
+  const [newExample, setNewExample] = useState('');
+  const [newPartOfSpeech, setNewPartOfSpeech] = useState('noun');
+  const [newLevel, setNewLevel] = useState('B2');
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Patterns State
+  const [newPatternName, setNewPatternName] = useState('');
+  const [newPatternFormula, setNewPatternFormula] = useState('');
+  const [newPatternMeaning, setNewPatternMeaning] = useState('');
+  const [newPatternExample, setNewPatternExample] = useState('');
+  const [newPatternTone, setNewPatternTone] = useState('Formal');
+  const [isAddingPattern, setIsAddingPattern] = useState(false);
+
+  // Reader / Notes State
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [newNoteTopic, setNewNoteTopic] = useState('General');
+  const [isAddingNote, setIsAddingNote] = useState(false);
+
+  // AI Lab State
+  const [aiSubTab, setAiSubTab] = useState('parse');
+  const [aiSentenceInput, setAiSentenceInput] = useState('');
+  const [aiParseResult, setAiParseResult] = useState(null);
+  const [aiTargetWord, setAiTargetWord] = useState('resilient');
+  const [aiUserSentence, setAiUserSentence] = useState('');
+  const [aiCheckResult, setAiCheckResult] = useState(null);
+  const [aiStoryResult, setAiStoryResult] = useState(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Settings State
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [isSavingKey, setIsSavingKey] = useState(false);
+
+  // Load All App Data
+  const loadData = async () => {
+    try {
+      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes] = await Promise.all([
+        mobileApi.getStats(),
+        mobileApi.getDueItems(),
+        mobileApi.getWords(),
+        mobileApi.getPatterns(),
+        mobileApi.getNotes(),
+        mobileApi.getSettings()
+      ]);
+
+      if (statsRes?.success) setStats(statsRes.data);
+      if (dueRes?.success) {
+        const combined = [
+          ...(dueRes.data?.words || []),
+          ...(dueRes.data?.patterns || [])
+        ];
+        setDueItems(combined);
+      }
+      if (wordsRes?.success) setWords(wordsRes.data || []);
+      if (patternsRes?.success) setPatterns(patternsRes.data || []);
+      if (notesRes?.success) setNotes(notesRes.data || []);
+      if (settingsRes?.success && settingsRes.data?.gemini_api_key) {
+        setApiKeyInput(settingsRes.data.gemini_api_key);
+      }
+    } catch (e) {
+      console.warn('Load data error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  const navigateTo = (tab) => {
+    setCurrentTab(tab);
+    setIsNavDrawerOpen(false);
+    if (tab === 'review') {
+      setReviewIndex(0);
+      setIsFlipped(false);
+    }
+  };
+
+  // SRS Review Rating (SM-2)
+  const handleReviewGrade = async (rating) => {
+    const currentItem = dueItems[reviewIndex];
+    if (!currentItem) return;
+
+    await mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating);
+
+    if (reviewIndex + 1 < dueItems.length) {
+      setReviewIndex(prev => prev + 1);
+      setIsFlipped(false);
+    } else {
+      Alert.alert('🎉 Xuất Sắc!', 'Bạn đã hoàn thành phiên ôn tập hôm nay.');
+      loadData();
+      setCurrentTab('home');
+      setReviewIndex(0);
+      setIsFlipped(false);
+    }
+  };
+
+  // 1-Click Auto Lookup Word
+  const handleAutoLookup = async (sample = null) => {
+    const target = (sample || newWord).trim();
+    if (!target) {
+      Alert.alert('Thông báo', 'Vui lòng nhập từ tiếng Anh trước nhé!');
+      return;
+    }
+
+    if (sample) setNewWord(sample);
+    setIsLookingUp(true);
+
+    try {
+      const res = await mobileApi.autoLookup(target);
+      if (res?.success && res.data) {
+        const d = res.data;
+        if (d.meaning_vi) setNewMeaningVi(d.meaning_vi);
+        if (d.meaning_en) setNewMeaningEn(d.meaning_en);
+        if (d.phonetic) setNewPhonetic(d.phonetic);
+        if (d.part_of_speech) setNewPartOfSpeech(d.part_of_speech);
+        if (d.level) setNewLevel(d.level);
+        if (d.examples && d.examples.length > 0) {
+          setNewExample(d.examples[0]);
+        }
+        playMobileAudio(target);
+      } else {
+        Alert.alert('Từ điển', 'Không tìm thấy từ. Bạn có thể tự nhập nghĩa vào các ô bên dưới.');
+      }
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  // Save New Word
+  const handleSaveWord = async () => {
+    if (!newWord.trim() || !newMeaningVi.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập Từ tiếng Anh và Nghĩa tiếng Việt.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        word: newWord.trim(),
+        meaning_vi: newMeaningVi.trim(),
+        meaning_en: newMeaningEn.trim(),
+        phonetic: newPhonetic.trim(),
+        part_of_speech: newPartOfSpeech,
+        level: newLevel,
+        examples: newExample.trim() ? [newExample.trim()] : [],
+        tags: ['Mobile', 'Daily']
+      };
+
+      const res = await mobileApi.createWord(payload);
+      if (res?.success) {
+        Alert.alert('Thành công', `Đã thêm từ "${newWord}" vào kho lưu trữ!`);
+        setNewWord('');
+        setNewMeaningVi('');
+        setNewMeaningEn('');
+        setNewPhonetic('');
+        setNewExample('');
+        loadData();
+        setCurrentTab('vocab');
+      } else {
+        Alert.alert('Lỗi', res?.error || 'Không thể lưu từ vựng');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete Word
+  const handleDeleteWord = (id, wordText) => {
+    Alert.alert('Xác nhận xóa', `Bạn có chắc muốn xóa từ "${wordText}"?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          await mobileApi.deleteWord(id);
+          loadData();
+        }
+      }
+    ]);
+  };
+
+  // Save Pattern
+  const handleSavePattern = async () => {
+    if (!newPatternName.trim() || !newPatternFormula.trim() || !newPatternMeaning.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng điền Tên mẫu câu, Công thức và Nghĩa tiếng Việt.');
+      return;
+    }
+
+    try {
+      const res = await mobileApi.createPattern({
+        name: newPatternName.trim(),
+        formula: newPatternFormula.trim(),
+        meaning_vi: newPatternMeaning.trim(),
+        examples: newPatternExample.trim() ? [newPatternExample.trim()] : [],
+        tone: newPatternTone,
+        tags: ['Grammar', 'Mobile']
+      });
+
+      if (res?.success) {
+        Alert.alert('Thành công', 'Đã thêm mẫu câu mới!');
+        setNewPatternName('');
+        setNewPatternFormula('');
+        setNewPatternMeaning('');
+        setNewPatternExample('');
+        setIsAddingPattern(false);
+        loadData();
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    }
+  };
+
+  // Delete Pattern
+  const handleDeletePattern = (id, name) => {
+    Alert.alert('Xác nhận xóa', `Xóa mẫu câu "${name}"?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          await mobileApi.deletePattern(id);
+          loadData();
+        }
+      }
+    ]);
+  };
+
+  // Save Note / Article
+  const handleSaveNote = async () => {
+    if (!newNoteTitle.trim() || !newNoteContent.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập Tiêu đề và Nội dung bài đọc.');
+      return;
+    }
+
+    try {
+      const res = await mobileApi.createNote({
+        title: newNoteTitle.trim(),
+        content: newNoteContent.trim(),
+        topic: newNoteTopic.trim() || 'General'
+      });
+
+      if (res?.success) {
+        Alert.alert('Thành công', 'Đã lưu bài đọc mới!');
+        setNewNoteTitle('');
+        setNewNoteContent('');
+        setIsAddingNote(false);
+        loadData();
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    }
+  };
+
+  // Delete Note
+  const handleDeleteNote = (id, title) => {
+    Alert.alert('Xác nhận xóa', `Xóa bài đọc "${title}"?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          await mobileApi.deleteNote(id);
+          setSelectedNote(null);
+          loadData();
+        }
+      }
+    ]);
+  };
+
+  // AI Sentence Parse
+  const handleAiParse = async () => {
+    if (!aiSentenceInput.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng dán câu tiếng Anh cần bóc tách.');
+      return;
+    }
+    setIsAiLoading(true);
+    try {
+      const res = await mobileApi.parseSentenceAI(aiSentenceInput.trim());
+      if (res?.success && res.data) {
+        setAiParseResult(res.data);
+      } else {
+        Alert.alert('AI Lab', res?.error || 'Không thể phân tích câu');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi AI', e.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // AI Sentence Check
+  const handleAiCheck = async () => {
+    if (!aiUserSentence.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập câu tiếng Anh bạn tự đặt.');
+      return;
+    }
+    setIsAiLoading(true);
+    try {
+      const res = await mobileApi.checkSentenceAI(aiTargetWord, aiUserSentence.trim());
+      if (res?.success && res.data) {
+        setAiCheckResult(res.data);
+      } else {
+        Alert.alert('AI Lab', res?.error || 'Không thể chấm câu');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi AI', e.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // AI Story Weaver
+  const handleAiStory = async () => {
+    setIsAiLoading(true);
+    try {
+      const wordList = words.slice(0, 4).map(w => w.word);
+      const res = await mobileApi.generateStoryAI(wordList);
+      if (res?.success && res.data) {
+        setAiStoryResult(res.data);
+      } else {
+        Alert.alert('AI Lab', res?.error || 'Không thể sáng tác truyện');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi AI', e.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Save Settings API Key
+  const handleSaveApiKey = async () => {
+    setIsSavingKey(true);
+    try {
+      const res = await mobileApi.saveSettings({ gemini_api_key: apiKeyInput.trim() });
+      if (res?.success) {
+        Alert.alert('Thành công', 'Đã lưu Gemini API Key! AI đã sẵn sàng hoạt động.');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
+  // Metrics
+  const totalDue = dueItems.length;
+  const wordStats = stats?.words || {};
+  const streak = stats?.streak || 0;
+  const masteredCount = wordStats.mastered || 0;
+  const totalCount = wordStats.total || 0;
+
+  let rank = 'Apprentice (Tập sự)';
+  if (masteredCount >= 100) rank = 'Polyglot Master (Bậc thầy)';
+  else if (masteredCount >= 30) rank = 'Fluent Scholar (Học giả)';
+  else if (masteredCount >= 10) rank = 'Agile Learner (Chuyên cần)';
+
+  // Filtered Vocab List
+  const filteredWords = words.filter(w => {
+    const matchSearch = w.word.toLowerCase().includes(vocabSearch.toLowerCase()) ||
+                        (w.meaning_vi && w.meaning_vi.toLowerCase().includes(vocabSearch.toLowerCase()));
+    if (!matchSearch) return false;
+    if (vocabFilter === 'mastered') return w.status === 'mastered';
+    if (vocabFilter === 'learning') return w.status === 'learning' || w.status === 'reviewing';
+    return true;
+  });
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar barStyle={theme.statusBarStyle} backgroundColor={theme.bg} />
+
+      {/* 1. TOP APP BAR */}
+      <View style={[styles.topBar, { backgroundColor: theme.topBarBg, borderBottomColor: theme.cardBorder }]}>
+        <View style={styles.brandContainer}>
+          <TouchableOpacity
+            style={[styles.hamburgerBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.accentPillBorder }]}
+            onPress={() => setIsNavDrawerOpen(true)}
+            activeOpacity={0.7}
+          >
+            <IconMenu size={20} color={theme.accent} />
+          </TouchableOpacity>
+          <View>
+            <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>LinguaVault</Text>
+            <Text style={[styles.brandSubtitle, { color: theme.textSecondary }]}>Mobile Pro Hub</Text>
+          </View>
+        </View>
+
+        <View style={styles.topRightActions}>
+          {/* THEME TOGGLE BUTTON */}
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
+          >
+            {isDark ? (
+              <IconSun size={17} color="#f59e0b" />
+            ) : (
+              <IconMoon size={17} color="#0284c7" />
+            )}
+          </TouchableOpacity>
+
+          <View style={[styles.streakPill, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.12)' }]}>
+            <IconFlame size={14} color="#f59e0b" />
+            <Text style={styles.streakText}>{streak}d</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={handleRefresh}
+            style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color={theme.accent} />
+            ) : (
+              <IconRefresh size={16} color={theme.accent} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 2. MAIN CONTENT BODY */}
+      <View style={styles.body}>
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={theme.accent} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Đang đồng bộ kho dữ liệu...</Text>
+          </View>
+        ) : (
+          <>
+            {/* TAB 1: DASHBOARD / HOME */}
+            {currentTab === 'home' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* HERO SRS ACTION CARD */}
+                <View style={[styles.heroCard, totalDue > 0 ? styles.heroCardActive : styles.heroCardDone]}>
+                  <View style={styles.heroHeaderPill}>
+                    <IconZap size={13} color="#ffffff" />
+                    <Text style={styles.heroHeaderPillText}>SPACED REPETITION (SM-2)</Text>
+                  </View>
+
+                  <Text style={styles.heroTitle}>
+                    {totalDue > 0 ? `${totalDue} thẻ cần ôn tập hôm nay` : 'Tuyệt vời! Đã hoàn thành'}
+                  </Text>
+                  <Text style={styles.heroDesc}>
+                    {totalDue > 0
+                      ? 'Dành 3 phút ôn đúng thời điểm vàng để chống lại đường cong lãng quên.'
+                      : 'Mọi từ vựng đều nằm trong chu kỳ ghi nhớ an toàn.'}
+                  </Text>
+
+                  {totalDue > 0 ? (
+                    <TouchableOpacity
+                      style={styles.heroBtn}
+                      onPress={() => navigateTo('review')}
+                    >
+                      <Text style={styles.heroBtnText}>Bắt Đầu Ôn Tập Ngay</Text>
+                      <IconArrowRight size={18} color="#0284c7" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.heroBtnSecondary}
+                      onPress={() => navigateTo('add')}
+                    >
+                      <IconPlus size={16} color="#ffffff" />
+                      <Text style={styles.heroBtnSecondaryText}>Thêm Từ Vựng Mới</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* USER RANK & PROGRESS CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <View style={styles.cardHeaderRow}>
+                    <Text style={[styles.cardSectionLabel, { color: theme.textSecondary }]}>DANH HIỆU & TIẾN ĐỘ</Text>
+                    <Text style={[styles.cardBadgeText, { color: theme.accent }]}>{rank}</Text>
+                  </View>
+
+                  <View style={[styles.progressBarBg, { backgroundColor: theme.inputBg }]}>
+                    <View style={[styles.progressBarFill, { backgroundColor: theme.accent, width: `${Math.min(100, Math.max(15, (masteredCount / 30) * 100))}%` }]} />
+                  </View>
+
+                  <View style={styles.rankFooterRow}>
+                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>Thuần thục: {masteredCount} từ</Text>
+                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>Mục tiêu: 30 từ</Text>
+                  </View>
+                </View>
+
+                {/* 4-GRID STATS */}
+                <View style={styles.statsGrid}>
+                  <TouchableOpacity onPress={() => navigateTo('vocab')} style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.statBoxNum, { color: theme.textPrimary }]}>{totalCount}</Text>
+                    <Text style={[styles.statBoxLabel, { color: theme.textSecondary }]}>Kho Từ Vựng</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigateTo('vocab')} style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.statBoxNum, { color: '#10b981' }]}>{masteredCount}</Text>
+                    <Text style={[styles.statBoxLabel, { color: theme.textSecondary }]}>Thuần Thục</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigateTo('patterns')} style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.statBoxNum, { color: '#a855f7' }]}>{patterns.length}</Text>
+                    <Text style={[styles.statBoxLabel, { color: theme.textSecondary }]}>Mẫu Câu</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigateTo('reader')} style={[styles.statBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.statBoxNum, { color: '#f59e0b' }]}>{notes.length}</Text>
+                    <Text style={[styles.statBoxLabel, { color: theme.textSecondary }]}>Bài Đọc</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* QUICK ACTION ROW */}
+                <View style={styles.quickActionRow}>
+                  <TouchableOpacity
+                    style={[styles.quickActionBtn, { backgroundColor: theme.card, borderColor: '#a855f7' }]}
+                    onPress={() => navigateTo('ai-lab')}
+                  >
+                    <IconSparkles size={20} color="#a855f7" />
+                    <Text style={[styles.quickActionTitle, { color: theme.textPrimary }]}>AI English Lab</Text>
+                    <Text style={[styles.quickActionSub, { color: theme.textSecondary }]}>Bóc tách & Chấm câu</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.quickActionBtn, { backgroundColor: theme.card, borderColor: theme.accent }]}
+                    onPress={() => navigateTo('reader')}
+                  >
+                    <IconFileText size={20} color={theme.accent} />
+                    <Text style={[styles.quickActionTitle, { color: theme.textPrimary }]}>Smart Reader</Text>
+                    <Text style={[styles.quickActionSub, { color: theme.textSecondary }]}>Ghi chú & Bài báo</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* RECENT WORDS PREVIEW */}
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Từ Vựng Gần Đây</Text>
+                  <TouchableOpacity onPress={() => navigateTo('vocab')}>
+                    <Text style={[styles.linkText, { color: theme.accent }]}>Xem tất cả ({words.length})</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {words.slice(0, 4).map(item => (
+                  <View key={item.id} style={[styles.vocabListItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <View style={styles.vocabItemLeft}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{item.word}</Text>
+                        <TouchableOpacity onPress={() => playMobileAudio(item.word)}>
+                          <IconVolume2 size={16} color={theme.accent} />
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={[styles.vocabPhoneticText, { color: theme.textMuted }]}>{item.phonetic || ''}</Text>
+                      <Text style={[styles.vocabMeaningText, { color: theme.accent }]}>{item.meaning_vi}</Text>
+                    </View>
+                    <View style={[styles.levelPill, { backgroundColor: theme.accentPill }]}>
+                      <Text style={[styles.levelPillText, { color: theme.accent }]}>{item.level || 'B2'}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* TAB 2: SRS FLASHCARD REVIEW */}
+            {currentTab === 'review' && (
+              <View style={styles.reviewContainer}>
+                {dueItems.length === 0 ? (
+                  <View style={styles.centerContainer}>
+                    <IconCheck size={48} color="#10b981" />
+                    <Text style={[styles.celebrationTitle, { color: theme.textPrimary, marginTop: 14 }]}>Đã Hoàn Thành!</Text>
+                    <Text style={[styles.celebrationDesc, { color: theme.textSecondary }]}>Không còn thẻ nào cần ôn tập hôm nay.</Text>
+                    <TouchableOpacity style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg }]} onPress={() => navigateTo('home')}>
+                      <Text style={styles.primaryActionBtnText}>Về Trang Chủ</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.reviewProgressRow}>
+                      <Text style={[styles.reviewProgressText, { color: theme.accent }]}>
+                        Thẻ {reviewIndex + 1} / {dueItems.length}
+                      </Text>
+                      <TouchableOpacity onPress={() => navigateTo('home')}>
+                        <Text style={[styles.reviewCloseBtn, { color: theme.textSecondary }]}>✕ Thoát</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      activeOpacity={0.92}
+                      onPress={() => setIsFlipped(!isFlipped)}
+                      style={[
+                        styles.flashcard,
+                        {
+                          backgroundColor: isFlipped ? theme.innerCard : theme.card,
+                          borderColor: isFlipped ? theme.accent : theme.cardBorder
+                        }
+                      ]}
+                    >
+                      {!isFlipped ? (
+                        <View style={styles.cardFrontContent}>
+                          <View style={styles.cardFrontBadgeRow}>
+                            <View style={[styles.levelPill, { backgroundColor: theme.accentPill }]}>
+                              <Text style={[styles.levelPillText, { color: theme.accent }]}>
+                                {dueItems[reviewIndex]?.level || 'B2'}
+                              </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => playMobileAudio(dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name)}>
+                              <IconVolume2 size={22} color={theme.accent} />
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={styles.cardCenterBody}>
+                            <Text style={[styles.cardWordMain, { color: theme.textPrimary }]}>
+                              {dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name}
+                            </Text>
+                            {dueItems[reviewIndex]?.phonetic && (
+                              <Text style={[styles.cardPhonetic, { color: theme.textSecondary }]}>
+                                {dueItems[reviewIndex]?.phonetic}
+                              </Text>
+                            )}
+                          </View>
+
+                          <Text style={[styles.cardFooterHint, { color: theme.textMuted }]}>💡 Chạm để lật mặt sau xem nghĩa</Text>
+                        </View>
+                      ) : (
+                        <ScrollView showsVerticalScrollIndicator={false} style={styles.cardBackScroll}>
+                          <View style={styles.cardFrontBadgeRow}>
+                            <Text style={[styles.backWordTitle, { color: theme.textPrimary }]}>
+                              {dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name}
+                            </Text>
+                            <TouchableOpacity onPress={() => playMobileAudio(dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name)}>
+                              <IconVolume2 size={22} color={theme.accent} />
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={styles.backSectionBox}>
+                            <Text style={[styles.backSectionLabel, { color: theme.textSecondary }]}>Nghĩa Tiếng Việt:</Text>
+                            <Text style={[styles.backMeaningVi, { color: theme.accent }]}>
+                              {dueItems[reviewIndex]?.meaning_vi}
+                            </Text>
+                          </View>
+
+                          {dueItems[reviewIndex]?.meaning_en && (
+                            <View style={styles.backSectionBox}>
+                              <Text style={[styles.backSectionLabel, { color: theme.textSecondary }]}>Định nghĩa tiếng Anh:</Text>
+                              <Text style={[styles.backMeaningEn, { color: theme.textSecondary }]}>
+                                {dueItems[reviewIndex]?.meaning_en}
+                              </Text>
+                            </View>
+                          )}
+
+                          {dueItems[reviewIndex]?.examples && dueItems[reviewIndex]?.examples.length > 0 && (
+                            <View style={[styles.exampleBox, { backgroundColor: theme.exampleBg, borderLeftColor: theme.exampleBorder }]}>
+                              <Text style={[styles.exampleText, { color: theme.exampleText }]}>
+                                "{dueItems[reviewIndex]?.examples[0]}"
+                              </Text>
+                            </View>
+                          )}
+                        </ScrollView>
+                      )}
+                    </TouchableOpacity>
+
+                    {isFlipped ? (
+                      <View style={styles.ratingBtnGrid}>
+                        <TouchableOpacity
+                          style={[styles.ratingBtn, { backgroundColor: '#ef4444' }]}
+                          onPress={() => handleReviewGrade('again')}
+                        >
+                          <Text style={styles.ratingBtnText}>Quên</Text>
+                          <Text style={styles.ratingBtnSub}>1 ngày</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.ratingBtn, { backgroundColor: '#f59e0b' }]}
+                          onPress={() => handleReviewGrade('hard')}
+                        >
+                          <Text style={styles.ratingBtnText}>Khó</Text>
+                          <Text style={styles.ratingBtnSub}>3 ngày</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.ratingBtn, { backgroundColor: '#0284c7' }]}
+                          onPress={() => handleReviewGrade('good')}
+                        >
+                          <Text style={styles.ratingBtnText}>Nhớ tốt</Text>
+                          <Text style={styles.ratingBtnSub}>4 ngày</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.ratingBtn, { backgroundColor: '#10b981' }]}
+                          onPress={() => handleReviewGrade('easy')}
+                        >
+                          <Text style={styles.ratingBtnText}>Dễ</Text>
+                          <Text style={styles.ratingBtnSub}>7+ ngày</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.tapToRevealBtn, { backgroundColor: theme.btnPrimaryBg }]}
+                        onPress={() => setIsFlipped(true)}
+                      >
+                        <Text style={styles.tapToRevealBtnText}>Chạm Để Xem Đáp Án</Text>
+                        <IconArrowRight size={18} color="#ffffff" />
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* TAB 3: VOCABULARY VAULT */}
+            {currentTab === 'vocab' && (
+              <View style={styles.tabContainer}>
+                <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <IconSearch size={16} color={theme.textMuted} />
+                  <TextInput
+                    style={[styles.searchInput, { color: theme.textPrimary }]}
+                    placeholder="Tìm từ vựng, nghĩa tiếng Việt..."
+                    placeholderTextColor={theme.textMuted}
+                    value={vocabSearch}
+                    onChangeText={setVocabSearch}
+                  />
+                  {vocabSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setVocabSearch('')}>
+                      <IconX size={16} color={theme.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.filterChipsRow}>
+                  <TouchableOpacity
+                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, vocabFilter === 'all' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
+                    onPress={() => setVocabFilter('all')}
+                  >
+                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === 'all' && { color: theme.accent, fontWeight: '700' }]}>
+                      Tất cả ({words.length})
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, vocabFilter === 'mastered' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
+                    onPress={() => setVocabFilter('mastered')}
+                  >
+                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === 'mastered' && { color: theme.accent, fontWeight: '700' }]}>
+                      Thuần thục ({masteredCount})
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, vocabFilter === 'learning' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
+                    onPress={() => setVocabFilter('learning')}
+                  >
+                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === 'learning' && { color: theme.accent, fontWeight: '700' }]}>
+                      Đang học ({totalCount - masteredCount})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                  {filteredWords.map(item => (
+                    <View key={item.id} style={[styles.vocabListItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                      <View style={styles.vocabItemLeft}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{item.word}</Text>
+                            <TouchableOpacity onPress={() => playMobileAudio(item.word)}>
+                              <IconVolume2 size={16} color={theme.accent} />
+                            </TouchableOpacity>
+                          </View>
+                          <TouchableOpacity onPress={() => handleDeleteWord(item.id, item.word)}>
+                            <IconTrash size={16} color="#ef4444" />
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={[styles.vocabPhoneticText, { color: theme.textMuted }]}>{item.phonetic || ''}</Text>
+                        <Text style={[styles.vocabMeaningText, { color: theme.accent }]}>{item.meaning_vi}</Text>
+                        {item.examples && item.examples.length > 0 && (
+                          <Text style={[styles.vocabExampleSub, { color: theme.textSecondary }]} numberOfLines={2}>
+                            "{item.examples[0]}"
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* TAB 4: PATTERNS HUB */}
+            {currentTab === 'patterns' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Mẫu Câu & Cấu Trúc Ngữ Pháp</Text>
+                  <TouchableOpacity onPress={() => setIsAddingPattern(!isAddingPattern)}>
+                    <Text style={[styles.linkText, { color: theme.accent }]}>{isAddingPattern ? 'Đóng form' : '+ Thêm mẫu'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isAddingPattern && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Thêm Mẫu Câu Mới</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8 }]}
+                      placeholder="Tên cấu trúc (ví dụ: No sooner had...)"
+                      placeholderTextColor={theme.textMuted}
+                      value={newPatternName}
+                      onChangeText={setNewPatternName}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8 }]}
+                      placeholder="Công thức (ví dụ: S + V + ...)"
+                      placeholderTextColor={theme.textMuted}
+                      value={newPatternFormula}
+                      onChangeText={setNewPatternFormula}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8 }]}
+                      placeholder="Nghĩa tiếng Việt..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newPatternMeaning}
+                      onChangeText={setNewPatternMeaning}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8 }]}
+                      placeholder="Ví dụ mẫu..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newPatternExample}
+                      onChangeText={setNewPatternExample}
+                    />
+                    <TouchableOpacity style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 12 }]} onPress={handleSavePattern}>
+                      <Text style={styles.primaryActionBtnText}>Lưu Mẫu Câu</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {patterns.map(p => (
+                  <View key={p.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <View style={styles.cardHeaderRow}>
+                      <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{p.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={[styles.levelPill, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                          <Text style={[styles.levelPillText, { color: '#a855f7' }]}>{p.tone || 'Formal'}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDeletePattern(p.id, p.name)}>
+                          <IconTrash size={16} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View style={[styles.formulaBox, { backgroundColor: theme.formulaBg }]}>
+                      <Text style={[styles.formulaText, { color: theme.textPrimary }]}>{p.formula}</Text>
+                    </View>
+                    <Text style={[styles.vocabMeaningText, { color: theme.accent }]}>{p.meaning_vi}</Text>
+                    {p.examples && p.examples.length > 0 && (
+                      <View style={[styles.exampleBox, { backgroundColor: theme.exampleBg, borderLeftColor: theme.exampleBorder, marginTop: 8 }]}>
+                        <Text style={[styles.exampleText, { color: theme.exampleText }]}>"{p.examples[0]}"</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* TAB 5: SMART READER */}
+            {currentTab === 'reader' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Smart Reader & Bài Đọc</Text>
+                  <TouchableOpacity onPress={() => setIsAddingNote(!isAddingNote)}>
+                    <Text style={[styles.linkText, { color: theme.accent }]}>{isAddingNote ? 'Đóng form' : '+ Tạo bài mới'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isAddingNote && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Thêm Tài Liệu / Bài Đọc Mới</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8 }]}
+                      placeholder="Tiêu đề bài viết..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newNoteTitle}
+                      onChangeText={setNewNoteTitle}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8 }]}
+                      placeholder="Chủ đề (Tech, IELTS, Daily...)"
+                      placeholderTextColor={theme.textMuted}
+                      value={newNoteTopic}
+                      onChangeText={setNewNoteTopic}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 8, height: 120 }]}
+                      placeholder="Dán nội dung bài đọc tiếng Anh tại đây..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newNoteContent}
+                      onChangeText={setNewNoteContent}
+                      multiline
+                    />
+                    <TouchableOpacity style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 12 }]} onPress={handleSaveNote}>
+                      <Text style={styles.primaryActionBtnText}>Lưu Bài Đọc</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {selectedNote ? (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <TouchableOpacity onPress={() => setSelectedNote(null)}>
+                        <Text style={[styles.linkText, { color: theme.accent }]}>← Quay lại danh sách</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteNote(selectedNote.id, selectedNote.title)}>
+                        <IconTrash size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.heroTitle, { color: theme.textPrimary, marginTop: 12, fontSize: 20 }]}>{selectedNote.title}</Text>
+                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>Chủ đề: {selectedNote.topic || 'General'}</Text>
+                    <Text style={[styles.cardMeaningEn, { marginTop: 14, fontSize: 15, lineHeight: 24, color: theme.textPrimary }]}>
+                      {selectedNote.content}
+                    </Text>
+                  </View>
+                ) : (
+                  notes.map(n => (
+                    <TouchableOpacity
+                      key={n.id}
+                      style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                      onPress={() => setSelectedNote(n)}
+                    >
+                      <View style={styles.cardHeaderRow}>
+                        <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{n.title}</Text>
+                        <View style={[styles.levelPill, { backgroundColor: theme.accentPill }]}>
+                          <Text style={[styles.levelPillText, { color: theme.accent }]}>{n.topic || 'General'}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.vocabExampleSub, { color: theme.textSecondary }]} numberOfLines={2}>{n.content}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            )}
+
+            {/* TAB 6: AI ENGLISH LAB */}
+            {currentTab === 'ai-lab' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                <View style={styles.filterChipsRow}>
+                  <TouchableOpacity
+                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, aiSubTab === 'parse' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
+                    onPress={() => setAiSubTab('parse')}
+                  >
+                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, aiSubTab === 'parse' && { color: theme.accent, fontWeight: '700' }]}>
+                      Bóc Tách Câu
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, aiSubTab === 'check' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
+                    onPress={() => setAiSubTab('check')}
+                  >
+                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, aiSubTab === 'check' && { color: theme.accent, fontWeight: '700' }]}>
+                      Chấm & Sửa
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, aiSubTab === 'story' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
+                    onPress={() => setAiSubTab('story')}
+                  >
+                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, aiSubTab === 'story' && { color: theme.accent, fontWeight: '700' }]}>
+                      Sáng Tác Truyện
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {aiSubTab === 'parse' && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.formTitle, { color: theme.textPrimary }]}>AI Bóc Tách Câu & Trích Xuất Từ Vựng</Text>
+                    <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Dán câu tiếng Anh để AI phân tích và dịch tự nhiên.</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 10, height: 70 }]}
+                      placeholder="Dán câu tiếng Anh..."
+                      placeholderTextColor={theme.textMuted}
+                      value={aiSentenceInput}
+                      onChangeText={setAiSentenceInput}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.primaryActionBtn, { marginTop: 12, backgroundColor: '#a855f7' }]}
+                      onPress={handleAiParse}
+                      disabled={isAiLoading}
+                    >
+                      {isAiLoading ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <IconSparkles size={16} color="#ffffff" />
+                          <Text style={styles.primaryActionBtnText}>Bóc Tách Câu Bằng AI</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {aiParseResult && (
+                      <View style={{ marginTop: 16 }}>
+                        <Text style={[styles.cardSectionLabel, { color: theme.textSecondary }]}>Bản dịch tự nhiên:</Text>
+                        <Text style={[styles.backMeaningVi, { color: theme.accent }]}>{aiParseResult.translation_vi}</Text>
+                        <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginTop: 12 }]}>Từ vựng trích xuất:</Text>
+                        {aiParseResult.extracted_words?.map((w, idx) => (
+                          <View key={idx} style={[styles.vocabListItem, { backgroundColor: theme.innerCard, borderColor: theme.cardBorder, marginTop: 8 }]}>
+                            <View style={styles.vocabItemLeft}>
+                              <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{w.word}</Text>
+                              <Text style={[styles.vocabMeaningText, { color: theme.accent }]}>{w.meaning_vi}</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={[styles.levelPill, { backgroundColor: theme.btnPrimaryBg }]}
+                              onPress={() => {
+                                setNewWord(w.word);
+                                setNewMeaningVi(w.meaning_vi);
+                                navigateTo('add');
+                              }}
+                            >
+                              <Text style={[styles.levelPillText, { color: '#ffffff' }]}>+ Lưu</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {aiSubTab === 'check' && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.formTitle, { color: theme.textPrimary }]}>AI Chấm & Sửa Câu Tự Đặt</Text>
+                    <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Viết câu với từ vựng để AI nhận xét và gợi ý câu chuẩn bản xứ.</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 10 }]}
+                      placeholder="Từ mục tiêu (ví dụ: resilient)"
+                      placeholderTextColor={theme.textMuted}
+                      value={aiTargetWord}
+                      onChangeText={setAiTargetWord}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 10, height: 70 }]}
+                      placeholder="Câu tiếng Anh của bạn..."
+                      placeholderTextColor={theme.textMuted}
+                      value={aiUserSentence}
+                      onChangeText={setAiUserSentence}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.primaryActionBtn, { marginTop: 12, backgroundColor: '#a855f7' }]}
+                      onPress={handleAiCheck}
+                      disabled={isAiLoading}
+                    >
+                      {isAiLoading ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <IconSparkles size={16} color="#ffffff" />
+                          <Text style={styles.primaryActionBtnText}>Chấm & Sửa Câu</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {aiCheckResult && (
+                      <View style={{ marginTop: 16 }}>
+                        <Text style={[styles.statBoxNum, { color: '#10b981' }]}>Điểm: {aiCheckResult.score}/100</Text>
+                        <Text style={[styles.backMeaningEn, { color: theme.textSecondary }]}>{aiCheckResult.feedback_vi}</Text>
+                        <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginTop: 12 }]}>Cách diễn đạt bản xứ (Native):</Text>
+                        {aiCheckResult.native_alternatives?.map((alt, idx) => (
+                          <View key={idx} style={[styles.exampleBox, { backgroundColor: theme.exampleBg, borderLeftColor: theme.exampleBorder }]}>
+                            <Text style={[styles.exampleText, { color: theme.exampleText }]}>"{alt}"</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {aiSubTab === 'story' && (
+                  <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Sáng Tác Truyện Ngắn Chống Quên</Text>
+                    <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>AI tạo truyện 1 phút từ các từ bạn cần ôn hôm nay.</Text>
+                    <TouchableOpacity
+                      style={[styles.primaryActionBtn, { marginTop: 12, backgroundColor: '#a855f7' }]}
+                      onPress={handleAiStory}
+                      disabled={isAiLoading}
+                    >
+                      {isAiLoading ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <IconSparkles size={16} color="#ffffff" />
+                          <Text style={styles.primaryActionBtnText}>Sáng Tác Truyện Mới</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {aiStoryResult && (
+                      <View style={{ marginTop: 16 }}>
+                        <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>{aiStoryResult.title}</Text>
+                        <Text style={[styles.backMeaningEn, { color: theme.textSecondary, marginTop: 8, fontSize: 15, lineHeight: 22 }]}>
+                          {aiStoryResult.story_en}
+                        </Text>
+                        <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginTop: 12 }]}>Bản dịch song ngữ:</Text>
+                        <Text style={[styles.backMeaningVi, { color: theme.accent, fontSize: 15, fontWeight: '500' }]}>
+                          {aiStoryResult.story_vi}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </ScrollView>
+            )}
+
+            {/* TAB 7: SETTINGS */}
+            {currentTab === 'settings' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* THEME MODE SETTING CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Giao Diện Ứng Dụng (Theme Mode)</Text>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Tùy chọn chế độ hiển thị Dark Mode (Tối mờ) hoặc Light Mode (Sáng thanh lịch).
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                    <TouchableOpacity
+                      style={[
+                        styles.themeOptionBtn,
+                        { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder },
+                        !isDark && { borderColor: '#0284c7', backgroundColor: 'rgba(2, 132, 199, 0.12)' }
+                      ]}
+                      onPress={() => setIsDark(false)}
+                    >
+                      <IconSun size={20} color={!isDark ? '#0284c7' : theme.textSecondary} />
+                      <Text style={[styles.themeOptionText, { color: !isDark ? '#0284c7' : theme.textSecondary }]}>
+                        Light Mode (Sáng)
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.themeOptionBtn,
+                        { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder },
+                        isDark && { borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.15)' }
+                      ]}
+                      onPress={() => setIsDark(true)}
+                    >
+                      <IconMoon size={20} color={isDark ? '#38bdf8' : theme.textSecondary} />
+                      <Text style={[styles.themeOptionText, { color: isDark ? '#38bdf8' : theme.textSecondary }]}>
+                        Dark Mode (Tối)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* AI CONFIG CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Cài Đặt & Cấu Hình AI</Text>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Dán Google Gemini API Key miễn phí (0đ) để mở khóa tính năng AI phân tích chuyên sâu.
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, marginTop: 12 }]}
+                    placeholder="Dán Gemini API Key (AIzaSy...)"
+                    placeholderTextColor={theme.textMuted}
+                    value={apiKeyInput}
+                    onChangeText={setApiKeyInput}
+                    secureTextEntry
+                  />
+                  <TouchableOpacity
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 14 }]}
+                    onPress={handleSaveApiKey}
+                    disabled={isSavingKey}
+                  >
+                    {isSavingKey ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.primaryActionBtnText}>Lưu Cài Đặt</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <Text style={[styles.cardSectionLabel, { color: theme.textSecondary }]}>HỆ THỐNG LINGUAVAULT LOCAL-FIRST</Text>
+                  <Text style={[styles.mutedText, { color: theme.textMuted, marginTop: 6, lineHeight: 18 }]}>
+                    • Server API: http://localhost:5001{'\n'}
+                    • Database: SQLite (Native, 0đ Cloud){'\n'}
+                    • Spaced Repetition: SuperMemo SM-2 Engine
+                  </Text>
+                </View>
+              </ScrollView>
+            )}
+
+            {/* TAB 8: QUICK ADD WORD */}
+            {currentTab === 'add' && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Thêm Từ Nhanh (1-Click Auto-Fill)</Text>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Gõ từ tiếng Anh rồi bấm Auto-Fill để tự động lấy phiên âm và nghĩa.
+                  </Text>
+
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Từ tiếng Anh *</Text>
+                    <View style={styles.inputWithBtnRow}>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, flex: 1, fontWeight: '700', fontSize: 16 }]}
+                        placeholder="Ví dụ: articulate, resilient..."
+                        placeholderTextColor={theme.textMuted}
+                        value={newWord}
+                        onChangeText={setNewWord}
+                      />
+                      <TouchableOpacity
+                        style={[styles.autoFillBtn, { backgroundColor: theme.btnPrimaryBg }]}
+                        onPress={() => handleAutoLookup()}
+                        disabled={isLookingUp}
+                      >
+                        {isLookingUp ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.autoFillBtnText}>Auto-Fill</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.sampleChipsRow}>
+                      <Text style={[styles.sampleChipsLabel, { color: theme.textMuted }]}>Thử từ mẫu:</Text>
+                      {['resilient', 'articulate', 'pragmatic', 'leverage'].map(sample => (
+                        <TouchableOpacity
+                          key={sample}
+                          onPress={() => handleAutoLookup(sample)}
+                          style={[styles.sampleChip, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
+                        >
+                          <Text style={[styles.sampleChipText, { color: theme.accent }]}>+{sample}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.formRowTwo}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Phiên âm (IPA)</Text>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary }]}
+                        placeholder="/.../"
+                        placeholderTextColor={theme.textMuted}
+                        value={newPhonetic}
+                        onChangeText={setNewPhonetic}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Trình độ</Text>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary }]}
+                        placeholder="B2"
+                        placeholderTextColor={theme.textMuted}
+                        value={newLevel}
+                        onChangeText={setNewLevel}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nghĩa tiếng Việt *</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontWeight: '700' }]}
+                      placeholder="Nghĩa tiếng Việt tự nhiên..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newMeaningVi}
+                      onChangeText={setNewMeaningVi}
+                    />
+                  </View>
+
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Định nghĩa tiếng Anh</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, height: 60 }]}
+                      placeholder="English definition..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newMeaningEn}
+                      onChangeText={setNewMeaningEn}
+                      multiline
+                    />
+                  </View>
+
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Câu ví dụ thực tế</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, height: 60 }]}
+                      placeholder="Nhập câu ví dụ thực tế..."
+                      placeholderTextColor={theme.textMuted}
+                      value={newExample}
+                      onChangeText={setNewExample}
+                      multiline
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 20 }]}
+                    onPress={handleSaveWord}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.primaryActionBtnText}>Lưu Vào Kho Từ (Save)</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* 3. PRO MAX BOTTOM TAB BAR */}
+      <View style={[styles.bottomTabBar, { backgroundColor: theme.bottomBarBg, borderTopColor: theme.cardBorder }]}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => navigateTo('home')}
+        >
+          <IconHome size={20} color={currentTab === 'home' ? theme.accent : theme.textMuted} />
+          <Text style={[styles.tabLabel, { color: currentTab === 'home' ? theme.accent : theme.textMuted }]}>Trang Chủ</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => navigateTo('review')}
+        >
+          <View style={{ position: 'relative' }}>
+            <IconZap size={20} color={currentTab === 'review' ? theme.accent : theme.textMuted} />
+            {totalDue > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{totalDue}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.tabLabel, { color: currentTab === 'review' ? theme.accent : theme.textMuted }]}>Ôn Tập</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => navigateTo('add')}
+        >
+          <IconPlus size={20} color={currentTab === 'add' ? theme.accent : theme.textMuted} />
+          <Text style={[styles.tabLabel, { color: currentTab === 'add' ? theme.accent : theme.textMuted }]}>Thêm Từ</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => setIsNavDrawerOpen(true)}
+        >
+          <IconMenu size={20} color={theme.textMuted} />
+          <Text style={[styles.tabLabel, { color: theme.textMuted }]}>Tất Cả</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 4. ULTRA-PREMIUM PRO MAX SIDE DRAWER (APPLE-STYLE NAVIGATION HUB) */}
+      <Modal
+        visible={isNavDrawerOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsNavDrawerOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.drawerBackdrop}
+          activeOpacity={1}
+          onPress={() => setIsNavDrawerOpen(false)}
+        >
+          <View style={[styles.drawerSidebar, { backgroundColor: theme.drawerBg, borderRightColor: theme.cardBorder }]} onStartShouldSetResponder={() => true}>
+            {/* Drawer Header with User Rank Banner */}
+            <View style={[styles.drawerHeaderBox, { borderBottomColor: theme.cardBorder }]}>
+              <View style={styles.drawerUserInfo}>
+                <View style={[styles.drawerAvatar, { backgroundColor: theme.accent }]}>
+                  <Text style={styles.drawerAvatarText}>LV</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerUserName, { color: theme.textPrimary }]}>LinguaVault Pro</Text>
+                  <Text style={[styles.drawerUserRank, { color: theme.accent }]}>{rank}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setIsNavDrawerOpen(false)}
+                style={[styles.drawerCloseCircle, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
+              >
+                <IconX size={16} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Streak & XP Stats Banner */}
+            <View style={[styles.drawerStatsBar, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}>
+              <View style={styles.drawerStatCol}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <IconFlame size={14} color="#f59e0b" />
+                  <Text style={styles.drawerStatNum}>{streak}d</Text>
+                </View>
+                <Text style={[styles.drawerStatLabel, { color: theme.textMuted }]}>Daily Streak</Text>
+              </View>
+              <View style={[styles.drawerStatDivider, { backgroundColor: theme.cardBorder }]}>
+              </View>
+              <View style={styles.drawerStatCol}>
+                <Text style={[styles.drawerStatNum, { color: '#10b981' }]}>{masteredCount}</Text>
+                <Text style={[styles.drawerStatLabel, { color: theme.textMuted }]}>Thuần Thục</Text>
+              </View>
+              <View style={[styles.drawerStatDivider, { backgroundColor: theme.cardBorder }]}>
+              </View>
+              <View style={styles.drawerStatCol}>
+                <Text style={[styles.drawerStatNum, { color: theme.accent }]}>{totalCount}</Text>
+                <Text style={[styles.drawerStatLabel, { color: theme.textMuted }]}>Kho Từ</Text>
+              </View>
+            </View>
+
+            {/* Navigation Sections */}
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.drawerScrollArea}>
+              {/* SECTION 1: HỌC TẬP & ÔN TẬP */}
+              <Text style={[styles.drawerSectionTitle, { color: theme.textMuted }]}>KHÔNG GIAN HỌC TẬP</Text>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'home' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('home')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.drawerCardBg }]}>
+                  <IconHome size={18} color={currentTab === 'home' ? theme.accent : theme.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerItemTitle, { color: currentTab === 'home' ? theme.accent : theme.textPrimary }]}>
+                    Dashboard
+                  </Text>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Tổng quan & Tiến độ ghi nhớ</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'review' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('review')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.accentPill }]}>
+                  <IconZap size={18} color={theme.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'review' ? theme.accent : theme.textPrimary }]}>
+                      Ôn Tập SRS
+                    </Text>
+                    {totalDue > 0 && (
+                      <View style={[styles.levelPill, { backgroundColor: '#ef4444' }]}>
+                        <Text style={[styles.levelPillText, { color: '#ffffff' }]}>{totalDue}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Flashcard chống quên (SM-2)</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'vocab' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('vocab')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.drawerCardBg }]}>
+                  <IconBookOpen size={18} color={currentTab === 'vocab' ? theme.accent : theme.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'vocab' ? theme.accent : theme.textPrimary }]}>
+                      Kho Từ Vựng
+                    </Text>
+                    <Text style={[styles.drawerItemCount, { color: theme.textSecondary }]}>{totalCount}</Text>
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Quản lý từ vựng & Collocations</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'patterns' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('patterns')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.drawerCardBg }]}>
+                  <IconLayers size={18} color={currentTab === 'patterns' ? theme.accent : theme.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'patterns' ? theme.accent : theme.textPrimary }]}>
+                      Mẫu Câu & Cấu Trúc
+                    </Text>
+                    <Text style={[styles.drawerItemCount, { color: theme.textSecondary }]}>{patterns.length}</Text>
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Ngữ pháp theo sắc thái tone</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'reader' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('reader')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.drawerCardBg }]}>
+                  <IconFileText size={18} color={currentTab === 'reader' ? theme.accent : theme.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'reader' ? theme.accent : theme.textPrimary }]}>
+                      Smart Reader
+                    </Text>
+                    <Text style={[styles.drawerItemCount, { color: theme.textSecondary }]}>{notes.length}</Text>
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Ghi chú & đọc bài báo tiếng Anh</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* SECTION 2: AI ENGLISH LAB */}
+              <Text style={[styles.drawerSectionTitle, { color: theme.textMuted, marginTop: 18 }]}>TRỢ LÝ AI (GEMINI 0đ)</Text>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'ai-lab' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('ai-lab')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                  <IconSparkles size={18} color="#a855f7" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.drawerItemTitle, { color: currentTab === 'ai-lab' ? theme.accent : theme.textPrimary }]}>
+                      AI English Lab
+                    </Text>
+                    <View style={[styles.levelPill, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                      <Text style={[styles.levelPillText, { color: '#a855f7' }]}>Free 0đ</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Bóc tách câu, Chấm sửa & Truyện</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* SECTION 3: TIỆN ÍCH & CÀI ĐẶT */}
+              <Text style={[styles.drawerSectionTitle, { color: theme.textMuted, marginTop: 18 }]}>HỆ THỐNG & CÀI ĐẶT</Text>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'add' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('add')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.drawerCardBg }]}>
+                  <IconPlus size={18} color={currentTab === 'add' ? theme.accent : theme.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerItemTitle, { color: currentTab === 'add' ? theme.accent : theme.textPrimary }]}>
+                    Thêm Nhanh Từ Mới
+                  </Text>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>1-Click Auto-Fill từ điển</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.drawerItem, currentTab === 'settings' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                onPress={() => navigateTo('settings')}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: theme.drawerCardBg }]}>
+                  <IconSettings size={18} color={currentTab === 'settings' ? theme.accent : theme.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerItemTitle, { color: currentTab === 'settings' ? theme.accent : theme.textPrimary }]}>
+                    Cài Đặt & AI Key
+                  </Text>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Google Gemini Key & Local DB</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Quick Theme Switcher in Drawer */}
+              <TouchableOpacity
+                style={[styles.drawerItem, { marginTop: 6, backgroundColor: theme.drawerCardBg }]}
+                onPress={toggleTheme}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(2, 132, 199, 0.12)' }]}>
+                  {isDark ? (
+                    <IconSun size={18} color="#f59e0b" />
+                  ) : (
+                    <IconMoon size={18} color="#0284c7" />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerItemTitle, { color: theme.textPrimary }]}>
+                    {isDark ? 'Chuyển sang Giao diện Sáng (Light)' : 'Chuyển sang Giao diện Tối (Dark)'}
+                  </Text>
+                  <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>
+                    {isDark ? 'Light Mode' : 'Dark Mode'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <View style={[styles.drawerFooterBox, { borderTopColor: theme.cardBorder }]}>
+              <Text style={[styles.drawerFooterText, { color: theme.textMuted }]}>LinguaVault Pro Max • Local-First</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  brandContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  hamburgerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  brandTitle: {
+    fontWeight: '800',
+    fontSize: 18,
+    letterSpacing: -0.3,
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  streakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  streakText: {
+    color: '#f59e0b',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  iconCircleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  body: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    gap: 14,
+  },
+  tabContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+
+  // HERO CARD
+  heroCard: {
+    borderRadius: 22,
+    padding: 20,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  heroCardActive: {
+    backgroundColor: '#0284c7',
+  },
+  heroCardDone: {
+    backgroundColor: '#059669',
+  },
+  heroHeaderPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  heroHeaderPillText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  heroDesc: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  heroBtn: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  heroBtnText: {
+    color: '#0284c7',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  heroBtnSecondary: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  heroBtnSecondaryText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // CARD GENERIC
+  card: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cardSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  cardBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  progressBarBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  rankFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  mutedText: {
+    fontSize: 12,
+  },
+
+  // STATS GRID
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statBox: {
+    width: (width - 42) / 2,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+  },
+  statBoxNum: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  statBoxLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // QUICK ACTIONS
+  quickActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickActionBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    gap: 6,
+  },
+  quickActionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  quickActionSub: {
+    fontSize: 11,
+  },
+
+  // SECTION HEADER
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // VOCAB LIST ITEM
+  vocabListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  vocabItemLeft: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  vocabWordText: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  vocabPhoneticText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginVertical: 2,
+  },
+  vocabMeaningText: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  vocabExampleSub: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  levelPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  levelPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  // PATTERNS
+  formulaBox: {
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#a855f7',
+  },
+  formulaText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+  },
+
+  // REVIEW SCREEN
+  reviewContainer: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  reviewProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewProgressText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reviewCloseBtn: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  flashcard: {
+    flex: 1,
+    borderRadius: 24,
+    padding: 24,
+    marginVertical: 16,
+    borderWidth: 1,
+    justifyContent: 'space-between',
+  },
+  cardFrontContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  cardFrontBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardCenterBody: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  cardWordMain: {
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  cardPhonetic: {
+    fontSize: 16,
+    marginTop: 8,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  cardFooterHint: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  cardBackScroll: {
+    flex: 1,
+  },
+  backWordTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  backSectionBox: {
+    marginTop: 14,
+  },
+  backSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  backMeaningVi: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  backMeaningEn: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  exampleBox: {
+    borderLeftWidth: 3,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  exampleText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  tapToRevealBtn: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  tapToRevealBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  ratingBtnGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ratingBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingBtnText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  ratingBtnSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+
+  // CELEBRATION
+  celebrationTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  celebrationDesc: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+
+  // SEARCH & FILTERS
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 14,
+  },
+  filterChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // FORM INPUTS
+  formTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  formSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  inputWithBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  textInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  autoFillBtn: {
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  autoFillBtnText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  sampleChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  sampleChipsLabel: {
+    fontSize: 11,
+  },
+  sampleChip: {
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  sampleChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  formRowTwo: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  primaryActionBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionBtnText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  themeOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // STREAMLINED BOTTOM TAB BAR
+  bottomTabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  tabBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+
+  // ULTRA-PREMIUM APPLE-STYLE SIDE DRAWER
+  drawerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    flexDirection: 'row',
+  },
+  drawerSidebar: {
+    width: Math.min(320, width * 0.82),
+    height: '100%',
+    borderRightWidth: 1,
+    paddingTop: Platform.OS === 'ios' ? 50 : 25,
+    paddingBottom: 20,
+    paddingHorizontal: 18,
+    justifyContent: 'space-between',
+  },
+  drawerHeaderBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+  },
+  drawerUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  drawerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#38bdf8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  drawerAvatarText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  drawerUserName: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  drawerUserRank: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  drawerCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  drawerStatsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginVertical: 14,
+    borderWidth: 1,
+  },
+  drawerStatCol: {
+    alignItems: 'center',
+  },
+  drawerStatNum: {
+    color: '#f59e0b',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  drawerStatLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  drawerStatDivider: {
+    width: 1,
+    height: 20,
+  },
+  drawerScrollArea: {
+    flex: 1,
+  },
+  drawerSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
+  drawerItemIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  drawerItemDesc: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  drawerItemCount: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  drawerFooterBox: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    alignItems: 'center',
+  },
+  drawerFooterText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+});

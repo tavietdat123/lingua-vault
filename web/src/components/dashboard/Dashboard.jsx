@@ -1,0 +1,377 @@
+import React, { useState } from 'react';
+import { 
+  Flame, 
+  Sparkles, 
+  BookOpen, 
+  Layers, 
+  CheckCircle2, 
+  Volume2, 
+  ArrowRight,
+  TrendingUp,
+  Brain,
+  Award,
+  Clock,
+  Target
+} from 'lucide-react';
+import { playAudio } from '../../services/audioService';
+
+export default function Dashboard({ stats, recentWords = [], onStartReview, onNavigate, audioSpeed = 0.9 }) {
+  const [playingWordId, setPlayingWordId] = useState(null);
+
+  const totalDue = stats?.total_due_today || 0;
+  const wordStats = stats?.words || {};
+  const streak = stats?.streak || 0;
+
+  // Calculate XP & Level
+  const totalMastered = wordStats.mastered || 0;
+  const totalLearned = (wordStats.total || 0) + (stats?.patterns?.total || 0);
+  let rank = '🌱 Apprentice (Tập sự)';
+  let nextRankGoal = 20;
+
+  if (totalMastered >= 100) {
+    rank = '👑 Polyglot Master (Bậc thầy)';
+    nextRankGoal = 500;
+  } else if (totalMastered >= 30) {
+    rank = '🎓 Fluent Scholar (Học giả)';
+    nextRankGoal = 100;
+  } else if (totalMastered >= 10) {
+    rank = '⚡ Agile Learner (Chuyên cần)';
+    nextRankGoal = 30;
+  }
+
+  const handlePlayAudio = (w) => {
+    setPlayingWordId(w.id);
+    playAudio(w.word, w.audio_url, 'en-US', audioSpeed);
+    setTimeout(() => setPlayingWordId(null), 1500);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {/* 1. HERO SRS REVIEW CALL-TO-ACTION PRO MAX */}
+      <div style={{
+        background: totalDue > 0 
+          ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #075985 100%)'
+          : 'linear-gradient(135deg, #10b981 0%, #047857 50%, #064e3b 100%)',
+        color: '#ffffff',
+        borderRadius: 'var(--radius-xl)',
+        padding: '2.5rem',
+        boxShadow: 'var(--shadow-xl)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '2rem',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Subtle Background Glow */}
+        <div style={{
+          position: 'absolute',
+          right: '-50px',
+          bottom: '-50px',
+          width: '250px',
+          height: '250px',
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.08)',
+          pointerEvents: 'none'
+        }} />
+
+        <div style={{ maxWidth: '640px', position: 'relative', zIndex: 1 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            padding: '0.35rem 0.85rem',
+            borderRadius: 'var(--radius-full)',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            marginBottom: '0.85rem',
+            letterSpacing: '0.04em'
+          }}>
+            <Sparkles size={15} />
+            <span>SPACED REPETITION ENGINE (SM-2)</span>
+          </div>
+
+          <h3 style={{ fontSize: '2.1rem', fontWeight: '800', lineHeight: 1.15, letterSpacing: '-0.03em', marginBottom: '0.65rem' }}>
+            {totalDue > 0 
+              ? `Hôm nay bạn có ${totalDue} thẻ cần ôn tập`
+              : 'Tuyệt vời! Bạn đã hoàn thành hết mục tiêu hôm nay'}
+          </h3>
+
+          <p style={{ opacity: 0.92, fontSize: '1rem', lineHeight: 1.5 }}>
+            {totalDue > 0
+              ? 'Dành 3-5 phút ôn lại đúng thời điểm vàng để chống lại đường cong lãng quên (Forgetting Curve).'
+              : 'Mọi từ vựng và cấu trúc đều đang nằm trong chu kỳ ghi nhớ dài hạn an toàn.'}
+          </p>
+        </div>
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {totalDue > 0 ? (
+            <button
+              onClick={onStartReview}
+              style={{
+                background: '#ffffff',
+                color: '#0369a1',
+                padding: '1rem 2rem',
+                borderRadius: 'var(--radius-lg)',
+                fontWeight: 800,
+                fontSize: '1.1rem',
+                boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                transition: 'all var(--transition-bounce)'
+              }}
+              className="glow-hover"
+            >
+              <span>Bắt Đầu Ôn Tập Ngay</span>
+              <ArrowRight size={22} />
+            </button>
+          ) : (
+            <button
+              onClick={() => onNavigate('vocab')}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                color: '#ffffff',
+                padding: '0.9rem 1.75rem',
+                borderRadius: 'var(--radius-lg)',
+                fontWeight: 700,
+                fontSize: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <span>Thêm Từ Mới Vào Kho</span>
+              <ArrowRight size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. PRO MAX STATS & LEVEL CARD */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+        {/* Streak & Rank Card */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                Cấp Độ & Danh Hiệu
+              </span>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--text-primary)' }}>
+                {rank}
+              </h4>
+            </div>
+            <div style={{ background: 'var(--accent-warning-light)', padding: '0.75rem', borderRadius: 'var(--radius-lg)', color: 'var(--accent-warning)' }}>
+              <Flame size={24} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-tertiary)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Daily Streak:</span>
+            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent-warning)' }}>
+              🔥 {streak} ngày liên tục
+            </span>
+          </div>
+        </div>
+
+        {/* Total Words Card */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ background: 'var(--accent-primary-light)', padding: '1rem', borderRadius: 'var(--radius-xl)', color: 'var(--accent-primary)' }}>
+            <BookOpen size={28} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Kho Từ Vựng & Collocation</span>
+            <h4 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: 1.1, marginTop: '0.2rem' }}>
+              {wordStats.total || 0} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>từ</span>
+            </h4>
+          </div>
+        </div>
+
+        {/* Mastered Words Card */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ background: 'var(--accent-success-light)', padding: '1rem', borderRadius: 'var(--radius-xl)', color: 'var(--accent-success)' }}>
+            <CheckCircle2 size={28} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Đã Ghi Nhớ Thuần Thục</span>
+            <h4 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: 1.1, marginTop: '0.2rem' }}>
+              {wordStats.mastered || 0} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>từ</span>
+            </h4>
+          </div>
+        </div>
+
+        {/* Patterns Card */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ background: 'var(--accent-purple-light)', padding: '1rem', borderRadius: 'var(--radius-xl)', color: 'var(--accent-purple)' }}>
+            <Layers size={28} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Mẫu Câu & Cấu Trúc</span>
+            <h4 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: 1.1, marginTop: '0.2rem' }}>
+              {stats?.patterns?.total || 0} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>mẫu</span>
+            </h4>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. RETENTION PROGRESS BAR PRO MAX */}
+      <div className="card" style={{ padding: '1.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <TrendingUp size={20} style={{ color: 'var(--accent-primary)' }} />
+            <h4 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Chỉ Số Phân Bổ Trí Nhớ (Memory Retention Stages)</h4>
+          </div>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            Tổng cộng: {wordStats.total || 0} mục
+          </span>
+        </div>
+
+        {/* Progress bar stack */}
+        <div style={{
+          display: 'flex',
+          height: '14px',
+          borderRadius: 'var(--radius-full)',
+          overflow: 'hidden',
+          background: 'var(--bg-tertiary)',
+          marginBottom: '1.35rem'
+        }}>
+          {wordStats.total > 0 && (
+            <>
+              <div 
+                style={{ 
+                  width: `${((wordStats.mastered || 0) / wordStats.total) * 100}%`, 
+                  background: 'var(--accent-success)',
+                  transition: 'width 0.5s ease'
+                }} 
+                title={`Mastered: ${wordStats.mastered}`}
+              />
+              <div 
+                style={{ 
+                  width: `${((wordStats.reviewing || 0) / wordStats.total) * 100}%`, 
+                  background: 'var(--accent-primary)',
+                  transition: 'width 0.5s ease'
+                }} 
+                title={`Reviewing: ${wordStats.reviewing}`}
+              />
+              <div 
+                style={{ 
+                  width: `${((wordStats.learning || 0) / wordStats.total) * 100}%`, 
+                  background: 'var(--accent-warning)',
+                  transition: 'width 0.5s ease'
+                }} 
+                title={`Learning: ${wordStats.learning}`}
+              />
+              <div 
+                style={{ 
+                  width: `${((wordStats.new || 0) / wordStats.total) * 100}%`, 
+                  background: 'var(--text-muted)',
+                  transition: 'width 0.5s ease'
+                }} 
+                title={`New: ${wordStats.new}`}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Legend */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.75rem', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--accent-success)' }} />
+            <span>Mastered (Thuần thục): <b>{wordStats.mastered || 0}</b></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--accent-primary)' }} />
+            <span>Reviewing (Đang nhớ tốt): <b>{wordStats.reviewing || 0}</b></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--accent-warning)' }} />
+            <span>Learning (Đang học): <b>{wordStats.learning || 0}</b></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+            <span>New (Mới thêm): <b>{wordStats.new || 0}</b></span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. RECENT VOCABULARY SECTION WITH AUDIO VISUALIZER */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div>
+            <h4 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Từ Vựng & Cụm Từ Nổi Bật Gần Đây</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chạm biểu tượng loa để nghe phát âm tự nhiên</p>
+          </div>
+          <button 
+            onClick={() => onNavigate('vocab')} 
+            className="btn-secondary"
+            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+          >
+            <span>Mở toàn bộ kho từ</span>
+            <ArrowRight size={15} />
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+          {recentWords.slice(0, 6).map(w => {
+            const isPlaying = playingWordId === w.id;
+
+            return (
+              <div key={w.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <h5 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{w.word}</h5>
+                      <button 
+                        onClick={() => handlePlayAudio(w)}
+                        className="btn-icon"
+                        style={{ padding: '0.3rem', color: 'var(--accent-primary)' }}
+                        title="Nghe phát âm chuẩn"
+                      >
+                        {isPlaying ? (
+                          <div className="sound-wave">
+                            <span /><span /><span /><span />
+                          </div>
+                        ) : (
+                          <Volume2 size={18} />
+                        )}
+                      </button>
+                    </div>
+                    {w.phonetic && (
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {w.phonetic}
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="badge badge-blue">{w.level || 'B2'}</span>
+                </div>
+
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {w.meaning_vi}
+                </p>
+
+                {w.examples && w.examples.length > 0 && (
+                  <div style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    padding: '0.65rem 0.85rem', 
+                    borderRadius: 'var(--radius-md)', 
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic',
+                    borderLeft: '3px solid var(--accent-primary)'
+                  }}>
+                    "{w.examples[0]}"
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
