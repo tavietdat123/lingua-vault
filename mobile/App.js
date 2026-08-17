@@ -649,17 +649,19 @@ export default function App() {
     setQuizIsAnswered(true);
 
     const currentQ = quizData.questions[quizIndex];
-    const newAnswers = [
-      ...quizUserAnswers,
-      {
-        id: currentQ.id,
-        word: currentQ.word,
-        questionText: currentQ.questionText,
-        correctAnswer: currentQ.correctAnswer,
-        userAnswer: option
-      }
-    ];
-    setQuizUserAnswers(newAnswers);
+    const answerItem = {
+      id: currentQ.id,
+      word: currentQ.word,
+      questionText: currentQ.questionText,
+      correctAnswer: currentQ.correctAnswer,
+      userAnswer: option
+    };
+
+    setQuizUserAnswers(prev => {
+      const updated = [...prev];
+      updated[quizIndex] = answerItem;
+      return updated;
+    });
   };
 
   const handleNextQuizQuestion = async () => {
@@ -677,10 +679,32 @@ export default function App() {
     } else {
       setIsQuizLoading(true);
       try {
-        const res = await mobileApi.submitQuiz(quizUserAnswers);
+        const answersToSubmit = quizData.questions.map((q, idx) => {
+          if (quizUserAnswers[idx]) return quizUserAnswers[idx];
+          if (idx === quizIndex && quizSelectedOption) {
+            return {
+              id: q.id,
+              word: q.word,
+              questionText: q.questionText,
+              correctAnswer: q.correctAnswer,
+              userAnswer: quizSelectedOption
+            };
+          }
+          return {
+            id: q.id,
+            word: q.word,
+            questionText: q.questionText,
+            correctAnswer: q.correctAnswer,
+            userAnswer: ''
+          };
+        });
+
+        const res = await mobileApi.submitQuiz(answersToSubmit);
         if (res?.success) {
           setQuizResult(res.data);
           loadData();
+        } else {
+          Alert.alert('Lỗi nộp bài', res?.error || 'Vui lòng thử lại');
         }
       } catch (e) {
         Alert.alert('Lỗi nộp bài', e.message);

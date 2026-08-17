@@ -25,10 +25,11 @@ export const quizController = {
   // POST /api/quiz/submit
   submitQuiz: (req, res) => {
     try {
-      const { answers = [] } = req.body;
+      const answers = Array.isArray(req.body) ? req.body : (req.body?.answers || []);
       const result = quizService.submitQuiz({ answers });
       res.json({ success: true, data: result });
     } catch (err) {
+      console.error('Submit quiz error:', err);
       res.status(400).json({ success: false, error: err.message });
     }
   }

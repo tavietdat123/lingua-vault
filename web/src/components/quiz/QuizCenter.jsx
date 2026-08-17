@@ -78,18 +78,20 @@ export default function QuizCenter({ onOpenReview }) {
       setStreakCount(0);
     }
 
-    // Save answer
-    const newAnswers = [
-      ...userAnswers,
-      {
-        id: currentQ.id,
-        word: currentQ.word,
-        questionText: currentQ.questionText,
-        correctAnswer: currentQ.correctAnswer,
-        userAnswer: option
-      }
-    ];
-    setUserAnswers(newAnswers);
+    // Save answer at current question index
+    const answerItem = {
+      id: currentQ.id,
+      word: currentQ.word,
+      questionText: currentQ.questionText,
+      correctAnswer: currentQ.correctAnswer,
+      userAnswer: option
+    };
+
+    setUserAnswers(prev => {
+      const updated = [...prev];
+      updated[currentIndex] = answerItem;
+      return updated;
+    });
   };
 
   const handleNextQuestion = async () => {
@@ -103,12 +105,34 @@ export default function QuizCenter({ onOpenReview }) {
         audioService.speak(quizData.questions[nextIdx].word);
       }
     } else {
-      // Submit Quiz
+      // Ensure all answers across all questions are aggregated
       setLoading(true);
       try {
-        const res = await api.submitQuiz(userAnswers);
-        if (res.success) {
+        const answersToSubmit = quizData.questions.map((q, idx) => {
+          if (userAnswers[idx]) return userAnswers[idx];
+          if (idx === currentIndex && selectedOption) {
+            return {
+              id: q.id,
+              word: q.word,
+              questionText: q.questionText,
+              correctAnswer: q.correctAnswer,
+              userAnswer: selectedOption
+            };
+          }
+          return {
+            id: q.id,
+            word: q.word,
+            questionText: q.questionText,
+            correctAnswer: q.correctAnswer,
+            userAnswer: ''
+          };
+        });
+
+        const res = await api.submitQuiz(answersToSubmit);
+        if (res.success && res.data) {
           setQuizResult(res.data);
+        } else {
+          alert('Lỗi nộp bài: ' + (res.error || 'Vui lòng thử lại'));
         }
       } catch (err) {
         alert('Lỗi nộp bài: ' + err.message);
