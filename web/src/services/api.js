@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = typeof window !== 'undefined' 
+  ? `http://${window.location.hostname}:5001/api` 
+  : 'http://localhost:5001/api';
 
 export const api = {
   // Vocabulary
