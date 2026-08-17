@@ -48,9 +48,9 @@ export const telegramController = {
       } = req.body;
 
       const upsert = db.prepare(`
-        INSERT INTO settings (key, value, updated_at) 
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+        INSERT INTO settings (key, value) 
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
       `);
 
       if (telegram_bot_token !== undefined) upsert.run('telegram_bot_token', String(telegram_bot_token));

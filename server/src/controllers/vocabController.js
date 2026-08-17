@@ -172,7 +172,11 @@ export const vocabController = {
         id
       );
 
-      res.json({ success: true, message: 'Cập nhật từ vựng thành công' });
+      res.json({ 
+        success: true, 
+        message: 'Cập nhật từ vựng thành công',
+        data: { id, word: word.trim(), meaning_vi: meaning_vi.trim(), level: level || 'B1' }
+      });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
