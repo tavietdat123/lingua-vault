@@ -204,8 +204,27 @@ export default function App() {
   const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
-  const [mobileSpeed, setMobileSpeed] = useState(0.9);
-  const [mobileAccent, setMobileAccent] = useState('en-US');
+  const [mobileSpeed, setMobileSpeed] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = parseFloat(localStorage.getItem('linguavault_audio_speed'));
+      if (!isNaN(saved) && saved >= 0.4 && saved <= 2.0) {
+        globalMobileSpeed = saved;
+        return saved;
+      }
+    }
+    return 0.85;
+  });
+  const [mobileAccent, setMobileAccent] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('linguavault_audio_accent');
+      if (saved) {
+        globalMobileAccent = saved;
+        return saved;
+      }
+    }
+    return 'en-US';
+  });
+  const [showAudioSpeedModal, setShowAudioSpeedModal] = useState(false);
 
   const [alarmQuestionCount, setAlarmQuestionCount] = useState(() => {
     if (typeof localStorage !== 'undefined') {
@@ -224,13 +243,24 @@ export default function App() {
   };
 
   const handleUpdateMobileSpeed = (val) => {
-    setMobileSpeed(val);
-    globalMobileSpeed = val;
+    const num = Math.round(parseFloat(val) * 100) / 100;
+    setMobileSpeed(num);
+    globalMobileSpeed = num;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('linguavault_audio_speed', num.toString());
+      } catch (e) {}
+    }
   };
 
   const handleUpdateMobileAccent = (acc) => {
     setMobileAccent(acc);
     globalMobileAccent = acc;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('linguavault_audio_accent', acc);
+      } catch (e) {}
+    }
   };
 
   // Mobile Quiz State
@@ -1304,9 +1334,26 @@ export default function App() {
                                 {dueItems[reviewIndex]?.level || 'B2'}
                               </Text>
                             </View>
-                            <TouchableOpacity onPress={() => playMobileAudio(dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name)}>
-                              <IconVolume2 size={22} color={theme.accent} />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <TouchableOpacity 
+                                onPress={() => setShowAudioSpeedModal(true)}
+                                style={{
+                                  paddingHorizontal: 7,
+                                  paddingVertical: 3,
+                                  borderRadius: 10,
+                                  backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)',
+                                  borderWidth: 1,
+                                  borderColor: theme.accent
+                                }}
+                              >
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent }}>
+                                  ⚡ {mobileSpeed.toFixed(2)}x
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => playMobileAudio(dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name, mobileSpeed, mobileAccent)}>
+                                <IconVolume2 size={22} color={theme.accent} />
+                              </TouchableOpacity>
+                            </View>
                           </View>
 
                           <View style={styles.cardCenterBody}>
@@ -1328,9 +1375,26 @@ export default function App() {
                             <Text style={[styles.backWordTitle, { color: theme.textPrimary }]}>
                               {dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name}
                             </Text>
-                            <TouchableOpacity onPress={() => playMobileAudio(dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name)}>
-                              <IconVolume2 size={22} color={theme.accent} />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <TouchableOpacity 
+                                onPress={() => setShowAudioSpeedModal(true)}
+                                style={{
+                                  paddingHorizontal: 7,
+                                  paddingVertical: 3,
+                                  borderRadius: 10,
+                                  backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)',
+                                  borderWidth: 1,
+                                  borderColor: theme.accent
+                                }}
+                              >
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent }}>
+                                  ⚡ {mobileSpeed.toFixed(2)}x
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity onPress={() => playMobileAudio(dueItems[reviewIndex]?.word || dueItems[reviewIndex]?.name, mobileSpeed, mobileAccent)}>
+                                <IconVolume2 size={22} color={theme.accent} />
+                              </TouchableOpacity>
+                            </View>
                           </View>
 
                           <View style={styles.backSectionBox}>
@@ -3120,6 +3184,27 @@ export default function App() {
                 </View>
               </TouchableOpacity>
 
+              {/* Quick Audio Speed Setting in Drawer */}
+              <TouchableOpacity
+                style={[styles.drawerItem, { marginTop: 6, backgroundColor: theme.drawerCardBg }]}
+                onPress={() => {
+                  setIsNavDrawerOpen(false);
+                  setShowAudioSpeedModal(true);
+                }}
+              >
+                <View style={[styles.drawerItemIconBox, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)' }]}>
+                  <IconVolume2 size={18} color={theme.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.drawerItemTitle, { color: theme.textPrimary }]}>
+                    Tốc Độ Đọc Mẫu
+                  </Text>
+                  <Text style={[styles.drawerItemDesc, { color: theme.accent, fontWeight: '700' }]}>
+                    ⚡ {mobileSpeed.toFixed(2)}x ({mobileAccent === 'en-US' ? '🇺🇸 Giọng Mỹ' : '🇬🇧 Giọng Anh'}) ▾
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
               {/* Server URL Config in Drawer */}
               <TouchableOpacity
                 style={[styles.drawerItem, { marginTop: 6, backgroundColor: theme.drawerCardBg }]}
@@ -3710,12 +3795,27 @@ export default function App() {
             {selectedWordDetail && (
               <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>
                       {selectedWordDetail.word}
                     </Text>
-                    <TouchableOpacity onPress={() => playMobileAudio(selectedWordDetail.word)}>
+                    <TouchableOpacity onPress={() => playMobileAudio(selectedWordDetail.word, mobileSpeed, mobileAccent)}>
                       <IconVolume2 size={20} color={theme.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => setShowAudioSpeedModal(true)}
+                      style={{
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                        backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)',
+                        borderWidth: 1,
+                        borderColor: theme.accent
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent }}>
+                        ⚡ {mobileSpeed.toFixed(2)}x
+                      </Text>
                     </TouchableOpacity>
                     <View style={[styles.levelPill, { backgroundColor: theme.accentPill }]}>
                       <Text style={[styles.levelPillText, { color: theme.accent }]}>{selectedWordDetail.level || 'B2'}</Text>
@@ -4001,6 +4101,185 @@ export default function App() {
                 </>
               ) : null}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 13. AUDIO SPEED & ACCENT MODAL (UI/UX PRO MAX) */}
+      <Modal
+        visible={showAudioSpeedModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAudioSpeedModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={{ width: '100%', maxWidth: 440, backgroundColor: theme.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.cardBorder }}>
+            {/* Modal Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconVolume2 size={18} color={theme.accent} />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary }}>Tốc Độ Đọc Mẫu</Text>
+                  <Text style={{ fontSize: 11, color: theme.textSecondary }}>Tùy chỉnh tốc độ phát âm từ vựng</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowAudioSpeedModal(false)} style={{ padding: 6 }}>
+                <IconClose size={20} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Large Interactive Speed Display & Stepper */}
+            <View style={{ backgroundColor: theme.drawerCardBg, borderRadius: 16, padding: 14, alignItems: 'center', marginVertical: 8, borderWidth: 1, borderColor: theme.cardBorder }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: theme.textMuted, letterSpacing: 0.5 }}>TỐC ĐỘ PHÁT HIỆN TẠI</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 6, marginBottom: 4 }}>
+                <TouchableOpacity
+                  onPress={() => handleUpdateMobileSpeed(Math.max(0.4, mobileSpeed - 0.05))}
+                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>−</Text>
+                </TouchableOpacity>
+
+                <Text style={{ fontSize: 32, fontWeight: '900', color: theme.accent, minWidth: 100, textAlign: 'center' }}>
+                  {mobileSpeed.toFixed(2)}x
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => handleUpdateMobileSpeed(Math.min(2.0, mobileSpeed + 0.05))}
+                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={{ fontSize: 12, color: theme.accent, fontWeight: '700' }}>
+                {mobileSpeed <= 0.65 ? '🐢 Rất chậm (Chi tiết từng âm vị)' :
+                 mobileSpeed <= 0.8 ? '🚶 Chậm (Tập làm quen ngữ âm)' :
+                 mobileSpeed <= 0.9 ? '🎯 Tối ưu Shadowing (Khuyên dùng)' :
+                 mobileSpeed <= 1.1 ? '⚡ Chuẩn bản xứ (Tự nhiên)' :
+                 mobileSpeed <= 1.35 ? '🚀 Nhanh (Luyện phản xạ nghe)' :
+                 '🔥 Thử thách tốc độ cao'}
+              </Text>
+            </View>
+
+            {/* Quick Speed Presets */}
+            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary, marginTop: 8, marginBottom: 6 }}>
+              Chọn nhanh tốc độ:
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {[
+                { val: 0.5, label: '0.5x Rất chậm' },
+                { val: 0.75, label: '0.75x Chậm' },
+                { val: 0.85, label: '0.85x Shadowing' },
+                { val: 1.0, label: '1.0x Tự nhiên' },
+                { val: 1.25, label: '1.25x Nhanh' },
+                { val: 1.5, label: '1.5x Thử thách' }
+              ].map(preset => {
+                const isSelected = Math.abs(mobileSpeed - preset.val) < 0.03;
+                return (
+                  <TouchableOpacity
+                    key={preset.val}
+                    onPress={() => handleUpdateMobileSpeed(preset.val)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 7,
+                      borderRadius: 12,
+                      backgroundColor: isSelected ? theme.accent : theme.drawerCardBg,
+                      borderWidth: 1,
+                      borderColor: isSelected ? theme.accent : theme.cardBorder,
+                      flexGrow: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: isSelected ? '#ffffff' : theme.textPrimary }}>
+                      {preset.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Accent Selector (US vs UK) */}
+            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary, marginTop: 12, marginBottom: 6 }}>
+              Chất giọng phát âm:
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => handleUpdateMobileAccent('en-US')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: mobileAccent === 'en-US' ? (isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)') : theme.drawerCardBg,
+                  borderWidth: 1,
+                  borderColor: mobileAccent === 'en-US' ? theme.accent : theme.cardBorder,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '800', color: mobileAccent === 'en-US' ? theme.accent : theme.textPrimary }}>
+                  🇺🇸 Giọng Mỹ (US)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleUpdateMobileAccent('en-GB')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: mobileAccent === 'en-GB' ? (isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)') : theme.drawerCardBg,
+                  borderWidth: 1,
+                  borderColor: mobileAccent === 'en-GB' ? theme.accent : theme.cardBorder,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '800', color: mobileAccent === 'en-GB' ? theme.accent : theme.textPrimary }}>
+                  🇬🇧 Giọng Anh (UK)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Live Playback Test Button */}
+            <TouchableOpacity
+              onPress={() => playMobileAudio('The resilient scholar articulates every word with crystal clarity.', mobileSpeed, mobileAccent)}
+              style={{
+                marginTop: 14,
+                paddingVertical: 12,
+                borderRadius: 14,
+                backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)',
+                borderWidth: 1,
+                borderColor: theme.accent,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 8
+              }}
+            >
+              <IconVolume2 size={18} color={theme.accent} />
+              <Text style={{ fontSize: 13, fontWeight: '800', color: theme.accent }}>
+                Nghe Thử Câu Mẫu ({mobileSpeed.toFixed(2)}x)
+              </Text>
+            </TouchableOpacity>
+
+            {/* Done Button */}
+            <TouchableOpacity
+              onPress={() => setShowAudioSpeedModal(false)}
+              style={{
+                marginTop: 8,
+                paddingVertical: 12,
+                borderRadius: 14,
+                backgroundColor: theme.btnPrimaryBg,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>
+                ✓ Xong & Áp Dụng
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
