@@ -275,6 +275,16 @@ export default function App() {
   const [aiMasteryReport, setAiMasteryReport] = useState(null);
   const [isLoadingAIMastery, setIsLoadingAIMastery] = useState(false);
 
+  // Advanced Vocab Vault, Edit, Command Palette & Reader States
+  const [selectedWordDetail, setSelectedWordDetail] = useState(null);
+  const [editingWordData, setEditingWordData] = useState(null);
+  const [isUpdatingWord, setIsUpdatingWord] = useState(false);
+  const [vocabSortBy, setVocabSortBy] = useState('newest');
+  const [vocabTagFilter, setVocabTagFilter] = useState('all');
+  const [showCommandPaletteModal, setShowCommandPaletteModal] = useState(false);
+  const [commandSearchQuery, setCommandSearchQuery] = useState('');
+  const [readerContextSentence, setReaderContextSentence] = useState(null);
+
   const fetchMobileAIMasteryReport = async () => {
     setIsLoadingAIMastery(true);
     try {
@@ -572,6 +582,31 @@ export default function App() {
       Alert.alert('Lỗi', e.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Update Word
+  const handleUpdateWord = async () => {
+    if (!editingWordData || !editingWordData.word.trim() || !editingWordData.meaning_vi.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng điền Từ tiếng Anh và Nghĩa tiếng Việt.');
+      return;
+    }
+
+    setIsUpdatingWord(true);
+    try {
+      const res = await mobileApi.updateWord(editingWordData.id, editingWordData);
+      if (res?.success) {
+        Alert.alert('Thành công', `Đã cập nhật từ "${editingWordData.word}"!`);
+        setEditingWordData(null);
+        setSelectedWordDetail(null);
+        loadData();
+      } else {
+        Alert.alert('Lỗi', res?.error || 'Không thể cập nhật từ vựng');
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', e.message);
+    } finally {
+      setIsUpdatingWord(false);
     }
   };
 
@@ -964,15 +999,45 @@ export default function App() {
   else if (masteredCount >= 30) rank = 'Fluent Scholar (Học giả)';
   else if (masteredCount >= 10) rank = 'Agile Learner (Chuyên cần)';
 
-  // Filtered Vocab List
-  const filteredWords = words.filter(w => {
-    const matchSearch = w.word.toLowerCase().includes(vocabSearch.toLowerCase()) ||
-                        (w.meaning_vi && w.meaning_vi.toLowerCase().includes(vocabSearch.toLowerCase()));
-    if (!matchSearch) return false;
-    if (vocabFilter === 'mastered') return w.status === 'mastered';
-    if (vocabFilter === 'learning') return w.status === 'learning' || w.status === 'reviewing';
-    return true;
-  });
+  // Filtered & Sorted Vocab List
+  const filteredWords = words
+    .filter(w => {
+      const q = vocabSearch.toLowerCase().trim();
+      const matchSearch = !q ||
+        w.word.toLowerCase().includes(q) ||
+        (w.meaning_vi && w.meaning_vi.toLowerCase().includes(q)) ||
+        (w.meaning_en && w.meaning_en.toLowerCase().includes(q)) ||
+        (w.examples && w.examples.some(ex => ex.toLowerCase().includes(q))) ||
+        (w.tags && w.tags.some(tag => tag.toLowerCase().includes(q)));
+
+      if (!matchSearch) return false;
+
+      if (vocabFilter === 'mastered') return w.status === 'mastered' || (w.interval >= 6 && w.repetitions >= 3);
+      if (vocabFilter === 'learning') return w.status === 'learning' || w.status === 'new' || w.repetitions === 0;
+      if (vocabFilter === 'due') return dueItems.some(d => d.id === w.id);
+      if (['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(vocabFilter)) {
+        return (w.level || '').toUpperCase() === vocabFilter;
+      }
+      if (vocabFilter !== 'all') {
+        return (w.tags || []).includes(vocabFilter);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (vocabSortBy === 'az') return a.word.localeCompare(b.word);
+      if (vocabSortBy === 'due') {
+        const aDue = dueItems.some(d => d.id === a.id) ? 1 : 0;
+        const bDue = dueItems.some(d => d.id === b.id) ? 1 : 0;
+        if (aDue !== bDue) return bDue - aDue;
+        return (a.interval || 0) - (b.interval || 0);
+      }
+      if (vocabSortBy === 'level') {
+        const levels = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+        return (levels[b.level] || 0) - (levels[a.level] || 0);
+      }
+      // 'newest' default
+      return (b.id || 0) - (a.id || 0);
+    });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -995,6 +1060,14 @@ export default function App() {
         </View>
 
         <View style={styles.topRightActions}>
+          {/* SEARCH & COMMAND PALETTE BUTTON */}
+          <TouchableOpacity
+            onPress={() => setShowCommandPaletteModal(true)}
+            style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
+          >
+            <IconSearch size={16} color={theme.accent} />
+          </TouchableOpacity>
+
           {/* SERVER CONNECTION PILL */}
           <TouchableOpacity
             onPress={() => setShowServerModal(true)}
@@ -1387,11 +1460,12 @@ export default function App() {
             {/* TAB 3: VOCABULARY VAULT */}
             {currentTab === 'vocab' && (
               <View style={styles.tabContainer}>
+                {/* Search Bar */}
                 <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                   <IconSearch size={16} color={theme.textMuted} />
                   <TextInput
                     style={[styles.searchInput, { color: theme.textPrimary }]}
-                    placeholder="Tìm từ vựng, nghĩa tiếng Việt..."
+                    placeholder="Tìm từ vựng, nghĩa tiếng Việt, ví dụ..."
                     placeholderTextColor={theme.textMuted}
                     value={vocabSearch}
                     onChangeText={setVocabSearch}
@@ -1403,60 +1477,107 @@ export default function App() {
                   )}
                 </View>
 
-                <View style={styles.filterChipsRow}>
-                  <TouchableOpacity
-                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, vocabFilter === 'all' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
-                    onPress={() => setVocabFilter('all')}
-                  >
-                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === 'all' && { color: theme.accent, fontWeight: '700' }]}>
-                      Tất cả ({words.length})
-                    </Text>
-                  </TouchableOpacity>
+                {/* Filter Tag Pills (Horizontal Scroll) */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
+                  {[
+                    { id: 'all', label: `Tất cả (${words.length})` },
+                    { id: 'mastered', label: `💎 Thuần thục (${masteredCount})` },
+                    { id: 'learning', label: `🌱 Đang học (${totalCount - masteredCount})` },
+                    { id: 'due', label: `⚡ Cần ôn (${totalDue})` },
+                    { id: 'B1', label: 'B1 Intermediate' },
+                    { id: 'B2', label: 'B2 Upper' },
+                    { id: 'C1', label: 'C1 Advanced' },
+                    { id: 'C2', label: 'C2 Master' }
+                  ].map(tab => (
+                    <TouchableOpacity
+                      key={tab.id}
+                      style={[
+                        styles.filterChip,
+                        { backgroundColor: theme.card, borderColor: theme.cardBorder, paddingHorizontal: 12 },
+                        vocabFilter === tab.id && { backgroundColor: theme.accentPill, borderColor: theme.accent }
+                      ]}
+                      onPress={() => setVocabFilter(tab.id)}
+                    >
+                      <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === tab.id && { color: theme.accent, fontWeight: '700' }]}>
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
 
-                  <TouchableOpacity
-                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, vocabFilter === 'mastered' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
-                    onPress={() => setVocabFilter('mastered')}
-                  >
-                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === 'mastered' && { color: theme.accent, fontWeight: '700' }]}>
-                      Thuần thục ({masteredCount})
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, vocabFilter === 'learning' && { backgroundColor: theme.accentPill, borderColor: theme.accent }]}
-                    onPress={() => setVocabFilter('learning')}
-                  >
-                    <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === 'learning' && { color: theme.accent, fontWeight: '700' }]}>
-                      Đang học ({totalCount - masteredCount})
-                    </Text>
-                  </TouchableOpacity>
+                {/* Sort Bar */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted }}>
+                    {filteredWords.length} từ vựng
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    {[
+                      { id: 'newest', label: 'Mới nhất' },
+                      { id: 'az', label: 'A-Z' },
+                      { id: 'due', label: 'Cần ôn' },
+                      { id: 'level', label: 'Cấp độ' }
+                    ].map(sort => (
+                      <TouchableOpacity
+                        key={sort.id}
+                        onPress={() => setVocabSortBy(sort.id)}
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 8,
+                          backgroundColor: vocabSortBy === sort.id ? (isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
+                          borderWidth: 1,
+                          borderColor: vocabSortBy === sort.id ? theme.accent : 'transparent'
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: vocabSortBy === sort.id ? theme.accent : theme.textMuted }}>
+                          {sort.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                  {filteredWords.map(item => (
-                    <View key={item.id} style={[styles.vocabListItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-                      <View style={styles.vocabItemLeft}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{item.word}</Text>
-                            <TouchableOpacity onPress={() => playMobileAudio(item.word)}>
-                              <IconVolume2 size={16} color={theme.accent} />
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24, gap: 8 }}>
+                  {filteredWords.length === 0 ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                      <Text style={{ fontSize: 13, color: theme.textMuted }}>Không tìm thấy từ vựng nào phù hợp bộ lọc.</Text>
+                    </View>
+                  ) : (
+                    filteredWords.map(item => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.vocabListItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                        onPress={() => setSelectedWordDetail(item)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.vocabItemLeft}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Text style={[styles.vocabWordText, { color: theme.textPrimary }]}>{item.word}</Text>
+                              <TouchableOpacity onPress={() => playMobileAudio(item.word)}>
+                                <IconVolume2 size={16} color={theme.accent} />
+                              </TouchableOpacity>
+                              <View style={[styles.levelPill, { backgroundColor: theme.accentPill, paddingHorizontal: 6, paddingVertical: 1 }]}>
+                                <Text style={[styles.levelPillText, { color: theme.accent, fontSize: 10 }]}>{item.level || 'B2'}</Text>
+                              </View>
+                            </View>
+                            <TouchableOpacity onPress={() => handleDeleteWord(item.id, item.word)}>
+                              <IconTrash size={15} color="#ef4444" />
                             </TouchableOpacity>
                           </View>
-                          <TouchableOpacity onPress={() => handleDeleteWord(item.id, item.word)}>
-                            <IconTrash size={16} color="#ef4444" />
-                          </TouchableOpacity>
+
+                          <Text style={[styles.vocabPhoneticText, { color: theme.textMuted }]}>{item.phonetic || ''}</Text>
+                          <Text style={[styles.vocabMeaningText, { color: theme.accent }]}>{item.meaning_vi}</Text>
+
+                          {item.examples && item.examples.length > 0 && (
+                            <Text style={[styles.vocabExampleSub, { color: theme.textSecondary }]} numberOfLines={2}>
+                              "{item.examples[0]}"
+                            </Text>
+                          )}
                         </View>
-                        <Text style={[styles.vocabPhoneticText, { color: theme.textMuted }]}>{item.phonetic || ''}</Text>
-                        <Text style={[styles.vocabMeaningText, { color: theme.accent }]}>{item.meaning_vi}</Text>
-                        {item.examples && item.examples.length > 0 && (
-                          <Text style={[styles.vocabExampleSub, { color: theme.textSecondary }]} numberOfLines={2}>
-                            "{item.examples[0]}"
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  ))}
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </ScrollView>
               </View>
             )}
@@ -2570,12 +2691,35 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
 
+                {/* BACKUP & RESTORE CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <Text style={[styles.formTitle, { color: theme.textPrimary }]}>📦 Sao Lưu & Khôi Phục Dữ Liệu</Text>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Xuất file sao lưu JSON hoặc đồng bộ dữ liệu giữa Web và Thiết bị Di động.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, marginTop: 12 }]}
+                    onPress={() => {
+                      if (typeof window !== 'undefined') {
+                        window.open(mobileApi.exportDataUrl(), '_blank');
+                      } else {
+                        Alert.alert('Sao Lưu', `Tải file sao lưu tại: ${mobileApi.exportDataUrl()}`);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.primaryActionBtnText, { color: theme.accent, fontSize: 13 }]}>
+                      💾 Xuất File Sao Lưu JSON (Local DB)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                   <Text style={[styles.cardSectionLabel, { color: theme.textSecondary }]}>HỆ THỐNG LINGUAVAULT LOCAL-FIRST</Text>
                   <Text style={[styles.mutedText, { color: theme.textMuted, marginTop: 6, lineHeight: 18 }]}>
-                    • Server API: http://localhost:5001{'\n'}
+                    • Server API: {serverUrlState} ({serverConnected ? 'Online 🟢' : 'Offline 🔴'}){'\n'}
                     • Database: SQLite (Native, 0đ Cloud){'\n'}
-                    • Spaced Repetition: SuperMemo SM-2 Engine
+                    • Spaced Repetition: SuperMemo SM-2 Engine{'\n'}
+                    • AI Assistant: Google Gemini 2.0 Free Tier (0đ)
                   </Text>
                 </View>
               </ScrollView>
@@ -3566,6 +3710,313 @@ export default function App() {
               >
                 <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Đóng</Text>
               </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 11. WORD DETAILS MODAL */}
+      <Modal
+        visible={!!selectedWordDetail}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedWordDetail(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
+            {selectedWordDetail && (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>
+                      {selectedWordDetail.word}
+                    </Text>
+                    <TouchableOpacity onPress={() => playMobileAudio(selectedWordDetail.word)}>
+                      <IconVolume2 size={20} color={theme.accent} />
+                    </TouchableOpacity>
+                    <View style={[styles.levelPill, { backgroundColor: theme.accentPill }]}>
+                      <Text style={[styles.levelPillText, { color: theme.accent }]}>{selectedWordDetail.level || 'B2'}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity onPress={() => setSelectedWordDetail(null)} style={{ padding: 6 }}>
+                    <IconClose size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                  {selectedWordDetail.phonetic && (
+                    <Text style={{ fontSize: 14, color: theme.textMuted, fontStyle: 'italic' }}>
+                      {selectedWordDetail.phonetic} {selectedWordDetail.part_of_speech ? `• (${selectedWordDetail.part_of_speech})` : ''}
+                    </Text>
+                  )}
+
+                  <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.1)' : 'rgba(2, 132, 199, 0.08)', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.25)' : 'rgba(2, 132, 199, 0.15)' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>NGHĨA TIẾNG VIỆT</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: theme.textPrimary, marginTop: 2 }}>
+                      {selectedWordDetail.meaning_vi}
+                    </Text>
+                    {selectedWordDetail.meaning_en ? (
+                      <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
+                        {selectedWordDetail.meaning_en}
+                      </Text>
+                    ) : null}
+                  </View>
+
+                  {/* Collocations */}
+                  {selectedWordDetail.collocations && selectedWordDetail.collocations.length > 0 && (
+                    <View style={{ backgroundColor: theme.drawerCardBg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.cardBorder }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#a855f7', textTransform: 'uppercase', marginBottom: 6 }}>
+                        ✨ CỤM TỪ ĐI KÈM (COLLOCATIONS)
+                      </Text>
+                      {selectedWordDetail.collocations.map((col, idx) => (
+                        <Text key={idx} style={{ fontSize: 13, color: theme.textPrimary, marginVertical: 2 }}>
+                          • <b>{typeof col === 'string' ? col : col.phrase}</b> {typeof col === 'object' && col.meaning ? `— ${col.meaning}` : ''}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Examples */}
+                  {selectedWordDetail.examples && selectedWordDetail.examples.length > 0 && (
+                    <View style={{ backgroundColor: theme.drawerCardBg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.cardBorder }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, textTransform: 'uppercase', marginBottom: 6 }}>
+                        💬 CÂU VÍ DỤ THỰC TẾ
+                      </Text>
+                      {selectedWordDetail.examples.map((ex, idx) => (
+                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginVertical: 3 }}>
+                          <TouchableOpacity onPress={() => playMobileAudio(ex)} style={{ marginTop: 2 }}>
+                            <IconVolume2 size={14} color={theme.accent} />
+                          </TouchableOpacity>
+                          <Text style={{ fontSize: 13, color: theme.textPrimary, flex: 1, lineHeight: 18 }}>
+                            "{ex}"
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* SM-2 Retention Metrics */}
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                      <Text style={{ fontSize: 9, color: theme.textMuted }}>KHOẢNG CÁCH</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: theme.accent }}>{selectedWordDetail.interval || 0} ngày</Text>
+                    </View>
+                    <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                      <Text style={{ fontSize: 9, color: theme.textMuted }}>LẦN LẶP</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#10b981' }}>{selectedWordDetail.repetitions || 0}</Text>
+                    </View>
+                    <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 8, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                      <Text style={{ fontSize: 9, color: theme.textMuted }}>ĐỘ DỄ (EF)</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#f59e0b' }}>{selectedWordDetail.ease_factor || 2.5}</Text>
+                    </View>
+                  </View>
+
+                  {/* Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditingWordData({ ...selectedWordDetail });
+                        setSelectedWordDetail(null);
+                      }}
+                      style={{ flex: 1, backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: theme.textPrimary, fontWeight: '700', fontSize: 13 }}>✏️ Chỉnh Sửa</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        const targetId = selectedWordDetail.id;
+                        const targetWord = selectedWordDetail.word;
+                        setSelectedWordDetail(null);
+                        handleDeleteWord(targetId, targetWord);
+                      }}
+                      style={{ flex: 1, backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: '#ef4444', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 13 }}>🗑️ Xóa Từ</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* 12. EDIT WORD MODAL */}
+      <Modal
+        visible={!!editingWordData}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setEditingWordData(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
+            {editingWordData && (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary }}>
+                    ✏️ Chỉnh Sửa: {editingWordData.word}
+                  </Text>
+                  <TouchableOpacity onPress={() => setEditingWordData(null)} style={{ padding: 6 }}>
+                    <IconClose size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                  <View>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Từ tiếng Anh *</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary }]}
+                      value={editingWordData.word}
+                      onChangeText={(val) => setEditingWordData({ ...editingWordData, word: val })}
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nghĩa tiếng Việt *</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary }]}
+                      value={editingWordData.meaning_vi}
+                      onChangeText={(val) => setEditingWordData({ ...editingWordData, meaning_vi: val })}
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Phiên âm (IPA)</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary }]}
+                      value={editingWordData.phonetic || ''}
+                      onChangeText={(val) => setEditingWordData({ ...editingWordData, phonetic: val })}
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Định nghĩa tiếng Anh</Text>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary }]}
+                      value={editingWordData.meaning_en || ''}
+                      onChangeText={(val) => setEditingWordData({ ...editingWordData, meaning_en: val })}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => setEditingWordData(null)}
+                      style={{ flex: 1, backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: theme.textSecondary, fontWeight: '700' }}>Hủy</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={handleUpdateWord}
+                      disabled={isUpdatingWord}
+                      style={{ flex: 1.5, backgroundColor: theme.btnPrimaryBg, paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}
+                    >
+                      {isUpdatingWord ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text style={{ color: '#ffffff', fontWeight: '800' }}>Lưu Thay Đổi</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* 13. COMMAND PALETTE & GLOBAL SEARCH MODAL */}
+      <Modal
+        visible={showCommandPaletteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCommandPaletteModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '80%' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10, marginBottom: 12 }}>
+              <IconSearch size={18} color={theme.accent} />
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: theme.textPrimary, fontWeight: '600' }}
+                placeholder="Tra cứu từ, cấu trúc, bài đọc, phím tắt..."
+                placeholderTextColor={theme.textMuted}
+                value={commandSearchQuery}
+                onChangeText={setCommandSearchQuery}
+                autoFocus
+              />
+              <TouchableOpacity onPress={() => setShowCommandPaletteModal(false)} style={{ padding: 4 }}>
+                <IconClose size={20} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {/* Quick Actions Shortcuts */}
+              {!commandSearchQuery && (
+                <View style={{ gap: 4, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>PHÍM TẮT ĐIỀU HƯỚNG</Text>
+                  <TouchableOpacity
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => { setShowCommandPaletteModal(false); navigateTo('review'); }}
+                  >
+                    <IconZap size={16} color={theme.accent} />
+                    <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Ôn tập Thẻ Spaced Repetition (SM-2)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => { setShowCommandPaletteModal(false); navigateTo('quiz'); }}
+                  >
+                    <IconTarget size={16} color="#10b981" />
+                    <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Làm Bài Quiz Trắc Nghiệm</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => { setShowCommandPaletteModal(false); navigateTo('speaking'); }}
+                  >
+                    <IconSparkles size={16} color="#a855f7" />
+                    <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Luyện AI Speaking & Pronunciation</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => { setShowCommandPaletteModal(false); fetchMobileAIMasteryReport(); setShowAIMasteryModal(true); }}
+                  >
+                    <IconAward size={16} color="#f59e0b" />
+                    <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Xem Báo Cáo Đánh Giá Năng Lực AI</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Matched Words */}
+              {commandSearchQuery.trim() ? (
+                <>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>KHO TỪ VỰNG</Text>
+                  {words
+                    .filter(w => w.word.toLowerCase().includes(commandSearchQuery.toLowerCase()) || (w.meaning_vi && w.meaning_vi.toLowerCase().includes(commandSearchQuery.toLowerCase())))
+                    .slice(0, 5)
+                    .map(w => (
+                      <TouchableOpacity
+                        key={w.id}
+                        onPress={() => {
+                          setShowCommandPaletteModal(false);
+                          setSelectedWordDetail(w);
+                        }}
+                        style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <View>
+                          <Text style={{ fontWeight: '700', color: theme.textPrimary, fontSize: 14 }}>{w.word}</Text>
+                          <Text style={{ fontSize: 11, color: theme.accent }}>{w.meaning_vi}</Text>
+                        </View>
+                        <View style={[styles.levelPill, { backgroundColor: theme.accentPill }]}>
+                          <Text style={[styles.levelPillText, { color: theme.accent, fontSize: 10 }]}>{w.level || 'B2'}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                </>
+              ) : null}
             </ScrollView>
           </View>
         </View>

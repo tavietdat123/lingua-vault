@@ -186,6 +186,18 @@ export const mobileApi = {
     }
   },
 
+  updateWord: async (id, data) => {
+    try {
+      return await requestApi(`/api/vocab/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
   deleteWord: async (id) => {
     try {
       return await requestApi(`/api/vocab/${id}`, { method: 'DELETE' });
@@ -250,6 +262,18 @@ export const mobileApi = {
     }
   },
 
+  updatePattern: async (id, data) => {
+    try {
+      return await requestApi(`/api/patterns/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
   deletePattern: async (id) => {
     try {
       return await requestApi(`/api/patterns/${id}`, { method: 'DELETE' });
@@ -283,6 +307,18 @@ export const mobileApi = {
     try {
       return await requestApi('/api/notes', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  updateNote: async (id, data) => {
+    try {
+      return await requestApi(`/api/notes/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
@@ -470,6 +506,21 @@ export const mobileApi = {
   getAIMasteryReport: async () => {
     try {
       return await requestApi('/api/ai/mastery-report');
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // 10. Backup & Restore
+  exportDataUrl: () => `${currentServerUrl}/api/settings/backup`,
+
+  restoreBackup: async (backupData) => {
+    try {
+      return await requestApi('/api/settings/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(backupData)
+      });
     } catch (e) {
       return { success: false, error: e.message };
     }
