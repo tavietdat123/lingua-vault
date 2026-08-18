@@ -2,13 +2,14 @@ import { getDb } from '../db/database.js';
 import { telegramService } from './telegramService.js';
 
 let intervalTimer = null;
-let lastSentDate = null;
+let lastMorningSentDate = null;
+let lastEveningSentDate = null;
 
 export const schedulerService = {
   start: () => {
     if (intervalTimer) return;
 
-    console.log('⏰ [Scheduler] Telegram Daily Reminder Scheduler initialized.');
+    console.log('⏰ [Scheduler] Telegram Dual-Schedule (Morning Due Recap & Evening Alert) initialized.');
 
     // Check every 60 seconds
     intervalTimer = setInterval(async () => {
@@ -22,17 +23,26 @@ export const schedulerService = {
         const currentTimeStr = `${currentHours}:${currentMinutes}`;
         const todayDateStr = now.toISOString().slice(0, 10);
 
-        // Get configured reminder time (default 20:00)
-        const timeRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_reminder_time'").get();
-        const targetTime = timeRow?.value || '20:00';
+        // 1. Morning Spaced Repetition Due Words Reminder (Default 08:30)
+        const morningTimeRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_morning_time'").get();
+        const morningTargetTime = morningTimeRow?.value || '08:30';
 
-        // Check if we reached the target time and haven't sent today yet
-        if (currentTimeStr === targetTime && lastSentDate !== todayDateStr) {
-          console.log(`⏰ [Scheduler] Triggering daily study reminder check at ${currentTimeStr}...`);
-          lastSentDate = todayDateStr;
-          
-          const result = await telegramService.checkAndSendDailyReminder();
-          console.log('⏰ [Scheduler] Reminder result:', result);
+        if (currentTimeStr === morningTargetTime && lastMorningSentDate !== todayDateStr) {
+          console.log(`⏰ [Scheduler] Triggering Morning Spaced Repetition Due Words Digest at ${currentTimeStr}...`);
+          lastMorningSentDate = todayDateStr;
+          const morningResult = await telegramService.sendDueReviewReminder();
+          console.log('⏰ [Scheduler] Morning Due Digest result:', morningResult);
+        }
+
+        // 2. Evening Daily Goal Progress & Streak Warning (Default 20:00)
+        const eveningTimeRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_reminder_time'").get();
+        const eveningTargetTime = eveningTimeRow?.value || '20:00';
+
+        if (currentTimeStr === eveningTargetTime && lastEveningSentDate !== todayDateStr) {
+          console.log(`⏰ [Scheduler] Triggering Evening Study Progress Check at ${currentTimeStr}...`);
+          lastEveningSentDate = todayDateStr;
+          const eveningResult = await telegramService.checkAndSendDailyReminder();
+          console.log('⏰ [Scheduler] Evening Alert result:', eveningResult);
         }
       } catch (err) {
         console.error('⏰ [Scheduler Error]:', err.message);

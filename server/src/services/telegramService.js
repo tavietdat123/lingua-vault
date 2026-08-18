@@ -47,7 +47,7 @@ export const telegramService = {
     return await telegramService.sendMessage(botToken, chatId, text);
   },
 
-  // 3. Get Today's Study Progress
+  // 3. Get Today's Study Progress & Due Words List
   getDailyProgress: () => {
     const db = getDb();
     
@@ -68,6 +68,22 @@ export const telegramService = {
     const streakRow = db.prepare("SELECT value FROM settings WHERE key = 'streak'").get();
     const streak = streakRow ? parseInt(streakRow.value, 10) || 0 : 0;
 
+    // Get Due Words for review
+    const dueWords = db.prepare(`
+      SELECT id, word, phonetic, part_of_speech, meaning_vi, examples, interval, repetition
+      FROM words 
+      WHERE due_date <= ? 
+      ORDER BY repetition ASC, due_date ASC
+      LIMIT 5
+    `).all(todayStr).map(w => ({
+      ...w,
+      examples: JSON.parse(w.examples || '[]')
+    }));
+
+    const totalDueRow = db.prepare(`
+      SELECT COUNT(*) as count FROM words WHERE due_date <= ?
+    `).get(todayStr);
+
     const totalStudiedToday = (studyLogRow?.reviews_count || 0) + (wordsAddedTodayRow?.count || 0);
 
     return {
@@ -75,11 +91,77 @@ export const telegramService = {
       studiedToday: totalStudiedToday,
       isGoalMet: totalStudiedToday >= dailyGoal,
       remaining: Math.max(0, dailyGoal - totalStudiedToday),
-      streak
+      streak,
+      dueWords,
+      totalDueCount: totalDueRow?.count || 0
     };
   },
 
-  // 4. Check Progress & Send Reminder If Incomplete
+  // 4. Send Morning Spaced Repetition Due Reminder (Ôn tập từ cũ)
+  sendDueReviewReminder: async (force = false) => {
+    const db = getDb();
+    
+    const enabledRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_enabled'").get();
+    const isEnabled = enabledRow?.value === 'true' || enabledRow?.value === '1';
+
+    if (!isEnabled && !force) {
+      return { skipped: true, reason: 'Telegram notification disabled in settings' };
+    }
+
+    const tokenRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+    const chatRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
+    const botToken = tokenRow?.value;
+    const chatId = chatRow?.value;
+
+    if (!botToken || !chatId) {
+      return { skipped: true, reason: 'Missing bot token or chat ID' };
+    }
+
+    const progress = telegramService.getDailyProgress();
+    const { dueWords, totalDueCount } = progress;
+
+    if (totalDueCount === 0 && !force) {
+      return { skipped: true, reason: 'No due words to review today' };
+    }
+
+    // Build Word Cards for Telegram Message
+    let wordListText = '';
+    if (dueWords && dueWords.length > 0) {
+      wordListText = dueWords.map((w, idx) => {
+        const example = w.examples && w.examples.length > 0 ? `\n   <i>"${w.examples[0]}"</i>` : '';
+        const ipa = w.phonetic ? ` <code>${w.phonetic}</code>` : '';
+        const pos = w.part_of_speech ? ` (${w.part_of_speech})` : '';
+        return `<b>${idx + 1}. ${w.word.toUpperCase()}</b>${ipa}${pos}\n   🇻🇳 <b>Nghĩa:</b> ${w.meaning_vi}${example}`;
+      }).join('\n\n');
+    } else {
+      wordListText = '<i>(Hiện tại bạn đã ôn hết toàn bộ từ cũ! Rất xuất sắc 🌟)</i>';
+    }
+
+    const message = `
+🧠 <b>ÔN TẬP TỪ CŨ • SPICED REPETITION (SM-2)</b>
+
+👋 Chào bạn! Hôm nay có <b>${totalDueCount} từ vựng</b> đã đến chu kỳ ôn tập vàng để chống lãng quên:
+
+${wordListText}
+
+━━━━━━━━━━━━━━━━━━━━
+💡 <i>Dành 3 phút lướt qua để củng cố trí nhớ dài hạn (Long-term Memory) nhé!</i>
+
+👉 <b>Mở App Ôn Tập Ngay:</b> <a href="http://localhost:3000">LinguaVault Flashcard Hub</a>
+    `.trim();
+
+    const result = await telegramService.sendMessage(botToken, chatId, message);
+
+    return {
+      success: true,
+      sent: true,
+      totalDueCount,
+      dueWords,
+      result
+    };
+  },
+
+  // 5. Check Progress & Send Evening Reminder If Incomplete
   checkAndSendDailyReminder: async (force = false) => {
     const db = getDb();
     
@@ -112,13 +194,20 @@ export const telegramService = {
       };
     }
 
+    // Include 2 sample due words if available
+    let dueHint = '';
+    if (progress.dueWords && progress.dueWords.length > 0) {
+      const topWords = progress.dueWords.slice(0, 3).map(w => `• <b>${w.word}</b>: ${w.meaning_vi}`).join('\n');
+      dueHint = `\n\n📌 <b>Từ cũ cần ôn gấp tối nay:</b>\n${topWords}`;
+    }
+
     const message = `
 ⚠️ <b>CẢNH BÁO TIẾN ĐỘ HỌC TẬP • LINGUAVAULT</b>
 
 ⏰ Bạn ơi, hôm nay sắp hết ngày rồi mà mục tiêu học tập vẫn chưa đạt:
 📊 <b>Tiến độ hôm nay:</b> <code>${progress.studiedToday} / ${progress.dailyGoal} từ</code>
 ⚡ <b>Còn thiếu:</b> <b>${progress.remaining} từ</b> nữa để hoàn thành!
-🔥 <b>Chuỗi hiện tại:</b> <b>${progress.streak} ngày liên tục</b>
+🔥 <b>Chuỗi hiện tại:</b> <b>${progress.streak} ngày liên tục</b>${dueHint}
 
 💡 <i>Dành 3 phút vào ôn tập Flashcard ngay để bảo vệ chuỗi Streak vàng nhé!</i>
 
