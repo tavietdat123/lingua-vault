@@ -79,10 +79,11 @@ app.post('/api/notes', noteController.createNote);
 app.put('/api/notes/:id', noteController.updateNote);
 app.delete('/api/notes/:id', noteController.deleteNote);
 
-// SRS Spaced Repetition Routes
+// SRS Spaced Repetition & Dashboard Stats Routes
 app.get('/api/srs/due', srsController.getDueItems);
 app.post('/api/srs/review', srsController.submitReview);
 app.get('/api/srs/stats', srsController.getStats);
+app.get('/api/dashboard/stats', srsController.getStats);
 
 // AI Integration Routes (Gemini 0đ)
 app.post('/api/ai/parse-sentence', aiController.parseSentence);

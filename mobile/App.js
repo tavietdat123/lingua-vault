@@ -989,12 +989,14 @@ export default function App() {
     }
   };
 
-  // Metrics
+  // Metrics (100% Synced with Database)
   const totalDue = dueItems.length;
   const wordStats = stats?.words || {};
   const streak = stats?.streak || 0;
-  const masteredCount = wordStats.mastered || 0;
-  const totalCount = wordStats.total || 0;
+  const totalCount = words.length > 0 ? words.length : (wordStats.total || 0);
+  const masteredCount = words.length > 0
+    ? words.filter(w => w.status === 'mastered' || (w.interval >= 6 && w.repetitions >= 3)).length
+    : (wordStats.mastered || 0);
 
   let rank = 'Apprentice (Tập sự)';
   if (masteredCount >= 100) rank = 'Polyglot Master (Bậc thầy)';

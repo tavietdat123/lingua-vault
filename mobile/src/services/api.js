@@ -1,13 +1,17 @@
 // Dynamic Server URL for Simulator, LAN Wi-Fi & Remote Cloud Tunnel
+const defaultHost = (typeof window !== 'undefined' && window.location && window.location.hostname) 
+  ? window.location.hostname 
+  : 'localhost';
+
 export const CANDIDATE_SERVERS = [
-  'http://192.168.110.47:5001',
+  `http://${defaultHost}:5001`,
   'http://localhost:5001',
   'http://127.0.0.1:5001',
-  'http://192.168.102.2:5001',
+  'http://192.168.110.47:5001',
   'http://10.0.2.2:5001'
 ];
 
-let currentServerUrl = 'http://192.168.110.47:5001';
+let currentServerUrl = `http://${defaultHost}:5001`;
 
 // Load saved server URL from storage if available
 if (typeof localStorage !== 'undefined') {
@@ -125,7 +129,7 @@ export const mobileApi = {
   // 1. Dashboard & SRS
   getStats: async () => {
     try {
-      return await requestApi('/api/dashboard/stats');
+      return await requestApi('/api/srs/stats');
     } catch (e) {
       return {
         success: true,
