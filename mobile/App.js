@@ -1051,18 +1051,11 @@ export default function App() {
           <Text style={[styles.statusBarTime, { color: theme.textPrimary }]}>9:41</Text>
         </View>
 
-        {/* Dynamic Island Capsule */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setShowServerModal(true)}
-          style={[styles.dynamicIsland, { backgroundColor: isDark ? '#000000' : '#1e293b' }]}
-        >
-          <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: serverConnected ? '#10b981' : '#ef4444', marginRight: 6 }} />
-          <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 }}>
-            {serverConnected ? 'API SYNC' : 'OFFLINE'}
-          </Text>
+        {/* Dynamic Island Capsule (Authentic Apple Hardware Notch) */}
+        <View style={[styles.dynamicIsland, { backgroundColor: isDark ? '#000000' : '#0f172a' }]}>
           <View style={styles.dynamicIslandCamera} />
-        </TouchableOpacity>
+          <View style={styles.dynamicIslandSpeaker} />
+        </View>
 
         <View style={styles.statusBarRight}>
           <Text style={{ fontSize: 10, fontWeight: '800', color: theme.textSecondary }}>5G</Text>
@@ -4036,20 +4029,25 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   dynamicIsland: {
+    width: 86,
+    height: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 20,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    borderRadius: 11,
   },
   dynamicIslandCamera: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1e293b',
+  },
+  dynamicIslandSpeaker: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#334155',
-    marginLeft: 6,
   },
   statusBarRight: {
     width: 70,
