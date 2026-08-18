@@ -231,7 +231,7 @@ export default function App() {
   const [isTestingServer, setIsTestingServer] = useState(false);
   const [serverTestResult, setServerTestResult] = useState('');
 
-  // Hardcore Alarm Challenge State
+  // Hardcore Alarm Challenge State & Audio Synthesizer
   const [showAlarmModal, setShowAlarmModal] = useState(false);
   const [alarmQuestions, setAlarmQuestions] = useState([]);
   const [alarmIndex, setAlarmIndex] = useState(0);
@@ -239,13 +239,42 @@ export default function App() {
   const [alarmSelectedOpt, setAlarmSelectedOpt] = useState(null);
   const [alarmCompleted, setAlarmCompleted] = useState(false);
 
+  const playMobileTone = (freq = 980, duration = 0.1) => {
+    try {
+      if (typeof window !== 'undefined') {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + duration);
+        }
+      }
+    } catch (e) {}
+  };
+
   const startAlarmChallenge = () => {
-    const src = words && words.length >= 3 ? words : [
+    // Get configured count or default 3
+    let count = 3;
+    if (typeof localStorage !== 'undefined') {
+      count = parseInt(localStorage.getItem('linguavault_alarm_q_count') || '3', 10) || 3;
+    }
+
+    const src = words && words.length >= count ? words : [
       { word: 'resilient', meaning_vi: 'Kiên cường, phục hồi nhanh' },
       { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, mạch lạc' },
-      { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn thận từng chi tiết' }
+      { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn thận từng chi tiết' },
+      { word: 'leverage', meaning_vi: 'Tận dụng, phát huy tối đa đòn bẩy' },
+      { word: 'pragmatic', meaning_vi: 'Thực tế, thực dụng và hiệu quả' }
     ];
-    const shuffled = [...src].sort(() => 0.5 - Math.random()).slice(0, 3);
+    const shuffled = [...src].sort(() => 0.5 - Math.random()).slice(0, count);
     const qs = shuffled.map((w, idx) => {
       const others = src.filter(item => item.word !== w.word).map(item => item.meaning_vi).slice(0, 3);
       const opts = [...others, w.meaning_vi].sort(() => 0.5 - Math.random());
@@ -255,6 +284,8 @@ export default function App() {
         options: opts
       };
     });
+
+    playMobileTone(980, 0.2);
     setAlarmQuestions(qs);
     setAlarmIndex(0);
     setAlarmCompleted(false);
@@ -2953,13 +2984,19 @@ export default function App() {
         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 2, borderColor: '#ef4444' }}>
             {/* Urgent Red Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239, 68, 68, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                <IconFlame size={20} color="#ef4444" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239, 68, 68, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconFlame size={20} color="#ef4444" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#ef4444' }}>🚨 BÁO THỨC KỶ LUẬT THÉP</Text>
+                  <Text style={{ fontSize: 11, color: theme.textSecondary }}>Giải đúng Quiz để tắt báo thức!</Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#ef4444' }}>🚨 BÁO THỨC HỌC TẬP KHẨN CẤP</Text>
-                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Giải mã 3 câu Quiz để tắt báo thức!</Text>
+
+              <View style={{ backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#fef08a' }}>🔒 CẤM HOÃN</Text>
               </View>
             </View>
 
@@ -3023,20 +3060,23 @@ export default function App() {
                             setAlarmSelectedOpt(opt);
                             setAlarmAnswered(true);
                             if (isCorrect) {
+                              playMobileTone(1046.5, 0.15);
                               setTimeout(() => {
                                 if (alarmIndex + 1 < alarmQuestions.length) {
                                   setAlarmIndex(prev => prev + 1);
                                   setAlarmAnswered(false);
                                   setAlarmSelectedOpt(null);
                                 } else {
+                                  playMobileTone(1200, 0.3);
                                   setAlarmCompleted(true);
                                 }
-                              }, 700);
+                              }, 500);
                             } else {
+                              playMobileTone(220, 0.25);
                               setTimeout(() => {
                                 setAlarmAnswered(false);
                                 setAlarmSelectedOpt(null);
-                              }, 1000);
+                              }, 900);
                             }
                           }}
                           style={{
