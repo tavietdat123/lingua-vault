@@ -13,7 +13,7 @@ function createWindow() {
     title: '📱 LinguaVault - Mobile Pro Max',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 18, y: 12 },
-    backgroundColor: '#070a13',
+    backgroundColor: '#f8fafc',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

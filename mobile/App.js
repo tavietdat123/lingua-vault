@@ -129,8 +129,8 @@ const playMobileAudio = (wordText, rate = null, lang = null) => {
 };
 
 export default function App() {
-  // Theme State
-  const [isDark, setIsDark] = useState(true);
+  // Theme State (Default: Light Theme)
+  const [isDark, setIsDark] = useState(false);
   const theme = isDark ? themes.dark : themes.light;
 
   const toggleTheme = () => {

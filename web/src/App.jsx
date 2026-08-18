@@ -29,7 +29,7 @@ export default function App() {
   const path = location.pathname.replace(/^\//, '');
   const currentTab = path || 'dashboard';
 
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [audioSpeed, setAudioSpeed] = useState(audioService.getSpeed());
 
   // Data States
@@ -78,15 +78,15 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Load Theme
+  // Load Theme (Default: Light)
   useEffect(() => {
     const savedTheme = localStorage.getItem('linguavault_theme');
-    if (savedTheme === 'light') {
-      setIsDark(false);
-      document.body.className = 'theme-light';
-    } else {
+    if (savedTheme === 'dark') {
       setIsDark(true);
       document.body.className = 'theme-dark';
+    } else {
+      setIsDark(false);
+      document.body.className = 'theme-light';
     }
   }, []);
 
