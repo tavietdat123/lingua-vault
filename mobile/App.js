@@ -377,6 +377,38 @@ export default function App() {
     loadData();
   }, []);
 
+  // ⏰ AUTOMATIC ALARM WATCHER ON MOBILE (Checks every 10s and automatically fires alarm)
+  useEffect(() => {
+    let lastTriggeredMinute = '';
+
+    const checkAutoAlarm = () => {
+      try {
+        const now = new Date();
+        const currentHH = String(now.getHours()).padStart(2, '0');
+        const currentMM = String(now.getMinutes()).padStart(2, '0');
+        const currentTimeStr = `${currentHH}:${currentMM}`;
+
+        let isAlarmEnabled = true;
+        let targetAlarmTime = reminderTime || '20:00';
+
+        if (typeof localStorage !== 'undefined') {
+          isAlarmEnabled = localStorage.getItem('linguavault_auto_alarm_enabled') !== 'false';
+          targetAlarmTime = localStorage.getItem('linguavault_alarm_time') || reminderTime || '20:00';
+        }
+
+        if (isAlarmEnabled && currentTimeStr === targetAlarmTime && lastTriggeredMinute !== currentTimeStr) {
+          lastTriggeredMinute = currentTimeStr;
+          startAlarmChallenge();
+        }
+      } catch (e) {}
+    };
+
+    const interval = setInterval(checkAutoAlarm, 10000);
+    checkAutoAlarm();
+
+    return () => clearInterval(interval);
+  }, [reminderTime, words]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();

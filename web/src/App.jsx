@@ -124,6 +124,33 @@ export default function App() {
     refreshAllData();
   }, []);
 
+  // ⏰ AUTOMATIC ALARM WATCHER (Checks every 10s and automatically fires alarm)
+  useEffect(() => {
+    let lastTriggeredMinute = '';
+
+    const checkAutoAlarm = () => {
+      try {
+        const now = new Date();
+        const currentHH = String(now.getHours()).padStart(2, '0');
+        const currentMM = String(now.getMinutes()).padStart(2, '0');
+        const currentTimeStr = `${currentHH}:${currentMM}`;
+
+        const isAlarmEnabled = localStorage.getItem('linguavault_auto_alarm_enabled') !== 'false';
+        const targetAlarmTime = localStorage.getItem('linguavault_alarm_time') || '20:00';
+
+        if (isAlarmEnabled && currentTimeStr === targetAlarmTime && lastTriggeredMinute !== currentTimeStr) {
+          lastTriggeredMinute = currentTimeStr;
+          setIsAlarmModalOpen(true);
+        }
+      } catch (e) {}
+    };
+
+    const interval = setInterval(checkAutoAlarm, 10000);
+    checkAutoAlarm();
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Handlers for Words
   const handleAddWord = () => {
     setEditingWord(null);

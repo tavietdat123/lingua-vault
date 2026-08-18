@@ -96,6 +96,8 @@ export default function SettingsModal({ onClose, onDataRestored }) {
 
     try {
       localStorage.setItem('linguavault_alarm_q_count', String(alarmQuestionsCount));
+      localStorage.setItem('linguavault_alarm_time', reminderTime);
+      localStorage.setItem('linguavault_auto_alarm_enabled', 'true');
       const res = await api.saveTelegramSettings({
         daily_word_goal: parseInt(dailyGoal, 10) || 10,
         telegram_reminder_time: reminderTime,
