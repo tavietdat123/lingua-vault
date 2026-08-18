@@ -37,7 +37,9 @@ import {
   IconMoon,
   IconTarget,
   IconBell,
-  IconMic
+  IconMic,
+  IconAward,
+  IconClose
 } from './src/components/VectorIcons';
 
 const { width } = Dimensions.get('window');

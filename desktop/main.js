@@ -28,6 +28,14 @@ function createWindow() {
   // Load the compiled Mobile App
   mainWindow.loadURL('http://localhost:5001/mobile/');
 
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Mobile Electron Console] ${message} (${sourceId}:${line})`);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[Mobile Electron Load Failed] ${errorDescription} (${errorCode}) for ${validatedURL}`);
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
