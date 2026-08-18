@@ -1045,7 +1045,34 @@ export default function App() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       <StatusBar barStyle={theme.statusBarStyle} backgroundColor={theme.bg} />
 
-      {/* 1. TOP APP BAR */}
+      {/* 0. iOS STATUS BAR & DYNAMIC ISLAND (UI/UX PRO MAX) */}
+      <View style={[styles.statusBarContainer, { backgroundColor: theme.topBarBg }]}>
+        <View style={styles.statusBarLeft}>
+          <Text style={[styles.statusBarTime, { color: theme.textPrimary }]}>9:41</Text>
+        </View>
+
+        {/* Dynamic Island Capsule */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowServerModal(true)}
+          style={[styles.dynamicIsland, { backgroundColor: isDark ? '#000000' : '#1e293b' }]}
+        >
+          <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: serverConnected ? '#10b981' : '#ef4444', marginRight: 6 }} />
+          <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffff', letterSpacing: 0.2 }}>
+            {serverConnected ? 'API SYNC' : 'OFFLINE'}
+          </Text>
+          <View style={styles.dynamicIslandCamera} />
+        </TouchableOpacity>
+
+        <View style={styles.statusBarRight}>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: theme.textSecondary }}>5G</Text>
+          <View style={[styles.batteryIcon, { borderColor: theme.textSecondary }]}>
+            <View style={[styles.batteryLevel, { backgroundColor: '#10b981' }]} />
+          </View>
+        </View>
+      </View>
+
+      {/* 1. TOP APP BAR (PRO MAX NAVIGATION) */}
       <View style={[styles.topBar, { backgroundColor: theme.topBarBg, borderBottomColor: theme.cardBorder }]}>
         <View style={styles.brandContainer}>
           <TouchableOpacity
@@ -1053,7 +1080,7 @@ export default function App() {
             onPress={() => setIsNavDrawerOpen(true)}
             activeOpacity={0.7}
           >
-            <IconMenu size={20} color={theme.accent} />
+            <IconMenu size={18} color={theme.accent} />
           </TouchableOpacity>
           <View>
             <Text style={[styles.brandTitle, { color: theme.textPrimary }]}>LinguaVault</Text>
@@ -1067,51 +1094,26 @@ export default function App() {
             onPress={() => setShowCommandPaletteModal(true)}
             style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
           >
-            <IconSearch size={16} color={theme.accent} />
-          </TouchableOpacity>
-
-          {/* SERVER CONNECTION PILL */}
-          <TouchableOpacity
-            onPress={() => setShowServerModal(true)}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 8,
-              paddingVertical: 5,
-              borderRadius: 16,
-              backgroundColor: serverConnected ? (isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.12)') : 'rgba(239, 68, 68, 0.15)',
-              borderWidth: 1,
-              borderColor: serverConnected ? '#10b981' : '#ef4444',
-            }}
-          >
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: serverConnected ? '#10b981' : '#ef4444', marginRight: 4 }} />
-            <Text style={{ fontSize: 10, fontWeight: '800', color: serverConnected ? '#10b981' : '#ef4444' }}>
-              {serverConnected ? 'API OK' : 'API IP ⚙️'}
-            </Text>
+            <IconSearch size={15} color={theme.accent} />
           </TouchableOpacity>
 
           {/* GAMIFICATION LEVEL PILL */}
           <TouchableOpacity
             onPress={() => setShowAIMasteryModal(true)}
             activeOpacity={0.7}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 8,
-              paddingVertical: 5,
-              borderRadius: 16,
-              backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : 'rgba(2, 132, 199, 0.12)',
-              borderWidth: 1,
-              borderColor: theme.accent,
-              gap: 3
-            }}
+            style={[styles.gamificationTopPill, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : 'rgba(2, 132, 199, 0.12)', borderColor: theme.accent }]}
           >
             <IconAward size={12} color={theme.accent} />
             <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent }}>
-              Lv.{gamificationProfile?.level || 1} ({gamificationProfile?.totalXp || 0} XP)
+              Lv.{gamificationProfile?.level || 1} • {gamificationProfile?.totalXp || 0} XP
             </Text>
           </TouchableOpacity>
+
+          {/* STREAK PILL */}
+          <View style={[styles.streakPill, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.12)' }]}>
+            <IconFlame size={13} color="#f59e0b" />
+            <Text style={styles.streakText}>{streak}d</Text>
+          </View>
 
           {/* THEME TOGGLE BUTTON */}
           <TouchableOpacity
@@ -1119,25 +1121,9 @@ export default function App() {
             style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
           >
             {isDark ? (
-              <IconSun size={17} color="#f59e0b" />
+              <IconSun size={15} color="#f59e0b" />
             ) : (
-              <IconMoon size={17} color="#0284c7" />
-            )}
-          </TouchableOpacity>
-
-          <View style={[styles.streakPill, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.12)' }]}>
-            <IconFlame size={14} color="#f59e0b" />
-            <Text style={styles.streakText}>{streak}d</Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={handleRefresh}
-            style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={theme.accent} />
-            ) : (
-              <IconRefresh size={16} color={theme.accent} />
+              <IconMoon size={15} color="#0284c7" />
             )}
           </TouchableOpacity>
         </View>
@@ -4031,12 +4017,66 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  statusBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    paddingBottom: 6,
+    paddingHorizontal: 16,
+  },
+  statusBarLeft: {
+    width: 70,
+    paddingLeft: 70, // Space for macOS native red/yellow/green traffic lights
+    justifyContent: 'center',
+  },
+  statusBarTime: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  dynamicIsland: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+  },
+  dynamicIslandCamera: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#334155',
+    marginLeft: 6,
+  },
+  statusBarRight: {
+    width: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  batteryIcon: {
+    width: 20,
+    height: 11,
+    borderRadius: 3,
+    borderWidth: 1,
+    padding: 1,
+    justifyContent: 'center',
+  },
+  batteryLevel: {
+    height: '100%',
+    width: '80%',
+    borderRadius: 1.5,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   brandContainer: {
@@ -4072,19 +4112,28 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 1,
     borderColor: '#f59e0b',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 20,
+  },
+  gamificationTopPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 3,
   },
   streakText: {
     color: '#f59e0b',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
   },
   iconCircleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

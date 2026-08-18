@@ -5,14 +5,15 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 414,
-    height: 896,
+    width: 428,
+    height: 926,
     minWidth: 380,
     minHeight: 700,
-    maxWidth: 480,
-    title: '📱 LinguaVault - Mobile App (iPhone 15 Pro)',
+    maxWidth: 500,
+    title: '📱 LinguaVault - Mobile Pro Max',
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#090d16',
+    trafficLightPosition: { x: 18, y: 12 },
+    backgroundColor: '#070a13',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
