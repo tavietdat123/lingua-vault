@@ -1429,7 +1429,11 @@ export default function App() {
                 </View>
 
                 {/* Filter Tag Pills (Horizontal Scroll) */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ gap: 8, paddingVertical: 6, alignItems: 'center' }}
+                >
                   {[
                     { id: 'all', label: `Tất cả (${words.length})` },
                     { id: 'mastered', label: `💎 Thuần thục (${masteredCount})` },
@@ -1439,52 +1443,72 @@ export default function App() {
                     { id: 'B2', label: 'B2 Upper' },
                     { id: 'C1', label: 'C1 Advanced' },
                     { id: 'C2', label: 'C2 Master' }
-                  ].map(tab => (
-                    <TouchableOpacity
-                      key={tab.id}
-                      style={[
-                        styles.filterChip,
-                        { backgroundColor: theme.card, borderColor: theme.cardBorder, paddingHorizontal: 12 },
-                        vocabFilter === tab.id && { backgroundColor: theme.accentPill, borderColor: theme.accent }
-                      ]}
-                      onPress={() => setVocabFilter(tab.id)}
-                    >
-                      <Text style={[styles.filterChipText, { color: theme.textSecondary }, vocabFilter === tab.id && { color: theme.accent, fontWeight: '700' }]}>
-                        {tab.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  ].map(tab => {
+                    const isSelected = vocabFilter === tab.id;
+                    return (
+                      <TouchableOpacity
+                        key={tab.id}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.filterChip,
+                          {
+                            backgroundColor: isSelected ? theme.accentPill : theme.card,
+                            borderColor: isSelected ? theme.accent : theme.cardBorder
+                          }
+                        ]}
+                        onPress={() => setVocabFilter(tab.id)}
+                      >
+                        <Text 
+                          style={[
+                            styles.filterChipText, 
+                            { 
+                              color: isSelected ? theme.accent : theme.textSecondary,
+                              fontWeight: isSelected ? '700' : '500'
+                            }
+                          ]}
+                        >
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
 
                 {/* Sort Bar */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 6 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textMuted }}>
                     {filteredWords.length} từ vựng
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                     {[
                       { id: 'newest', label: 'Mới nhất' },
                       { id: 'az', label: 'A-Z' },
                       { id: 'due', label: 'Cần ôn' },
                       { id: 'level', label: 'Cấp độ' }
-                    ].map(sort => (
-                      <TouchableOpacity
-                        key={sort.id}
-                        onPress={() => setVocabSortBy(sort.id)}
-                        style={{
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: 8,
-                          backgroundColor: vocabSortBy === sort.id ? (isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
-                          borderWidth: 1,
-                          borderColor: vocabSortBy === sort.id ? theme.accent : 'transparent'
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: vocabSortBy === sort.id ? theme.accent : theme.textMuted }}>
-                          {sort.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    ].map(sort => {
+                      const isSortSelected = vocabSortBy === sort.id;
+                      return (
+                        <TouchableOpacity
+                          key={sort.id}
+                          onPress={() => setVocabSortBy(sort.id)}
+                          activeOpacity={0.7}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 10,
+                            backgroundColor: isSortSelected ? (isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
+                            borderWidth: 1,
+                            borderColor: isSortSelected ? theme.accent : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: isSortSelected ? '800' : '600', color: isSortSelected ? theme.accent : theme.textMuted }}>
+                            {sort.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 
@@ -4470,10 +4494,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
   filterChipText: {
     fontSize: 12,
-    fontWeight: '600',
+    lineHeight: 16,
+    textAlign: 'center',
   },
 
   // FORM INPUTS
