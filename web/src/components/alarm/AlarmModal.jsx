@@ -178,7 +178,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
                 🚨 BÁO THỨC KỶ LUẬT THÉP
               </h3>
               <p style={{ fontSize: '0.78rem', margin: 0, opacity: 0.9 }}>
-                Giải đúng Quiz từ vựng để tắt chuông!
+                Bắt buộc giải đúng {questions.length} câu trắc nghiệm để tắt chuông!
               </p>
             </div>
           </div>

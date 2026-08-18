@@ -3024,7 +3024,7 @@ export default function App() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: '800', color: '#ef4444' }}>🚨 BÁO THỨC KỶ LUẬT THÉP</Text>
-                  <Text style={{ fontSize: 11, color: theme.textSecondary }}>Giải đúng Quiz để tắt báo thức!</Text>
+                  <Text style={{ fontSize: 11, color: theme.textSecondary }}>Bắt buộc giải đúng {alarmQuestions.length} câu Quiz để tắt báo thức!</Text>
                 </View>
               </View>
 
