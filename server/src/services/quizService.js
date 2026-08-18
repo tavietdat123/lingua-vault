@@ -1,4 +1,5 @@
 import { getDb } from '../db/database.js';
+import { gamificationService } from './gamificationService.js';
 
 export const quizService = {
   // 1. Get all available topics / tags with counts
@@ -221,7 +222,6 @@ export const quizService = {
     // Gamification: Add XP for Quiz Completion
     let xpResult = null;
     try {
-      const { gamificationService } = await import('./gamificationService.js');
       xpResult = gamificationService.addXp(xpEarned, `Quiz: Đúng ${correctCount}/${total} câu`);
     } catch (e) {}
 

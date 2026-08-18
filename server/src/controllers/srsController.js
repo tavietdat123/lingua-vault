@@ -1,6 +1,7 @@
 import { db } from '../db/database.js';
 import { calculateNextSRS } from '../services/srsAlgorithm.js';
 import crypto from 'node:crypto';
+import { gamificationService } from '../services/gamificationService.js';
 
 export const srsController = {
   // 1. Get all items due for review today
@@ -126,7 +127,6 @@ export const srsController = {
       // Gamification: Reward +15 XP for SRS review
       let xpResult = null;
       try {
-        const { gamificationService } = await import('../services/gamificationService.js');
         xpResult = gamificationService.addXp(15, `Ôn tập thẻ SM-2: ${item.word || item.name || ''}`);
       } catch (e) {}
 

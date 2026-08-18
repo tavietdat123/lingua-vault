@@ -1,6 +1,7 @@
 import { db } from '../db/database.js';
 import crypto from 'node:crypto';
 import { lookupDictionary } from '../services/dictionaryService.js';
+import { gamificationService } from '../services/gamificationService.js';
 
 export const vocabController = {
   // 1. Get all words with search & filtering
@@ -127,7 +128,6 @@ export const vocabController = {
       // Gamification: Reward +10 XP for adding new word
       let xpResult = null;
       try {
-        const { gamificationService } = await import('../services/gamificationService.js');
         xpResult = gamificationService.addXp(10, `Thêm từ mới: ${word.trim()}`);
       } catch (e) {}
 
