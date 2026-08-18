@@ -1045,27 +1045,7 @@ export default function App() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       <StatusBar barStyle={theme.statusBarStyle} backgroundColor={theme.bg} />
 
-      {/* 0. iOS STATUS BAR & DYNAMIC ISLAND (UI/UX PRO MAX) */}
-      <View style={[styles.statusBarContainer, { backgroundColor: theme.topBarBg }]}>
-        <View style={styles.statusBarLeft}>
-          <Text style={[styles.statusBarTime, { color: theme.textPrimary }]}>9:41</Text>
-        </View>
-
-        {/* Dynamic Island Capsule (Authentic Apple Hardware Notch) */}
-        <View style={[styles.dynamicIsland, { backgroundColor: isDark ? '#000000' : '#0f172a' }]}>
-          <View style={styles.dynamicIslandCamera} />
-          <View style={styles.dynamicIslandSpeaker} />
-        </View>
-
-        <View style={styles.statusBarRight}>
-          <Text style={{ fontSize: 10, fontWeight: '800', color: theme.textSecondary }}>5G</Text>
-          <View style={[styles.batteryIcon, { borderColor: theme.textSecondary }]}>
-            <View style={[styles.batteryLevel, { backgroundColor: '#10b981' }]} />
-          </View>
-        </View>
-      </View>
-
-      {/* 1. TOP APP BAR (PRO MAX NAVIGATION) */}
+      {/* 1. TOP APP BAR */}
       <View style={[styles.topBar, { backgroundColor: theme.topBarBg, borderBottomColor: theme.cardBorder }]}>
         <View style={styles.brandContainer}>
           <TouchableOpacity
@@ -4010,71 +3990,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  statusBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-    paddingBottom: 6,
-    paddingHorizontal: 16,
-  },
-  statusBarLeft: {
-    width: 70,
-    paddingLeft: 70, // Space for macOS native red/yellow/green traffic lights
-    justifyContent: 'center',
-  },
-  statusBarTime: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  dynamicIsland: {
-    width: 86,
-    height: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    borderRadius: 11,
-  },
-  dynamicIslandCamera: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1e293b',
-  },
-  dynamicIslandSpeaker: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#334155',
-  },
-  statusBarRight: {
-    width: 70,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
-  },
-  batteryIcon: {
-    width: 20,
-    height: 11,
-    borderRadius: 3,
-    borderWidth: 1,
-    padding: 1,
-    justifyContent: 'center',
-  },
-  batteryLevel: {
-    height: '100%',
-    width: '80%',
-    borderRadius: 1.5,
-  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   brandContainer: {

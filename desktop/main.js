@@ -5,14 +5,12 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 428,
-    height: 926,
+    width: 430,
+    height: 890,
     minWidth: 380,
-    minHeight: 700,
-    maxWidth: 500,
-    title: '📱 LinguaVault - Mobile Pro Max',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 18, y: 12 },
+    minHeight: 650,
+    maxWidth: 520,
+    title: 'LinguaVault Mobile Pro',
     backgroundColor: '#f8fafc',
     webPreferences: {
       nodeIntegration: false,
