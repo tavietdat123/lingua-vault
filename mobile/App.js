@@ -300,6 +300,7 @@ export default function App() {
       const health = await mobileApi.checkHealth();
       setServerConnected(health.success);
       setServerTestResult(health.success ? 'online' : 'offline');
+      if (health.url) setServerUrlState(health.url);
 
       const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes] = await Promise.all([
         mobileApi.getStats(),
