@@ -5,24 +5,28 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1320,
-    height: 880,
-    minWidth: 960,
-    minHeight: 640,
-    title: 'LinguaVault - Personal English & SRS Hub',
-    titleBarStyle: 'hiddenInset', // macOS native red/yellow/green traffic light controls
+    width: 414,
+    height: 896,
+    minWidth: 380,
+    minHeight: 700,
+    maxWidth: 480,
+    title: '📱 LinguaVault - Mobile App (iPhone 15 Pro)',
+    titleBarStyle: 'hiddenInset',
     backgroundColor: '#090d16',
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      spellcheck: true
+      touchEmulation: true
     }
   });
 
-  // Load the running app
-  mainWindow.loadURL('http://localhost:3000');
+  // Emulate mobile user agent for exact mobile experience
+  mainWindow.webContents.setUserAgent(
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+  );
+
+  // Load the compiled Mobile App
+  mainWindow.loadURL('http://localhost:5001/mobile/');
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

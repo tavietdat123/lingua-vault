@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import { initializeDatabase } from './db/database.js';
 import { seedInitialData } from './db/seedData.js';
 import { vocabController } from './controllers/vocabController.js';
@@ -18,6 +21,10 @@ import { telegramBotService } from './services/telegramBotService.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const mobileDistPath = path.join(__dirname, '../../mobile/dist');
+
 // 1. Initialize SQLite Database & Initial Seed Data
 initializeDatabase();
 seedInitialData();
@@ -29,6 +36,15 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Serve Static Mobile App Build & Expo Assets
+if (fs.existsSync(mobileDistPath)) {
+  app.use('/mobile', express.static(mobileDistPath));
+  app.use('/_expo', express.static(path.join(mobileDistPath, '_expo')));
+  app.get('/mobile/*', (req, res) => {
+    res.sendFile(path.join(mobileDistPath, 'index.html'));
+  });
+}
 
 // 3. API Routes
 
