@@ -8,6 +8,7 @@ class AlarmAudioService {
     this.audioCtx = null;
     this.isPlaying = false;
     this.intervalId = null;
+    this.timeoutIds = [];
   }
 
   init() {
@@ -23,7 +24,8 @@ class AlarmAudioService {
   }
 
   // Play a single electronic alarm beep
-  playBeep(freq = 880, duration = 0.1, type = 'square') {
+  playBeep(freq = 880, duration = 0.1, type = 'square', bypassCheck = false) {
+    if (!bypassCheck && !this.isPlaying) return;
     this.init();
     if (!this.audioCtx) return;
 
@@ -49,30 +51,34 @@ class AlarmAudioService {
 
   // Start continuous digital alarm clock pattern (BEEP-BEEP-BEEP-BEEP ... pause ... repeat)
   startAlarmSound() {
-    if (this.isPlaying) return;
+    this.stopAlarmSound();
     this.init();
     this.isPlaying = true;
 
     const playPattern = () => {
       if (!this.isPlaying) return;
       
-      // Fast 4-beep digital clock burst
-      setTimeout(() => this.playBeep(980, 0.08, 'sawtooth'), 0);
-      setTimeout(() => this.playBeep(980, 0.08, 'sawtooth'), 120);
-      setTimeout(() => this.playBeep(980, 0.08, 'sawtooth'), 240);
-      setTimeout(() => this.playBeep(1200, 0.12, 'sawtooth'), 360);
+      const t1 = setTimeout(() => this.playBeep(980, 0.08, 'sawtooth'), 0);
+      const t2 = setTimeout(() => this.playBeep(980, 0.08, 'sawtooth'), 120);
+      const t3 = setTimeout(() => this.playBeep(980, 0.08, 'sawtooth'), 240);
+      const t4 = setTimeout(() => this.playBeep(1200, 0.12, 'sawtooth'), 360);
+      this.timeoutIds.push(t1, t2, t3, t4);
     };
 
     playPattern();
     this.intervalId = setInterval(playPattern, 1000);
   }
 
-  // Stop continuous alarm sound
+  // Stop continuous alarm sound immediately
   stopAlarmSound() {
     this.isPlaying = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.timeoutIds) {
+      this.timeoutIds.forEach(id => clearTimeout(id));
+      this.timeoutIds = [];
     }
   }
 

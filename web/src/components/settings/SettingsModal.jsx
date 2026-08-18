@@ -30,6 +30,9 @@ export default function SettingsModal({ onClose, onDataRestored }) {
   const [reminderTime, setReminderTime] = useState('20:00');
   const [morningReminderTime, setMorningReminderTime] = useState('08:30');
   const [disciplineMode, setDisciplineMode] = useState('standard');
+  const [alarmQuestionsCount, setAlarmQuestionsCount] = useState(() => {
+    return parseInt(localStorage.getItem('linguavault_alarm_q_count') || '3', 10);
+  });
   const [botToken, setBotToken] = useState('');
   const [chatId, setChatId] = useState('');
   const [telegramEnabled, setTelegramEnabled] = useState(false);
@@ -92,6 +95,7 @@ export default function SettingsModal({ onClose, onDataRestored }) {
     setTestResult('');
 
     try {
+      localStorage.setItem('linguavault_alarm_q_count', String(alarmQuestionsCount));
       const res = await api.saveTelegramSettings({
         daily_word_goal: parseInt(dailyGoal, 10) || 10,
         telegram_reminder_time: reminderTime,
@@ -387,9 +391,38 @@ export default function SettingsModal({ onClose, onDataRestored }) {
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
                   {disciplineMode === 'hardcore'
-                    ? '⚡ Khi kích hoạt: Sau giờ hẹn nếu chưa học đủ chỉ tiêu, Bot sẽ nhắc nhở dồn dập mỗi 10 phút. Bắt buộc phải giải mã đúng 3 câu Quiz Inline trên Telegram mới được tắt chuông!'
+                    ? '⚡ Khi kích hoạt: Sau giờ hẹn nếu chưa học đủ chỉ tiêu, Bot sẽ nhắc nhở dồn dập mỗi 10 phút. Bắt buộc phải giải mã đúng số câu Quiz để tắt chuông!'
                     : 'Nhẹ nhàng gửi 1 tin nhắn cảnh báo tiến độ và danh sách từ cũ lúc 20:00.'}
                 </p>
+
+                {disciplineMode === 'hardcore' && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem', paddingTop: '0.6rem', borderTop: '1px dashed rgba(239, 68, 68, 0.3)' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      🎯 Số câu Quiz bắt buộc giải đúng để tắt chuông:
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                      {[3, 5, 10].map(num => (
+                        <button
+                          type="button"
+                          key={num}
+                          onClick={() => setAlarmQuestionsCount(num)}
+                          style={{
+                            padding: '0.25rem 0.55rem',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            border: '1px solid var(--border-color)',
+                            background: alarmQuestionsCount === num ? '#ef4444' : 'var(--bg-secondary)',
+                            color: alarmQuestionsCount === num ? '#ffffff' : 'var(--text-secondary)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {num} câu
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Bot Token & Chat ID */}

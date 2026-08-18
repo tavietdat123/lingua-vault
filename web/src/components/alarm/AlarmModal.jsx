@@ -3,7 +3,7 @@ import { Bell, Lock, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, Trophy 
 import { alarmAudio } from '../../services/alarmAudio.js';
 import { api } from '../../services/api.js';
 
-export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, words = [] }) {
+export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, words = [], questionCount = 3 }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -14,16 +14,21 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
   // Initialize Questions and Start Alarm Sound
   useEffect(() => {
     if (isOpen) {
-      // Build 3 high-impact questions from words or fallback
-      const sourceWords = words && words.length >= 3 ? words : [
+      // Get target question count (default 3, max 10)
+      const count = parseInt(localStorage.getItem('linguavault_alarm_q_count') || questionCount, 10) || 3;
+
+      // Build high-impact questions from words or fallback
+      const sourceWords = words && words.length >= count ? words : [
         { word: 'resilient', meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh' },
         { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc' },
         { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn thận từng chi tiết nhỏ' },
-        { word: 'leverage', meaning_vi: 'Tận dụng, phát huy tối đa đòn bẩy' }
+        { word: 'leverage', meaning_vi: 'Tận dụng, phát huy tối đa đòn bẩy' },
+        { word: 'pragmatic', meaning_vi: 'Thực tế, thực dụng và hiệu quả' },
+        { word: 'streamline', meaning_vi: 'Tinh giản, tối ưu hóa quy trình' }
       ];
 
-      // Shuffle & pick 3
-      const shuffled = [...sourceWords].sort(() => 0.5 - Math.random()).slice(0, 3);
+      // Shuffle & pick required count
+      const shuffled = [...sourceWords].sort(() => 0.5 - Math.random()).slice(0, count);
       const generated = shuffled.map((w, idx) => {
         const otherMeanings = sourceWords
           .filter(item => item.word !== w.word)
@@ -58,7 +63,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
     return () => {
       alarmAudio.stopAlarmSound();
     };
-  }, [isOpen, words]);
+  }, [isOpen, words, questionCount]);
 
   if (!isOpen || questions.length === 0) return null;
 
@@ -72,29 +77,37 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
     const isCorrect = opt.trim().toLowerCase() === currentQ.correctAnswer.trim().toLowerCase();
 
     if (isCorrect) {
-      alarmAudio.playBeep(1046.5, 0.15, 'sine');
       setScore(prev => prev + 1);
 
-      setTimeout(() => {
-        if (currentIndex + 1 < questions.length) {
+      // If this is the final question: CUT OFF SOUND IMMEDIATELY!
+      if (currentIndex + 1 >= questions.length) {
+        alarmAudio.stopAlarmSound();
+        alarmAudio.playSuccessSound();
+
+        setTimeout(() => {
+          setIsCompleted(true);
+          if (onChallengeCompleted) onChallengeCompleted();
+        }, 400);
+      } else {
+        alarmAudio.playBeep(1046.5, 0.15, 'sine', true);
+        setTimeout(() => {
           setCurrentIndex(prev => prev + 1);
           setSelectedOption(null);
           setIsAnswered(false);
-        } else {
-          // Completed all 3 questions!
-          alarmAudio.stopAlarmSound();
-          alarmAudio.playSuccessSound();
-          setIsCompleted(true);
-          if (onChallengeCompleted) onChallengeCompleted();
-        }
-      }, 700);
+        }, 500);
+      }
     } else {
       alarmAudio.playErrorSound();
       setTimeout(() => {
         setSelectedOption(null);
         setIsAnswered(false);
-      }, 1000);
+      }, 900);
     }
+  };
+
+  const handleDismiss = () => {
+    alarmAudio.stopAlarmSound();
+    if (onClose) onClose();
   };
 
   return (
@@ -311,7 +324,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
               </div>
 
               <button
-                onClick={onClose}
+                onClick={handleDismiss}
                 className="btn-primary"
                 style={{
                   width: '100%',
