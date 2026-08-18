@@ -1,36 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, Lock, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, Trophy } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, Lock, CheckCircle2, AlertCircle, ShieldAlert, Sparkles, Trophy, XCircle } from 'lucide-react';
 import { alarmAudio } from '../../services/alarmAudio.js';
-import { api } from '../../services/api.js';
 
 export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, words = [], questionCount = 3 }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(null);
   const [score, setScore] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
 
-  // Initialize Questions and Start Alarm Sound
+  // Store words reference to prevent re-triggering during active session
+  const wordsRef = useRef(words);
+  wordsRef.current = words;
+
+  // Initialize Questions and Start Alarm Sound ONLY when isOpen transitions to true
   useEffect(() => {
     if (isOpen) {
       // Get target question count (default 3, max 10)
       const count = parseInt(localStorage.getItem('linguavault_alarm_q_count') || questionCount, 10) || 3;
-
-      // Build high-impact questions from words or fallback
-      const sourceWords = words && words.length >= count ? words : [
-        { word: 'resilient', meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh' },
-        { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc' },
+      const currentWords = wordsRef.current && wordsRef.current.length >= count ? wordsRef.current : [
+        { word: 'resilient', meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh sau khó khăn' },
+        { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc rõ ràng' },
         { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn thận từng chi tiết nhỏ' },
-        { word: 'leverage', meaning_vi: 'Tận dụng, phát huy tối đa đòn bẩy' },
+        { word: 'leverage', meaning_vi: 'Tận dụng, phát huy tối đa đòn bẩy / thế mạnh' },
         { word: 'pragmatic', meaning_vi: 'Thực tế, thực dụng và hiệu quả' },
         { word: 'streamline', meaning_vi: 'Tinh giản, tối ưu hóa quy trình' }
       ];
 
       // Shuffle & pick required count
-      const shuffled = [...sourceWords].sort(() => 0.5 - Math.random()).slice(0, count);
+      const shuffled = [...currentWords].sort(() => 0.5 - Math.random()).slice(0, count);
       const generated = shuffled.map((w, idx) => {
-        const otherMeanings = sourceWords
+        const otherMeanings = currentWords
           .filter(item => item.word !== w.word)
           .map(item => item.meaning_vi)
           .slice(0, 3);
@@ -53,6 +55,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       setIsCompleted(false);
       setSelectedOption(null);
       setIsAnswered(false);
+      setIsCorrect(null);
 
       // Start ringing alarm continuously
       alarmAudio.startAlarmSound();
@@ -63,7 +66,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
     return () => {
       alarmAudio.stopAlarmSound();
     };
-  }, [isOpen, words, questionCount]);
+  }, [isOpen]); // ONLY depends on isOpen to avoid resetting on data updates!
 
   if (!isOpen || questions.length === 0) return null;
 
@@ -74,12 +77,13 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
     setSelectedOption(opt);
     setIsAnswered(true);
 
-    const isCorrect = opt.trim().toLowerCase() === currentQ.correctAnswer.trim().toLowerCase();
+    const correct = opt.trim().toLowerCase() === currentQ.correctAnswer.trim().toLowerCase();
+    setIsCorrect(correct);
 
-    if (isCorrect) {
+    if (correct) {
       setScore(prev => prev + 1);
 
-      // If this is the final question: CUT OFF SOUND IMMEDIATELY!
+      // Final Question: Stop audio immediately!
       if (currentIndex + 1 >= questions.length) {
         alarmAudio.stopAlarmSound();
         alarmAudio.playSuccessSound();
@@ -94,18 +98,30 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
           setCurrentIndex(prev => prev + 1);
           setSelectedOption(null);
           setIsAnswered(false);
-        }, 500);
+          setIsCorrect(null);
+        }, 600);
       }
     } else {
+      // Wrong option selected: Show correct answer and let user learn then advance
       alarmAudio.playErrorSound();
       setTimeout(() => {
-        setSelectedOption(null);
-        setIsAnswered(false);
-      }, 900);
+        // Auto-advance after showing correct answer so user is never trapped
+        if (currentIndex + 1 >= questions.length) {
+          alarmAudio.stopAlarmSound();
+          alarmAudio.playSuccessSound();
+          setIsCompleted(true);
+          if (onChallengeCompleted) onChallengeCompleted();
+        } else {
+          setCurrentIndex(prev => prev + 1);
+          setSelectedOption(null);
+          setIsAnswered(false);
+          setIsCorrect(null);
+        }
+      }, 1400);
     }
   };
 
-  const handleDismiss = () => {
+  const handleForceDismiss = () => {
     alarmAudio.stopAlarmSound();
     if (onClose) onClose();
   };
@@ -117,8 +133,8 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.95)',
-      backdropFilter: 'blur(10px)',
+      backgroundColor: 'rgba(15, 23, 42, 0.96)',
+      backdropFilter: 'blur(12px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -162,7 +178,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
                 🚨 BÁO THỨC KỶ LUẬT THÉP
               </h3>
               <p style={{ fontSize: '0.78rem', margin: 0, opacity: 0.9 }}>
-                Bắt buộc giải đúng 3 câu trắc nghiệm để tắt chuông!
+                Giải đúng Quiz từ vựng để tắt chuông!
               </p>
             </div>
           </div>
@@ -245,11 +261,11 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
 
                   if (isAnswered) {
                     if (opt === currentQ.correctAnswer) {
-                      btnBg = 'rgba(16, 185, 129, 0.15)';
+                      btnBg = 'rgba(16, 185, 129, 0.2)';
                       btnBorder = '#10b981';
                       btnColor = '#10b981';
                     } else if (opt === selectedOption) {
-                      btnBg = 'rgba(239, 68, 68, 0.15)';
+                      btnBg = 'rgba(239, 68, 68, 0.2)';
                       btnBorder = '#ef4444';
                       btnColor = '#ef4444';
                     }
@@ -280,17 +296,38 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
                       {isAnswered && opt === currentQ.correctAnswer && (
                         <CheckCircle2 size={18} color="#10b981" />
                       )}
+                      {isAnswered && opt === selectedOption && opt !== currentQ.correctAnswer && (
+                        <XCircle size={18} color="#ef4444" />
+                      )}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Wrong Answer Hint Banner */}
+              {isAnswered && !isCorrect && (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: '#ef4444',
+                  fontSize: '0.85rem'
+                }}>
+                  <AlertCircle size={16} />
+                  <span>Chưa chính xác! Đáp án đúng màu xanh. Đang chuyển câu tiếp theo...</span>
+                </div>
+              )}
             </>
           ) : (
             /* Success Screen */
             <div style={{ textAlign: 'center', padding: '1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
               <div style={{
-                width: '72px',
-                height: '72px',
+                width: '76px',
+                height: '76px',
                 borderRadius: '50%',
                 backgroundColor: 'rgba(16, 185, 129, 0.15)',
                 display: 'flex',
@@ -298,7 +335,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
                 justifyContent: 'center',
                 color: '#10b981'
               }}>
-                <Trophy size={36} />
+                <Trophy size={40} />
               </div>
 
               <div>
@@ -320,23 +357,24 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
               }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981' }}>+30 XP Thưởng</span>
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>•</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-primary)' }}>3/3 Từ Vựng Đã Ôn</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-primary)' }}>Đã Hoàn Thành Ôn Luyện</span>
               </div>
 
               <button
-                onClick={handleDismiss}
+                onClick={handleForceDismiss}
                 className="btn-primary"
                 style={{
                   width: '100%',
-                  padding: '0.9rem',
-                  fontSize: '1rem',
+                  padding: '1rem',
+                  fontSize: '1.05rem',
                   fontWeight: 800,
                   borderRadius: '14px',
                   marginTop: '0.5rem',
-                  backgroundColor: '#10b981'
+                  backgroundColor: '#10b981',
+                  cursor: 'pointer'
                 }}
               >
-                Hoàn Thành & Trở Về Bàn Học
+                ✅ Tắt Báo Thức & Trở Về Bàn Học
               </button>
             </div>
           )}

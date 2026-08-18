@@ -3107,9 +3107,15 @@ export default function App() {
                             } else {
                               playMobileTone(220, 0.25);
                               setTimeout(() => {
-                                setAlarmAnswered(false);
-                                setAlarmSelectedOpt(null);
-                              }, 900);
+                                if (alarmIndex + 1 < alarmQuestions.length) {
+                                  setAlarmIndex(prev => prev + 1);
+                                  setAlarmAnswered(false);
+                                  setAlarmSelectedOpt(null);
+                                } else {
+                                  playMobileTone(1200, 0.3);
+                                  setAlarmCompleted(true);
+                                }
+                              }, 1200);
                             }
                           }}
                           style={{
@@ -3142,18 +3148,20 @@ export default function App() {
                 <TouchableOpacity
                   onPress={() => {
                     setShowAlarmModal(false);
-                    loadData();
+                    setAlarmCompleted(false);
+                    setAlarmAnswered(false);
+                    setAlarmIndex(0);
                   }}
                   style={{
                     width: '100%',
-                    paddingVertical: 12,
+                    paddingVertical: 14,
                     borderRadius: 14,
                     backgroundColor: '#10b981',
                     alignItems: 'center',
                     marginTop: 6
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Hoàn Thành & Trở Lại</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>✅ Tắt Báo Thức & Hoàn Thành</Text>
                 </TouchableOpacity>
               </View>
             )}
