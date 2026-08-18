@@ -38,8 +38,8 @@ export const setServerUrl = (url) => {
   return currentServerUrl;
 };
 
-// Safe Fast Fetch with Timeout (Default 2.5 seconds)
-export const safeFetch = async (url, options = {}, timeoutMs = 2500) => {
+// Safe Fast Fetch with Timeout (Default 3 seconds)
+export const safeFetch = async (url, options = {}, timeoutMs = 3000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -52,8 +52,8 @@ export const safeFetch = async (url, options = {}, timeoutMs = 2500) => {
   }
 };
 
-// Auto-healing API requester (Tự động quét và kết nối máy chủ khả dụng)
-export const requestApi = async (endpoint, options = {}, timeoutMs = 2500) => {
+// Auto-healing API requester
+export const requestApi = async (endpoint, options = {}, timeoutMs = 3000) => {
   // 1. Try with current configured server
   try {
     const res = await safeFetch(`${currentServerUrl}${endpoint}`, options, timeoutMs);
@@ -61,14 +61,14 @@ export const requestApi = async (endpoint, options = {}, timeoutMs = 2500) => {
       return await res.json();
     }
   } catch (err) {
-    // Current server failed, scan candidates
+    // Current server failed, scan candidate servers
   }
 
   // 2. Scan candidate servers rapidly
   for (const candidate of CANDIDATE_SERVERS) {
     if (candidate === currentServerUrl) continue;
     try {
-      const res = await safeFetch(`${candidate}${endpoint}`, options, 1000);
+      const res = await safeFetch(`${candidate}${endpoint}`, options, 1200);
       if (res.ok) {
         setServerUrl(candidate);
         return await res.json();
@@ -76,44 +76,8 @@ export const requestApi = async (endpoint, options = {}, timeoutMs = 2500) => {
     } catch (e) {}
   }
 
-  throw new Error('All servers unreachable');
+  throw new Error('Không thể kết nối đến máy chủ LinguaVault');
 };
-
-// Offline Seed Data Fallback (Chỉ dùng khi máy tính tắt hoàn toàn server)
-const OFFLINE_FALLBACK_WORDS = [
-  {
-    id: 'offline-1',
-    word: 'resilient',
-    phonetic: '/rɪˈzɪl.jənt/',
-    part_of_speech: 'adjective',
-    meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh sau khó khăn',
-    meaning_en: 'Able to withstand or recover quickly from difficult conditions.',
-    examples: ['She is a resilient entrepreneur who overcame multiple setbacks.'],
-    collocations: ['resilient economy', 'resilient personality', 'highly resilient'],
-    level: 'B2',
-    tags: ['Mindset', 'Business'],
-    interval: 6,
-    repetitions: 3,
-    ease_factor: 2.5,
-    streak_count: 5
-  },
-  {
-    id: 'offline-2',
-    word: 'articulate',
-    phonetic: '/ɑːˈtɪk.jə.lət/',
-    part_of_speech: 'adjective',
-    meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc',
-    meaning_en: 'Having or showing the ability to speak fluently and coherently.',
-    examples: ['He gave an articulate account of his scientific discoveries.'],
-    collocations: ['articulate speaker', 'articulate ideas', 'highly articulate'],
-    level: 'C1',
-    tags: ['Communication', 'Speaking'],
-    interval: 3,
-    repetitions: 2,
-    ease_factor: 2.4,
-    streak_count: 3
-  }
-];
 
 export const mobileApi = {
   // 0. Connection & Server Health
@@ -126,367 +90,296 @@ export const mobileApi = {
     }
   },
 
-  // 1. Dashboard & SRS
-  getStats: async () => {
+  // 1. Vocabulary (Kho từ vựng)
+  getWords: async (params = {}) => {
     try {
-      return await requestApi('/api/srs/stats');
+      const query = new URLSearchParams(params).toString();
+      return await requestApi(`/api/vocab${query ? `?${query}` : ''}`);
     } catch (e) {
-      return {
-        success: true,
-        data: {
-          totalWords: OFFLINE_FALLBACK_WORDS.length,
-          totalPatterns: 2,
-          totalNotes: 1,
-          reviewedToday: 0,
-          dueToday: 1,
-          streak: 1,
-          masteryRate: 75,
-          retentionRate: 88,
-          levelCounts: { A1: 0, A2: 0, B1: 0, B2: 1, C1: 1, C2: 0 },
-          activityHeatmap: [{ date: new Date().toISOString().split('T')[0], count: 1 }]
-        }
-      };
+      console.warn('API fetch error (getWords):', e);
+      return { success: false, data: [] };
     }
   },
 
+  getWordById: async (id) => {
+    return await requestApi(`/api/vocab/${id}`);
+  },
+
+  createWord: async (data) => {
+    return await requestApi('/api/vocab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  updateWord: async (id, data) => {
+    return await requestApi(`/api/vocab/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  deleteWord: async (id) => {
+    return await requestApi(`/api/vocab/${id}`, { method: 'DELETE' });
+  },
+
+  autoLookup: async (word) => {
+    return await requestApi(`/api/vocab/lookup?word=${encodeURIComponent(word)}`);
+  },
+
+  // 2. Sentence Patterns (Mẫu câu)
+  getPatterns: async (params = {}) => {
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await requestApi(`/api/patterns${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  getPatternById: async (id) => {
+    return await requestApi(`/api/patterns/${id}`);
+  },
+
+  createPattern: async (data) => {
+    return await requestApi('/api/patterns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  updatePattern: async (id, data) => {
+    return await requestApi(`/api/patterns/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  deletePattern: async (id) => {
+    return await requestApi(`/api/patterns/${id}`, { method: 'DELETE' });
+  },
+
+  // 3. Notes & Smart Reader (Ghi chú & Bài đọc)
+  getNotes: async (params = {}) => {
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await requestApi(`/api/notes${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  getNoteById: async (id) => {
+    return await requestApi(`/api/notes/${id}`);
+  },
+
+  createNote: async (data) => {
+    return await requestApi('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  updateNote: async (id, data) => {
+    return await requestApi(`/api/notes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  deleteNote: async (id) => {
+    return await requestApi(`/api/notes/${id}`, { method: 'DELETE' });
+  },
+
+  // 4. SRS Spaced Repetition (Ôn tập & Thống kê chuỗi ngày)
   getDueItems: async () => {
     try {
       return await requestApi('/api/srs/due');
     } catch (e) {
-      return { success: true, data: { words: OFFLINE_FALLBACK_WORDS.slice(0, 2), patterns: [] } };
+      return { success: false, data: { words: [], patterns: [] } };
     }
   },
 
   submitReview: async (id, type, rating) => {
+    return await requestApi('/api/srs/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, type, rating })
+    });
+  },
+
+  getStats: async () => {
     try {
-      return await requestApi('/api/srs/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, type, rating })
-      });
+      return await requestApi('/api/srs/stats');
     } catch (e) {
-      return { success: true, message: 'Đã ghi nhận offline' };
+      return { success: false, data: {} };
     }
   },
 
-  // 2. Vocabulary
-  getWords: async () => {
-    try {
-      return await requestApi('/api/vocab');
-    } catch (e) {
-      return { success: true, data: OFFLINE_FALLBACK_WORDS };
-    }
+  // 5. AI Service (Gemini Lab)
+  parseSentenceAI: async (sentence) => {
+    return await requestApi('/api/ai/parse-sentence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sentence })
+    });
   },
 
-  createWord: async (data) => {
-    try {
-      return await requestApi('/api/vocab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+  checkSentenceAI: async (targetItem, userSentence) => {
+    return await requestApi('/api/ai/check-sentence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetItem, userSentence })
+    });
   },
 
-  updateWord: async (id, data) => {
-    try {
-      return await requestApi(`/api/vocab/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+  generateStoryAI: async (words = []) => {
+    return await requestApi('/api/ai/generate-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ words })
+    });
   },
 
-  deleteWord: async (id) => {
-    try {
-      return await requestApi(`/api/vocab/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  autoLookup: async (word) => {
-    try {
-      return await requestApi(`/api/vocab/lookup?word=${encodeURIComponent(word)}`);
-    } catch (e) {
-      return {
-        success: true,
-        data: {
-          word,
-          phonetic: '/.../',
-          part_of_speech: 'noun',
-          meaning_vi: `Đang tra cứu từ "${word}"...`,
-          meaning_en: `Auto lookup definition for ${word}`,
-          examples: [`Example with ${word}`],
-          collocations: [`essential ${word}`],
-          level: 'B2',
-          tags: ['General']
-        }
-      };
-    }
-  },
-
-  // 3. Patterns (Mẫu câu)
-  getPatterns: async () => {
-    try {
-      return await requestApi('/api/patterns');
-    } catch (e) {
-      return { 
-        success: true, 
-        data: [
-          {
-            id: 'pat-1',
-            name: 'It goes without saying that',
-            formula: 'It goes without saying that + [Clause: S + V]',
-            explanation: 'Dùng khi muốn nhấn mạnh một sự thật hiển nhiên.',
-            meaning_vi: 'Hiển nhiên là..., Rõ ràng là...',
-            tone: 'Formal',
-            examples: ['It goes without saying that consistency leads to great results.'],
-            tags: ['Writing', 'Academic']
-          }
-        ]
-      };
-    }
-  },
-
-  createPattern: async (data) => {
-    try {
-      return await requestApi('/api/patterns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  updatePattern: async (id, data) => {
-    try {
-      return await requestApi(`/api/patterns/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  deletePattern: async (id) => {
-    try {
-      return await requestApi(`/api/patterns/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  // 4. Notes / Smart Reader
-  getNotes: async () => {
-    try {
-      return await requestApi('/api/notes');
-    } catch (e) {
-      return { 
-        success: true, 
-        data: [
-          {
-            id: 'note-1',
-            title: 'The Secret of Consistent Learning',
-            content: 'Language learning is not a sprint; it is a marathon. To become an articulate speaker, one must cultivate a resilient mindset and leverage Spaced Repetition.',
-            topic: 'Productivity',
-            tags: ['Mindset', 'English Tips'],
-            linked_words: ['resilient', 'articulate', 'leverage']
-          }
-        ]
-      };
-    }
-  },
-
-  createNote: async (data) => {
-    try {
-      return await requestApi('/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  updateNote: async (id, data) => {
-    try {
-      return await requestApi(`/api/notes/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  deleteNote: async (id) => {
-    try {
-      return await requestApi(`/api/notes/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  // 5. Interactive Quiz Topics & Questions
-  getQuizTopics: async () => {
-    try {
-      return await requestApi('/api/quiz/topics');
-    } catch (e) {
-      return {
-        success: true,
-        data: [
-          { id: 'ielts_academic', name: 'IELTS Academic Vocab', icon: '🎓', count: 10 },
-          { id: 'business_pro', name: 'Business & Negotiation', icon: '💼', count: 8 },
-          { id: 'daily_idioms', name: 'Daily Idioms & Phrases', icon: '💬', count: 12 }
-        ]
-      };
-    }
-  },
-
-  generateQuizQuestions: async (topicId) => {
-    try {
-      return await requestApi(`/api/quiz/generate?topic=${encodeURIComponent(topicId || 'all')}`);
-    } catch (e) {
-      return {
-        success: true,
-        data: [
-          {
-            id: 1,
-            questionText: 'Nghĩa tiếng Việt chuẩn của "RESILIENT" là gì?',
-            correctAnswer: 'Kiên cường, có khả năng phục hồi nhanh',
-            options: ['Kiên cường, có khả năng phục hồi nhanh', 'Do dự, ngập ngừng', 'Ăn nói lưu loát', 'Lơ là, bất cẩn'],
-            word: 'resilient',
-            explanation: 'Resilient: Có khả năng bật dậy và thích nghi sau biến cố.'
-          }
-        ]
-      };
-    }
-  },
-
-  // 6. Speaking Prompts & AI Analysis
-  getSpeakingPrompts: async () => {
-    try {
-      return await requestApi('/api/speaking/prompts');
-    } catch (e) {
-      return {
-        success: true,
-        data: [
-          {
-            id: 'spk-1',
-            type: 'read-aloud',
-            title: 'Mastering Continuous Growth',
-            text: 'To thrive in today fast-paced world, one must remain resilient and articulate complex ideas effectively.',
-            targetWords: ['resilient', 'articulate']
-          }
-        ]
-      };
-    }
-  },
-
-  analyzeSpeech: async (spokenText, targetText, mode) => {
-    try {
-      return await requestApi('/api/speaking/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spokenText, targetText, mode })
-      });
-    } catch (e) {
-      return {
-        success: true,
-        data: {
-          overallScore: 85,
-          fluencyScore: 88,
-          pronunciationScore: 82,
-          feedbackVi: 'Phát âm rất rõ ràng và biểu cảm tốt.',
-          wordHighlights: [{ word: 'resilient', status: 'perfect' }]
-        }
-      };
-    }
-  },
-
-  // 7. AI Lab Assistant
-  analyzeSentenceAI: async (sentence) => {
-    try {
-      return await requestApi('/api/ai/analyze-sentence', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sentence })
-      });
-    } catch (e) {
-      return {
-        success: true,
-        data: {
-          correctedSentence: sentence,
-          grammarBreakdown: 'Ngữ pháp chuẩn xác.',
-          vocabSuggestions: []
-        }
-      };
-    }
-  },
-
-  // 8. Settings & Telegram
+  // 6. Settings & Backup / Restore
   getSettings: async () => {
     try {
       return await requestApi('/api/settings');
     } catch (e) {
-      return { success: true, data: { gemini_api_key: '' } };
+      return { success: false, data: {} };
     }
   },
 
-  saveSettings: async (settings) => {
+  saveSettings: async (data) => {
+    return await requestApi('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  exportDataUrl: () => `${currentServerUrl}/api/backup/export`,
+
+  importData: async (data) => {
+    return await requestApi('/api/backup/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data })
+    });
+  },
+
+  // 7. Interactive Quiz Hub
+  getQuizTopics: async () => {
     try {
-      return await requestApi('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
+      return await requestApi('/api/quiz/topics');
     } catch (e) {
-      return { success: true };
+      return { success: false, data: [] };
     }
   },
 
+  generateQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed' }) => {
+    return await requestApi('/api/quiz/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+  },
+
+  submitQuiz: async (answers = []) => {
+    return await requestApi('/api/quiz/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers })
+    });
+  },
+
+  // 8. Telegram Bot & Daily Goal
   getTelegramSettings: async () => {
     try {
       return await requestApi('/api/telegram/settings');
     } catch (e) {
-      return {
-        success: true,
-        data: {
-          daily_word_goal: 10,
-          telegram_reminder_time: '20:00',
-          telegram_bot_token: '',
-          telegram_chat_id: '',
-          telegram_enabled: 0
-        }
-      };
+      return { success: false, data: {} };
     }
   },
 
-  saveTelegramSettings: async (settings) => {
+  saveTelegramSettings: async (data) => {
+    return await requestApi('/api/telegram/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  sendTelegramTest: async (data) => {
+    return await requestApi('/api/telegram/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  triggerTelegramReminder: async () => {
+    return await requestApi('/api/telegram/trigger-reminder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  },
+
+  triggerTelegramAlarm: async () => {
+    return await requestApi('/api/telegram/trigger-alarm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  },
+
+  triggerTelegramDueReminder: async () => {
+    return await requestApi('/api/telegram/trigger-due-reminder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  },
+
+  getDailyProgress: async () => {
     try {
-      return await requestApi('/api/telegram/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
+      return await requestApi('/api/telegram/progress');
     } catch (e) {
-      return { success: true };
+      return { success: false, data: {} };
     }
   },
 
-  // 9. Gamification & AI Mastery Assessment
+  // 9. AI Speaking Lab & Pronunciation Assessment
+  getSpeakingPrompts: async (category = null) => {
+    try {
+      const endpoint = category ? `/api/speaking/prompts?category=${category}` : '/api/speaking/prompts';
+      return await requestApi(endpoint);
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  analyzeReadAloud: async (data) => {
+    return await requestApi('/api/speaking/analyze-read-aloud', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  analyzeQASpeaking: async (data) => {
+    return await requestApi('/api/speaking/analyze-qa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  // 10. Gamification (EXP & Level) & AI Mastery Assessment Report
   getGamificationProfile: async () => {
     try {
       return await requestApi('/api/gamification/profile');
@@ -508,25 +401,6 @@ export const mobileApi = {
   },
 
   getAIMasteryReport: async () => {
-    try {
-      return await requestApi('/api/ai/mastery-report');
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  },
-
-  // 10. Backup & Restore
-  exportDataUrl: () => `${currentServerUrl}/api/settings/backup`,
-
-  restoreBackup: async (backupData) => {
-    try {
-      return await requestApi('/api/settings/restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(backupData)
-      });
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    return await requestApi('/api/ai/mastery-report');
   }
 };
