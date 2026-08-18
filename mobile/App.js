@@ -231,6 +231,38 @@ export default function App() {
   const [isTestingServer, setIsTestingServer] = useState(false);
   const [serverTestResult, setServerTestResult] = useState('');
 
+  // Hardcore Alarm Challenge State
+  const [showAlarmModal, setShowAlarmModal] = useState(false);
+  const [alarmQuestions, setAlarmQuestions] = useState([]);
+  const [alarmIndex, setAlarmIndex] = useState(0);
+  const [alarmAnswered, setAlarmAnswered] = useState(false);
+  const [alarmSelectedOpt, setAlarmSelectedOpt] = useState(null);
+  const [alarmCompleted, setAlarmCompleted] = useState(false);
+
+  const startAlarmChallenge = () => {
+    const src = words && words.length >= 3 ? words : [
+      { word: 'resilient', meaning_vi: 'Kiên cường, phục hồi nhanh' },
+      { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, mạch lạc' },
+      { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn thận từng chi tiết' }
+    ];
+    const shuffled = [...src].sort(() => 0.5 - Math.random()).slice(0, 3);
+    const qs = shuffled.map((w, idx) => {
+      const others = src.filter(item => item.word !== w.word).map(item => item.meaning_vi).slice(0, 3);
+      const opts = [...others, w.meaning_vi].sort(() => 0.5 - Math.random());
+      return {
+        word: w.word,
+        correct: w.meaning_vi,
+        options: opts
+      };
+    });
+    setAlarmQuestions(qs);
+    setAlarmIndex(0);
+    setAlarmCompleted(false);
+    setAlarmAnswered(false);
+    setAlarmSelectedOpt(null);
+    setShowAlarmModal(true);
+  };
+
   // Load All App Data
   const loadData = async () => {
     try {
@@ -828,6 +860,25 @@ export default function App() {
         </View>
 
         <View style={styles.topRightActions}>
+          {/* HARDCORE ALARM TRIGGER PILL */}
+          <TouchableOpacity
+            onPress={startAlarmChallenge}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 8,
+              paddingVertical: 5,
+              borderRadius: 16,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              borderWidth: 1,
+              borderColor: '#ef4444',
+            }}
+          >
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444', marginRight: 4 }} />
+            <Text style={{ fontSize: 10, fontWeight: '800', color: '#ef4444' }}>🚨 Báo Thức</Text>
+          </TouchableOpacity>
+
           {/* SERVER CONNECTION PILL */}
           <TouchableOpacity
             onPress={() => setShowServerModal(true)}
@@ -2888,6 +2939,151 @@ export default function App() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* HARDCORE ALARM CHALLENGE MODAL ON MOBILE */}
+      <Modal
+        visible={showAlarmModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 2, borderColor: '#ef4444' }}>
+            {/* Urgent Red Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239, 68, 68, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                <IconFlame size={20} color="#ef4444" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#ef4444' }}>🚨 BÁO THỨC HỌC TẬP KHẨN CẤP</Text>
+                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Giải mã 3 câu Quiz để tắt báo thức!</Text>
+              </View>
+            </View>
+
+            {!alarmCompleted ? (
+              alarmQuestions.length > 0 && alarmQuestions[alarmIndex] ? (
+                <View style={{ gap: 12 }}>
+                  {/* Progress Indicator */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#ef4444' }}>
+                      CÂU HỎI {alarmIndex + 1} / {alarmQuestions.length}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      {alarmQuestions.map((_, i) => (
+                        <View
+                          key={i}
+                          style={{
+                            width: 24,
+                            height: 5,
+                            borderRadius: 3,
+                            backgroundColor: i < alarmIndex ? '#10b981' : i === alarmIndex ? '#ef4444' : theme.cardBorder
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Word Card */}
+                  <View style={{ backgroundColor: theme.drawerCardBg, padding: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, letterSpacing: 1 }}>TỪ VỰNG CẦN GIẢI MÃ</Text>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: theme.textPrimary, marginVertical: 4 }}>
+                      {alarmQuestions[alarmIndex].word.toUpperCase()}
+                    </Text>
+                  </View>
+
+                  {/* Options */}
+                  <View style={{ gap: 8 }}>
+                    {alarmQuestions[alarmIndex].options.map((opt, idx) => {
+                      const isSelected = alarmSelectedOpt === opt;
+                      const isCorrect = opt === alarmQuestions[alarmIndex].correct;
+                      let bg = theme.drawerCardBg;
+                      let border = theme.cardBorder;
+                      let textColor = theme.textPrimary;
+
+                      if (alarmAnswered) {
+                        if (isCorrect) {
+                          bg = 'rgba(16, 185, 129, 0.2)';
+                          border = '#10b981';
+                          textColor = '#10b981';
+                        } else if (isSelected) {
+                          bg = 'rgba(239, 68, 68, 0.2)';
+                          border = '#ef4444';
+                          textColor = '#ef4444';
+                        }
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          disabled={alarmAnswered}
+                          onPress={() => {
+                            setAlarmSelectedOpt(opt);
+                            setAlarmAnswered(true);
+                            if (isCorrect) {
+                              setTimeout(() => {
+                                if (alarmIndex + 1 < alarmQuestions.length) {
+                                  setAlarmIndex(prev => prev + 1);
+                                  setAlarmAnswered(false);
+                                  setAlarmSelectedOpt(null);
+                                } else {
+                                  setAlarmCompleted(true);
+                                }
+                              }, 700);
+                            } else {
+                              setTimeout(() => {
+                                setAlarmAnswered(false);
+                                setAlarmSelectedOpt(null);
+                              }, 1000);
+                            }
+                          }}
+                          style={{
+                            padding: 12,
+                            borderRadius: 12,
+                            backgroundColor: bg,
+                            borderWidth: 1.5,
+                            borderColor: border
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: textColor }}>{opt}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null
+            ) : (
+              /* Success Screen */
+              <View style={{ alignItems: 'center', paddingVertical: 10, gap: 12 }}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(16, 185, 129, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconCheck size={32} color="#10b981" />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, textAlign: 'center' }}>
+                  🎉 CHÚC MỪNG BẠN ĐÃ GIẢI MÃ THÀNH CÔNG!
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, textAlign: 'center', lineHeight: 17 }}>
+                  Chuông báo thức đã được tắt. Chuỗi Streak 🔥 của bạn đã an toàn!
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowAlarmModal(false);
+                    loadData();
+                  }}
+                  style={{
+                    width: '100%',
+                    paddingVertical: 12,
+                    borderRadius: 14,
+                    backgroundColor: '#10b981',
+                    alignItems: 'center',
+                    marginTop: 6
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Hoàn Thành & Trở Lại</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </Modal>

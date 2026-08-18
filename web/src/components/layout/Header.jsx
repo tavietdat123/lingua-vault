@@ -9,7 +9,8 @@ export default function Header({
   stats, 
   onOpenCommandPalette,
   audioSpeed = 0.9,
-  onAudioSpeedChange
+  onAudioSpeedChange,
+  onTriggerAlarm
 }) {
   const titles = {
     dashboard: { title: 'Tổng Quan Tiến Độ', desc: 'Theo dõi chỉ số ghi nhớ, chuỗi ngày học và hàng đợi ôn tập hôm nay' },
@@ -48,7 +49,31 @@ export default function Header({
       </div>
 
       {/* Action Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Quick Alarm Trigger Button */}
+        {onTriggerAlarm && (
+          <button
+            onClick={onTriggerAlarm}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              padding: '0.52rem 0.85rem',
+              borderRadius: 'var(--radius-lg)',
+              color: '#ef4444',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="Thử nghiệm Chuông Báo Thức Kỷ Luật Thép (Bắt buộc giải Quiz để tắt)"
+          >
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+            <span>🚨 Báo Thức</span>
+          </button>
+        )}
+
         {/* Quick Search & Command Palette Trigger */}
         <button
           onClick={onOpenCommandPalette}

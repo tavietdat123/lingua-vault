@@ -15,6 +15,7 @@ import QuizCenter from './components/quiz/QuizCenter';
 import SpeakingLab from './components/speaking/SpeakingLab';
 import AILab from './components/ai/AILab';
 import SettingsModal from './components/settings/SettingsModal';
+import AlarmModal from './components/alarm/AlarmModal';
 import { api } from './services/api';
 import { audioService } from './services/audioService';
 
@@ -44,6 +45,7 @@ export default function App() {
   const [editingPattern, setEditingPattern] = useState(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [aiLabSentence, setAiLabSentence] = useState('');
 
@@ -256,6 +258,7 @@ export default function App() {
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           audioSpeed={audioSpeed}
           onAudioSpeedChange={handleAudioSpeedChange}
+          onTriggerAlarm={() => setIsAlarmModalOpen(true)}
         />
 
         <div className="app-content">
@@ -412,6 +415,17 @@ export default function App() {
           }}
         />
       )}
+
+      {/* 4b. Urgent Ringing Alarm Clock Modal (Solve 3 Quiz Questions to Silence) */}
+      <AlarmModal
+        isOpen={isAlarmModalOpen}
+        onClose={() => setIsAlarmModalOpen(false)}
+        words={words}
+        onChallengeCompleted={() => {
+          refreshAllData();
+          addToast('🎉 Xuất sắc! Bạn đã giải mã thành công & tắt chuông báo thức!', 'success');
+        }}
+      />
 
       {/* 5. Toast Notifications */}
       <Toast toasts={toasts} onDismiss={removeToast} />
