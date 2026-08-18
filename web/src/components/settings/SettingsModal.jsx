@@ -28,12 +28,16 @@ export default function SettingsModal({ onClose, onDataRestored }) {
   // Telegram & Daily Goal State
   const [dailyGoal, setDailyGoal] = useState(10);
   const [reminderTime, setReminderTime] = useState('20:00');
+  const [morningReminderTime, setMorningReminderTime] = useState('08:30');
+  const [disciplineMode, setDisciplineMode] = useState('standard');
   const [botToken, setBotToken] = useState('');
   const [chatId, setChatId] = useState('');
   const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
   const [telegramSaveSuccess, setTelegramSaveSuccess] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [isTriggeringAlarm, setIsTriggeringAlarm] = useState(false);
+  const [isTriggeringDue, setIsTriggeringDue] = useState(false);
   const [testResult, setTestResult] = useState('');
   const [showTelegramGuide, setShowTelegramGuide] = useState(false);
 
@@ -51,6 +55,8 @@ export default function SettingsModal({ onClose, onDataRestored }) {
       if (res.success && res.data) {
         setDailyGoal(res.data.daily_word_goal || 10);
         setReminderTime(res.data.telegram_reminder_time || '20:00');
+        setMorningReminderTime(res.data.telegram_morning_time || '08:30');
+        setDisciplineMode(res.data.discipline_mode || 'standard');
         setBotToken(res.data.telegram_bot_token || '');
         setChatId(res.data.telegram_chat_id || '');
         setTelegramEnabled(Boolean(res.data.telegram_enabled));
@@ -89,6 +95,8 @@ export default function SettingsModal({ onClose, onDataRestored }) {
       const res = await api.saveTelegramSettings({
         daily_word_goal: parseInt(dailyGoal, 10) || 10,
         telegram_reminder_time: reminderTime,
+        telegram_morning_time: morningReminderTime,
+        discipline_mode: disciplineMode,
         telegram_bot_token: botToken.trim(),
         telegram_chat_id: chatId.trim(),
         telegram_enabled: telegramEnabled
@@ -102,6 +110,38 @@ export default function SettingsModal({ onClose, onDataRestored }) {
       alert('Lỗi lưu cấu hình: ' + err.message);
     } finally {
       setIsSavingTelegram(false);
+    }
+  };
+
+  const handleTestAlarm = async () => {
+    setIsTriggeringAlarm(true);
+    try {
+      const res = await api.triggerTelegramAlarm();
+      if (res.success) {
+        alert('🚨 Đã gửi thử nghiệm Báo Động Kỷ Luật Thép tới Telegram! Hãy kiểm tra bot.');
+      } else {
+        alert('Lỗi gửi báo động: ' + (res.error || res.reason));
+      }
+    } catch (err) {
+      alert('Lỗi gửi báo động: ' + err.message);
+    } finally {
+      setIsTriggeringAlarm(false);
+    }
+  };
+
+  const handleTestDueReminder = async () => {
+    setIsTriggeringDue(true);
+    try {
+      const res = await api.triggerTelegramDueReminder();
+      if (res.success) {
+        alert('🧠 Đã gửi tóm tắt Flashcard từ cũ đến hạn tới Telegram! Hãy kiểm tra bot.');
+      } else {
+        alert('Lỗi gửi nhắc nhở: ' + (res.error || res.reason));
+      }
+    } catch (err) {
+      alert('Lỗi gửi nhắc nhở: ' + err.message);
+    } finally {
+      setIsTriggeringDue(false);
     }
   };
 
@@ -239,13 +279,13 @@ export default function SettingsModal({ onClose, onDataRestored }) {
             )}
 
             <form onSubmit={handleSaveTelegram} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {/* Daily Goal & Reminder Time Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              {/* Daily Goal & Dual Reminder Times */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
                     🎯 Mục tiêu từ/ngày:
                   </label>
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', gap: '0.3rem' }}>
                     {[5, 10, 15, 20].map(cnt => (
                       <button
                         type="button"
@@ -253,16 +293,17 @@ export default function SettingsModal({ onClose, onDataRestored }) {
                         onClick={() => setDailyGoal(cnt)}
                         style={{
                           flex: 1,
-                          padding: '0.4rem',
+                          padding: '0.35rem 0.2rem',
                           borderRadius: 'var(--radius-sm)',
                           border: '1px solid var(--border-color)',
                           background: dailyGoal === cnt ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
                           color: dailyGoal === cnt ? '#ffffff' : 'var(--text-primary)',
                           fontWeight: 700,
+                          fontSize: '0.8rem',
                           cursor: 'pointer'
                         }}
                       >
-                        {cnt} từ
+                        {cnt}
                       </button>
                     ))}
                   </div>
@@ -270,16 +311,85 @@ export default function SettingsModal({ onClose, onDataRestored }) {
 
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
-                    ⏰ Giờ nhắc nhở mỗi ngày:
+                    🧠 Nhắc từ cũ (Sáng):
+                  </label>
+                  <input
+                    type="time"
+                    className="input-control"
+                    value={morningReminderTime}
+                    onChange={(e) => setMorningReminderTime(e.target.value)}
+                    style={{ padding: '0.45rem', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                    ⏰ Cảnh báo tối (Tối):
                   </label>
                   <input
                     type="time"
                     className="input-control"
                     value={reminderTime}
                     onChange={(e) => setReminderTime(e.target.value)}
-                    style={{ padding: '0.45rem', fontSize: '0.9rem' }}
+                    style={{ padding: '0.45rem', fontSize: '0.85rem' }}
                   />
                 </div>
+              </div>
+
+              {/* 🚨 HARDCORE DISCIPLINE MODE SELECTOR */}
+              <div style={{
+                background: disciplineMode === 'hardcore' ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-tertiary)',
+                border: disciplineMode === 'hardcore' ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--border-color)',
+                padding: '1rem',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    {disciplineMode === 'hardcore' ? '🚨 Chế Độ Kỷ Luật Thép (Hardcore Alarm)' : '🛡️ Chế Độ Nhắc Nhở Tiêu Chuẩn'}
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDisciplineMode('standard')}
+                      style={{
+                        padding: '0.3rem 0.6rem',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        border: '1px solid var(--border-color)',
+                        background: disciplineMode === 'standard' ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                        color: disciplineMode === 'standard' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Tiêu Chuẩn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDisciplineMode('hardcore')}
+                      style={{
+                        padding: '0.3rem 0.6rem',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        background: disciplineMode === 'hardcore' ? '#ef4444' : 'var(--bg-secondary)',
+                        color: disciplineMode === 'hardcore' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🚨 Kỷ Luật Thép
+                    </button>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                  {disciplineMode === 'hardcore'
+                    ? '⚡ Khi kích hoạt: Sau giờ hẹn nếu chưa học đủ chỉ tiêu, Bot sẽ nhắc nhở dồn dập mỗi 10 phút. Bắt buộc phải giải mã đúng 3 câu Quiz Inline trên Telegram mới được tắt chuông!'
+                    : 'Nhẹ nhàng gửi 1 tin nhắn cảnh báo tiến độ và danh sách từ cũ lúc 20:00.'}
+                </p>
               </div>
 
               {/* Bot Token & Chat ID */}
@@ -325,23 +435,45 @@ export default function SettingsModal({ onClose, onDataRestored }) {
                   <span>Bật thông báo tự động qua Telegram</span>
                 </label>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleTestAlarm}
+                    disabled={isTriggeringAlarm}
+                    className="btn-secondary"
+                    style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                    title="Gửi thử báo động Kỷ Luật Thép"
+                  >
+                    {isTriggeringAlarm ? <Loader2 size={13} className="animate-spin" /> : '🚨 Báo Động'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestDueReminder}
+                    disabled={isTriggeringDue}
+                    className="btn-secondary"
+                    style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem', color: 'var(--accent-primary)' }}
+                    title="Gửi thử danh sách từ cũ cần ôn"
+                  >
+                    {isTriggeringDue ? <Loader2 size={13} className="animate-spin" /> : '🧠 Từ Cũ'}
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleTestTelegram}
                     disabled={isTestingTelegram}
                     className="btn-secondary"
-                    style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+                    style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
                   >
-                    {isTestingTelegram ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    <span>Gửi Test Thử</span>
+                    {isTestingTelegram ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                    <span>Test Bot</span>
                   </button>
 
                   <button
                     type="submit"
                     disabled={isSavingTelegram}
                     className="btn-primary"
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                    style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem' }}
                   >
                     {isSavingTelegram ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                     <span>Lưu Cài Đặt</span>

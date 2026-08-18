@@ -13,6 +13,7 @@ import { quizController } from './controllers/quizController.js';
 import { telegramController } from './controllers/telegramController.js';
 import { speakingController } from './controllers/speakingController.js';
 import { schedulerService } from './services/schedulerService.js';
+import { telegramBotService } from './services/telegramBotService.js';
 
 dotenv.config();
 
@@ -88,23 +89,27 @@ app.post('/api/telegram/settings', telegramController.saveSettings);
 app.post('/api/telegram/test', telegramController.sendTest);
 app.get('/api/telegram/progress', telegramController.getProgress);
 app.post('/api/telegram/trigger-reminder', telegramController.triggerReminder);
+app.post('/api/telegram/trigger-alarm', telegramController.triggerAlarm);
+app.post('/api/telegram/trigger-due-reminder', telegramController.triggerDueReminder);
 
 // AI Speaking Lab & Pronunciation Assessment Routes
 app.get('/api/speaking/prompts', speakingController.getPrompts);
 app.post('/api/speaking/analyze-read-aloud', speakingController.analyzeReadAloud);
 app.post('/api/speaking/analyze-qa', speakingController.analyzeQA);
 
-// 4. Start Server & Scheduler
+// 4. Start Server, Schedulers & Telegram AI Copilot Poller
 schedulerService.start();
+telegramBotService.start();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 🚀 ===================================================
    LINGUAVAULT SERVER API RUNNING SUCCESSFULLY!
-   • Local URL:    http://localhost:${PORT}
-   • Health Check: http://localhost:${PORT}/api/health
-   • Spaced Repetition (SM-2): Enabled
-   • Database:     Native Node SQLite (Local-First)
+   • Local URL:            http://localhost:${PORT}
+   • Health Check:         http://localhost:${PORT}/api/health
+   • Spaced Repetition:    Enabled (SuperMemo SM-2)
+   • Telegram AI Copilot:  Active (Two-Way Bi-Directional)
+   • Hardcore Alarm Mode:  Ready
 ===================================================
   `);
 });

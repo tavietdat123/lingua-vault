@@ -34,15 +34,31 @@ export const schedulerService = {
           console.log('⏰ [Scheduler] Morning Due Digest result:', morningResult);
         }
 
-        // 2. Evening Daily Goal Progress & Streak Warning (Default 20:00)
+        // 2. Evening Daily Goal Progress & Hardcore Alarm Loop
         const eveningTimeRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_reminder_time'").get();
         const eveningTargetTime = eveningTimeRow?.value || '20:00';
 
+        const disciplineRow = db.prepare("SELECT value FROM settings WHERE key = 'discipline_mode'").get();
+        const isHardcore = disciplineRow?.value === 'hardcore' || disciplineRow?.value === '1';
+
+        // Check if we hit the primary evening time
         if (currentTimeStr === eveningTargetTime && lastEveningSentDate !== todayDateStr) {
           console.log(`⏰ [Scheduler] Triggering Evening Study Progress Check at ${currentTimeStr}...`);
           lastEveningSentDate = todayDateStr;
-          const eveningResult = await telegramService.checkAndSendDailyReminder();
-          console.log('⏰ [Scheduler] Evening Alert result:', eveningResult);
+          if (isHardcore) {
+            await telegramService.sendHardcoreAlarmMessage();
+          } else {
+            await telegramService.checkAndSendDailyReminder();
+          }
+        } else if (isHardcore && currentTimeStr > eveningTargetTime && now.getHours() < 24) {
+          // Hardcore Mode: Repeat alarm every 10 minutes if goal is not yet met!
+          if (now.getMinutes() % 10 === 0 && now.getSeconds() < 60) {
+            const progress = telegramService.getDailyProgress();
+            if (!progress.isGoalMet) {
+              console.log(`🚨 [Scheduler] HARDCORE ALARM repeating at ${currentTimeStr} (Missing ${progress.remaining} words)...`);
+              await telegramService.sendHardcoreAlarmMessage();
+            }
+          }
         }
       } catch (err) {
         console.error('⏰ [Scheduler Error]:', err.message);

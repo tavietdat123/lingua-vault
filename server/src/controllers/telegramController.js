@@ -8,7 +8,7 @@ export const telegramController = {
       const db = getDb();
       const rows = db.prepare(`
         SELECT key, value FROM settings 
-        WHERE key IN ('telegram_bot_token', 'telegram_chat_id', 'telegram_enabled', 'daily_word_goal', 'telegram_reminder_time')
+        WHERE key IN ('telegram_bot_token', 'telegram_chat_id', 'telegram_enabled', 'daily_word_goal', 'telegram_reminder_time', 'discipline_mode', 'telegram_morning_time')
       `).all();
 
       const settings = {
@@ -16,7 +16,9 @@ export const telegramController = {
         telegram_chat_id: '',
         telegram_enabled: false,
         daily_word_goal: 10,
-        telegram_reminder_time: '20:00'
+        telegram_reminder_time: '20:00',
+        telegram_morning_time: '08:30',
+        discipline_mode: 'standard'
       };
 
       rows.forEach(r => {
@@ -44,7 +46,9 @@ export const telegramController = {
         telegram_chat_id, 
         telegram_enabled, 
         daily_word_goal, 
-        telegram_reminder_time 
+        telegram_reminder_time,
+        telegram_morning_time,
+        discipline_mode
       } = req.body;
 
       const upsert = db.prepare(`
@@ -58,6 +62,8 @@ export const telegramController = {
       if (telegram_enabled !== undefined) upsert.run('telegram_enabled', String(telegram_enabled));
       if (daily_word_goal !== undefined) upsert.run('daily_word_goal', String(daily_word_goal));
       if (telegram_reminder_time !== undefined) upsert.run('telegram_reminder_time', String(telegram_reminder_time));
+      if (telegram_morning_time !== undefined) upsert.run('telegram_morning_time', String(telegram_morning_time));
+      if (discipline_mode !== undefined) upsert.run('discipline_mode', String(discipline_mode));
 
       res.json({ success: true, message: 'Đã lưu cấu hình Mục tiêu & Telegram thành công!' });
     } catch (err) {
@@ -90,6 +96,26 @@ export const telegramController = {
   triggerReminder: async (req, res) => {
     try {
       const result = await telegramService.checkAndSendDailyReminder(true);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+
+  // POST /api/telegram/trigger-alarm (Hardcore Alarm Trigger)
+  triggerAlarm: async (req, res) => {
+    try {
+      const result = await telegramService.sendHardcoreAlarmMessage(true);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+
+  // POST /api/telegram/trigger-due-reminder (Morning Due Words Digest)
+  triggerDueReminder: async (req, res) => {
+    try {
+      const result = await telegramService.sendDueReviewReminder(true);
       res.json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, error: err.message });

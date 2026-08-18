@@ -258,6 +258,30 @@ export const api = {
     return res.json();
   },
 
+  triggerTelegramReminder: async () => {
+    const res = await fetch(`${API_BASE}/telegram/trigger-reminder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+  },
+
+  triggerTelegramAlarm: async () => {
+    const res = await fetch(`${API_BASE}/telegram/trigger-alarm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+  },
+
+  triggerTelegramDueReminder: async () => {
+    const res = await fetch(`${API_BASE}/telegram/trigger-due-reminder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+  },
+
   getDailyProgress: async () => {
     try {
       const res = await fetch(`${API_BASE}/telegram/progress`);
