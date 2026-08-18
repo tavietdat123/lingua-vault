@@ -303,7 +303,6 @@ export default function App() {
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           audioSpeed={audioSpeed}
           onAudioSpeedChange={handleAudioSpeedChange}
-          onTriggerAlarm={() => setIsAlarmModalOpen(true)}
           gamificationProfile={gamificationProfile}
           onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
         />

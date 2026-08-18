@@ -934,25 +934,6 @@ export default function App() {
         </View>
 
         <View style={styles.topRightActions}>
-          {/* HARDCORE ALARM TRIGGER PILL */}
-          <TouchableOpacity
-            onPress={startAlarmChallenge}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 8,
-              paddingVertical: 5,
-              borderRadius: 16,
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              borderWidth: 1,
-              borderColor: '#ef4444',
-            }}
-          >
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444', marginRight: 4 }} />
-            <Text style={{ fontSize: 10, fontWeight: '800', color: '#ef4444' }}>🚨 Báo Thức</Text>
-          </TouchableOpacity>
-
           {/* SERVER CONNECTION PILL */}
           <TouchableOpacity
             onPress={() => setShowServerModal(true)}

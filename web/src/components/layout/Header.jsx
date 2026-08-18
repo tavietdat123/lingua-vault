@@ -11,7 +11,6 @@ export default function Header({
   onOpenCommandPalette,
   audioSpeed = 0.9,
   onAudioSpeedChange,
-  onTriggerAlarm,
   gamificationProfile,
   onOpenAIMasteryReport
 }) {
@@ -82,30 +81,6 @@ export default function Header({
           >
             <Brain size={15} />
             <span>Đánh Giá AI</span>
-          </button>
-        )}
-
-        {/* Quick Alarm Trigger Button */}
-        {onTriggerAlarm && (
-          <button
-            onClick={onTriggerAlarm}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              background: 'rgba(239, 68, 68, 0.08)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              padding: '0.52rem 0.85rem',
-              borderRadius: 'var(--radius-lg)',
-              color: '#ef4444',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-            title="Thử nghiệm Chuông Báo Thức Kỷ Luật Thép (Bắt buộc giải Quiz để tắt)"
-          >
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-            <span>🚨 Báo Thức</span>
           </button>
         )}
 
