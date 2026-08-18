@@ -2746,7 +2746,7 @@ export default function App() {
                   </View>
 
                   <View style={{ marginTop: 12 }}>
-                    <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nghĩa tiếng Việt *</Text>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nghĩa tiếng Việt *</Text>
                     <TextInput
                       style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontWeight: '700' }]}
                       placeholder="Nghĩa tiếng Việt tự nhiên..."
@@ -2810,6 +2810,14 @@ export default function App() {
 
         <TouchableOpacity
           style={styles.tabItem}
+          onPress={() => navigateTo('vocab')}
+        >
+          <IconBookOpen size={20} color={currentTab === 'vocab' ? theme.accent : theme.textMuted} />
+          <Text style={[styles.tabLabel, { color: currentTab === 'vocab' ? theme.accent : theme.textMuted }]}>Kho Từ</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.tabItem}
           onPress={() => navigateTo('review')}
         >
           <View style={{ position: 'relative' }}>
@@ -2833,10 +2841,10 @@ export default function App() {
 
         <TouchableOpacity
           style={styles.tabItem}
-          onPress={() => setIsNavDrawerOpen(true)}
+          onPress={() => navigateTo('ai-lab')}
         >
-          <IconMenu size={20} color={theme.textMuted} />
-          <Text style={[styles.tabLabel, { color: theme.textMuted }]}>Tất Cả</Text>
+          <IconSparkles size={20} color={currentTab === 'ai-lab' ? theme.accent : theme.textMuted} />
+          <Text style={[styles.tabLabel, { color: currentTab === 'ai-lab' ? theme.accent : theme.textMuted }]}>AI Lab</Text>
         </TouchableOpacity>
       </View>
 
