@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Award, Zap, ChevronRight, Sparkles, Shield, X } from 'lucide-react';
 
 export default function LevelPill({ profile, onOpenReport }) {
@@ -41,7 +42,6 @@ export default function LevelPill({ profile, onOpenReport }) {
           display: 'flex',
           alignItems: 'center',
           gap: '0.3rem',
-          backgroundColor: 'linear-gradient(135deg, var(--accent-primary) 0%, #38bdf8 100%)',
           background: 'var(--accent-primary)',
           color: '#ffffff',
           padding: '0.15rem 0.55rem',
@@ -84,30 +84,40 @@ export default function LevelPill({ profile, onOpenReport }) {
         </div>
       </div>
 
-      {/* Level Progression Ladder Details Modal */}
-      {showLadderModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.75)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1.25rem',
-          zIndex: 9999
-        }}>
+      {/* Level Progression Ladder Details Modal (Rendered via Portal into body to escape header blur) */}
+      {showLadderModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowLadderModal(false);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem',
+            zIndex: 99999
+          }}
+        >
           <div style={{
             width: '100%',
-            maxWidth: '520px',
+            maxWidth: '540px',
+            maxHeight: '88vh',
+            display: 'flex',
+            flexDirection: 'column',
             backgroundColor: 'var(--bg-secondary)',
             borderRadius: '24px',
             border: '1px solid var(--border-color)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-            overflow: 'hidden'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+            overflow: 'hidden',
+            animation: 'fadeIn 0.2s ease-out'
           }}>
             {/* Modal Header */}
             <div style={{
@@ -132,7 +142,7 @@ export default function LevelPill({ profile, onOpenReport }) {
                   <Award size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Bậc Thang Cấp Độ Học Thuật
                   </h3>
                   <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
@@ -144,7 +154,7 @@ export default function LevelPill({ profile, onOpenReport }) {
               <button
                 onClick={() => setShowLadderModal(false)}
                 className="btn-icon"
-                style={{ padding: '0.4rem' }}
+                style={{ padding: '0.4rem', borderRadius: '50%' }}
               >
                 <X size={18} />
               </button>
@@ -182,7 +192,7 @@ export default function LevelPill({ profile, onOpenReport }) {
             </div>
 
             {/* Ladder Steps List */}
-            <div style={{ padding: '1rem 1.5rem', maxHeight: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            <div style={{ padding: '1rem 1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               {ladder.map((item) => {
                 const isCurrent = item.level === level;
                 const isUnlocked = totalXp >= item.minXp;
@@ -261,7 +271,8 @@ export default function LevelPill({ profile, onOpenReport }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
