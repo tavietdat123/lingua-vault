@@ -96,6 +96,18 @@ const themes = {
   }
 };
 
+// Bảng Bậc Thang Cấp Độ Học Thuật & EXP
+export const MOBILE_LEVEL_LADDER = [
+  { level: 1, minXp: 0, maxXp: 200, title: 'Novice Scholar 🌱', perk: 'Khởi đầu hành trình nạp vốn từ vựng' },
+  { level: 2, minXp: 200, maxXp: 500, title: 'Lexical Apprentice 🌿', perk: 'Mở khóa phân tích sâu Collocations' },
+  { level: 3, minXp: 500, maxXp: 1000, title: 'Vocabulary Explorer 📘', perk: 'Kích hoạt thử thách Quiz Topic nâng cao' },
+  { level: 4, minXp: 1000, maxXp: 2000, title: 'Fluent Strategist ⚡', perk: 'Tối ưu hóa tần suất ghi nhớ SM-2' },
+  { level: 5, minXp: 2000, maxXp: 3500, title: 'Vault Master 💎', perk: 'Mở khóa huy hiệu Bậc Thầy Kho Từ Vựng' },
+  { level: 6, minXp: 3500, maxXp: 5500, title: 'Eloquent Orator 👑', perk: 'Chuyên gia phản xạ đối thoại & Speaking' },
+  { level: 7, minXp: 5500, maxXp: 8500, title: 'Linguistic Sage 🔮', perk: 'Tự động sáng tạo truyện ôn tập cá nhân hóa' },
+  { level: 8, minXp: 8500, maxXp: 999999, title: 'Linguistic Grandmaster 🏆', perk: 'Danh hiệu tối thượng - Đại Sư Ngôn Ngữ' }
+];
+
 // Dynamic Audio Player for Mobile with Granular Speed & Accent
 let globalMobileSpeed = 0.9;
 let globalMobileAccent = 'en-US';
@@ -193,6 +205,22 @@ export default function App() {
   const [mobileSpeed, setMobileSpeed] = useState(0.9);
   const [mobileAccent, setMobileAccent] = useState('en-US');
 
+  const [alarmQuestionCount, setAlarmQuestionCount] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      return parseInt(localStorage.getItem('linguavault_alarm_q_count') || '3', 10) || 3;
+    }
+    return 3;
+  });
+
+  const handleUpdateAlarmCount = (cnt) => {
+    setAlarmQuestionCount(cnt);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('linguavault_alarm_q_count', cnt.toString());
+      } catch (e) {}
+    }
+  };
+
   const handleUpdateMobileSpeed = (val) => {
     setMobileSpeed(val);
     globalMobileSpeed = val;
@@ -242,9 +270,24 @@ export default function App() {
 
   // Gamification & AI Mastery Assessment State
   const [gamificationProfile, setGamificationProfile] = useState({ level: 1, totalXp: 180, title: 'Novice Scholar 🌱', progressPercent: 20 });
+  const [showLevelLadderModal, setShowLevelLadderModal] = useState(false);
   const [showAIMasteryModal, setShowAIMasteryModal] = useState(false);
   const [aiMasteryReport, setAiMasteryReport] = useState(null);
   const [isLoadingAIMastery, setIsLoadingAIMastery] = useState(false);
+
+  const fetchMobileAIMasteryReport = async () => {
+    setIsLoadingAIMastery(true);
+    try {
+      const res = await mobileApi.getAIMasteryReport();
+      if (res?.success) {
+        setAiMasteryReport(res);
+      }
+    } catch (e) {
+      console.warn('AI report fetch error:', e);
+    } finally {
+      setIsLoadingAIMastery(false);
+    }
+  };
 
   const playMobileTone = (freq = 980, duration = 0.1) => {
     try {
@@ -439,12 +482,15 @@ export default function App() {
     if (!currentItem) return;
 
     await mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating);
+    try {
+      await mobileApi.addXp(15, 'Ôn tập thẻ Spaced Repetition (SM-2)');
+    } catch (e) {}
 
     if (reviewIndex + 1 < dueItems.length) {
       setReviewIndex(prev => prev + 1);
       setIsFlipped(false);
     } else {
-      Alert.alert('🎉 Xuất Sắc!', 'Bạn đã hoàn thành phiên ôn tập hôm nay.');
+      Alert.alert('🎉 Xuất Sắc!', 'Bạn đã hoàn thành phiên ôn tập hôm nay (+15 XP/thẻ).');
       loadData();
       setCurrentTab('home');
       setReviewIndex(0);
@@ -508,7 +554,10 @@ export default function App() {
 
       const res = await mobileApi.createWord(payload);
       if (res?.success) {
-        Alert.alert('Thành công', `Đã thêm từ "${newWord}" vào kho lưu trữ!`);
+        try {
+          await mobileApi.addXp(10, `Thêm từ mới "${newWord}" vào kho`);
+        } catch (e) {}
+        Alert.alert('Thành công', `Đã thêm từ "${newWord}" vào kho lưu trữ! (+10 XP)`);
         setNewWord('');
         setNewMeaningVi('');
         setNewMeaningEn('');
@@ -840,6 +889,10 @@ export default function App() {
 
         const res = await mobileApi.submitQuiz(answersToSubmit);
         if (res?.success) {
+          try {
+            const earnedXp = Math.max(20, (res.data.correctCount || 1) * 20);
+            await mobileApi.addXp(earnedXp, `Hoàn thành Quiz (${res.data.correctCount || 1} câu đúng)`);
+          } catch (e) {}
           setQuizResult(res.data);
           loadData();
         } else {
@@ -868,7 +921,11 @@ export default function App() {
           spokenText: speakingSpokenText
         });
         if (res?.success) {
+          try {
+            await mobileApi.addXp(50, 'Luyện phát âm AI Speaking Lab');
+          } catch (e) {}
           setSpeakingReadResult(res.data);
+          loadData();
         } else {
           Alert.alert('Lỗi', res?.error || 'Không thể phân tích bài đọc');
         }
@@ -879,7 +936,11 @@ export default function App() {
           spokenText: speakingSpokenText
         });
         if (res?.success) {
+          try {
+            await mobileApi.addXp(50, 'Luyện hội thoại AI Speaking Lab');
+          } catch (e) {}
           setSpeakingQAResult(res.data);
+          loadData();
         } else {
           Alert.alert('Lỗi', res?.error || 'Không thể chấm điểm câu trả lời');
         }
@@ -1054,21 +1115,58 @@ export default function App() {
                   )}
                 </View>
 
-                {/* USER RANK & PROGRESS CARD */}
-                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                {/* USER LEVEL & PROGRESS CARD */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, gap: 10 }]}>
                   <View style={styles.cardHeaderRow}>
-                    <Text style={[styles.cardSectionLabel, { color: theme.textSecondary }]}>DANH HIỆU & TIẾN ĐỘ</Text>
-                    <Text style={[styles.cardBadgeText, { color: theme.accent }]}>{rank}</Text>
+                    <Text style={[styles.cardSectionLabel, { color: theme.accent }]}>
+                      LEVEL {gamificationProfile?.level || 1} • {gamificationProfile?.totalXp || 0} XP
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowLevelLadderModal(true)}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: theme.accent }}>Bảng Cấp Độ ↗</Text>
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={[styles.progressBarBg, { backgroundColor: theme.inputBg }]}>
-                    <View style={[styles.progressBarFill, { backgroundColor: theme.accent, width: `${Math.min(100, Math.max(15, (masteredCount / 30) * 100))}%` }]} />
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginVertical: 2 }}>
+                    {gamificationProfile?.title || 'Novice Scholar 🌱'}
+                  </Text>
+
+                  <View style={[styles.progressBarBg, { backgroundColor: theme.inputBg, height: 6, borderRadius: 3 }]}>
+                    <View style={[styles.progressBarFill, { backgroundColor: theme.accent, width: `${Math.min(100, Math.max(8, gamificationProfile?.progressPercent || 0))}%`, borderRadius: 3 }]} />
                   </View>
 
-                  <View style={styles.rankFooterRow}>
-                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>Thuần thục: {masteredCount} từ</Text>
-                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>Mục tiêu: 30 từ</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>
+                      Tiến độ lên Lv.{(gamificationProfile?.level || 1) + 1}: {gamificationProfile?.progressPercent || 0}%
+                    </Text>
+                    <Text style={[styles.mutedText, { color: theme.textMuted }]}>
+                      Streak: 🔥 {streak} ngày
+                    </Text>
                   </View>
+
+                  {/* AI VOCABULARY REPORT BUTTON */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      fetchMobileAIMasteryReport();
+                      setShowAIMasteryModal(true);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.1)',
+                      borderWidth: 1,
+                      borderColor: '#6366f1',
+                      borderRadius: 12,
+                      paddingVertical: 10,
+                      gap: 6,
+                      marginTop: 4
+                    }}
+                  >
+                    <IconSparkles size={16} color="#6366f1" />
+                    <Text style={{ color: '#6366f1', fontWeight: '800', fontSize: 13 }}>
+                      📊 Báo Cáo Đánh Giá Năng Lực AI
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* 4-GRID STATS */}
@@ -2336,6 +2434,45 @@ export default function App() {
                   </View>
                 </View>
 
+                {/* HARDCORE ALARM QUESTION COUNT SETTING */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <IconAward size={18} color="#ef4444" />
+                    <Text style={[styles.formTitle, { color: theme.textPrimary, marginBottom: 0 }]}>Báo Thức Kỷ Luật Thép</Text>
+                  </View>
+                  <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+                    Số câu trắc nghiệm Active Recall bắt buộc phải giải đúng để tắt chuông báo thức.
+                  </Text>
+
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>
+                    🎯 Số câu hỏi thử thách: <Text style={{ color: '#ef4444', fontWeight: '800' }}>{alarmQuestionCount} câu</Text>
+                  </Text>
+
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                    {[3, 5, 10].map(cnt => (
+                      <TouchableOpacity
+                        key={cnt}
+                        onPress={() => handleUpdateAlarmCount(cnt)}
+                        style={[
+                          styles.filterChip,
+                          {
+                            flex: 1,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: alarmQuestionCount === cnt ? '#ef4444' : theme.drawerCardBg,
+                            borderColor: alarmQuestionCount === cnt ? '#ef4444' : theme.cardBorder,
+                            paddingVertical: 10
+                          }
+                        ]}
+                      >
+                        <Text style={{ fontWeight: '800', color: alarmQuestionCount === cnt ? '#ffffff' : theme.textPrimary, fontSize: 13 }}>
+                          {cnt} câu
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
                 {/* AUDIO SPEED & ACCENT SETTINGS CARD */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -3196,12 +3333,12 @@ export default function App() {
         animationType="slide"
         onRequestClose={() => setShowAIMasteryModal(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '85%' }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
             {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
                   <IconSparkles size={18} color={theme.accent} />
                 </View>
                 <View>
@@ -3210,57 +3347,222 @@ export default function App() {
                 </View>
               </View>
 
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <TouchableOpacity
+                  onPress={fetchMobileAIMasteryReport}
+                  disabled={isLoadingAIMastery}
+                  style={{ padding: 6 }}
+                >
+                  <IconRefresh size={16} color={theme.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowAIMasteryModal(false)}
+                  style={{ padding: 6 }}
+                >
+                  <IconClose size={20} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {isLoadingAIMastery ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center', gap: 12 }}>
+                <ActivityIndicator size="large" color={theme.accent} />
+                <Text style={{ fontSize: 13, color: theme.textSecondary, textAlign: 'center' }}>
+                  Giám khảo AI đang phân tích toàn bộ kho từ vựng và chu kỳ trí nhớ của bạn...
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                {/* 1. Score & Estimated CEFR Level */}
+                <View style={{
+                  backgroundColor: isDark ? 'rgba(2, 132, 199, 0.12)' : 'rgba(2, 132, 199, 0.08)',
+                  borderRadius: 18,
+                  padding: 14,
+                  borderWidth: 1.5,
+                  borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : 'rgba(2, 132, 199, 0.2)',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>
+                      TRÌNH ĐỘ CEFR ƯỚC TÍNH
+                    </Text>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: theme.textPrimary, marginVertical: 2 }}>
+                      {aiMasteryReport?.aiAssessment?.estimatedCefrLevel || 'B2 Upper-Intermediate'}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+                      Đạt {totalCount} từ • Lv.{gamificationProfile?.level || 1} ({gamificationProfile?.title || 'Novice Scholar'})
+                    </Text>
+                  </View>
+
+                  <View style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 29,
+                    backgroundColor: theme.card,
+                    borderWidth: 2.5,
+                    borderColor: theme.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: theme.accent }}>
+                      {aiMasteryReport?.aiAssessment?.overallScore || 80}
+                    </Text>
+                    <Text style={{ fontSize: 8, fontWeight: '700', color: theme.textMuted }}>ĐIỂM AI</Text>
+                  </View>
+                </View>
+
+                {/* 2. 3-Tier SM-2 Memory Matrix */}
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: '#10b981' }}>💎 MASTERED</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>
+                      {aiMasteryReport?.metrics?.masteredCount ?? masteredCount} từ
+                    </Text>
+                    <Text style={{ fontSize: 9, color: theme.textMuted }}>Thuộc sâu</Text>
+                  </View>
+
+                  <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: '#38bdf8' }}>🌿 FAMILIAR</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>
+                      {aiMasteryReport?.metrics?.familiarCount ?? Math.max(0, totalCount - masteredCount)} từ
+                    </Text>
+                    <Text style={{ fontSize: 9, color: theme.textMuted }}>Đang nhớ</Text>
+                  </View>
+
+                  <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: '#f59e0b' }}>🌱 LEARNING</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>
+                      {aiMasteryReport?.metrics?.learningCount ?? 0} từ
+                    </Text>
+                    <Text style={{ fontSize: 9, color: theme.textMuted }}>Cần ôn</Text>
+                  </View>
+                </View>
+
+                {/* 3. Qualitative AI Summary */}
+                <View style={{ backgroundColor: theme.drawerCardBg, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: theme.cardBorder, gap: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>
+                    📝 NHẬN XÉT CỦA GIÁM KHẢO AI:
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.textPrimary, lineHeight: 18, fontStyle: 'italic' }}>
+                    "{aiMasteryReport?.aiAssessment?.evaluationSummary || `Vốn từ vựng của bạn đang phát triển vững chắc với ${totalCount} từ. Nền tảng CEFR B2 đầy tiềm năng!`}"
+                  </Text>
+                </View>
+
+                {/* 4. Strengths & Action Plan */}
+                {aiMasteryReport?.aiAssessment?.actionPlan && (
+                  <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.08)' : 'rgba(2, 132, 199, 0.05)', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', gap: 6 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent }}>
+                      🚀 LỘ TRÌNH 3 BƯỚC TIẾP THEO:
+                    </Text>
+                    {aiMasteryReport.aiAssessment.actionPlan.map((step, idx) => (
+                      <Text key={idx} style={{ fontSize: 11, color: theme.textSecondary, lineHeight: 16 }}>
+                        <b>{idx + 1}.</b> {step}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => setShowAIMasteryModal(false)}
+                  style={{ backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 4 }}
+                >
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Đóng Báo Cáo</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* 10. LEVEL PROGRESSION LADDER MODAL */}
+      <Modal
+        visible={showLevelLadderModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLevelLadderModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '85%' }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconAward size={18} color={theme.accent} />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: theme.textPrimary }}>Bậc Thang Cấp Độ Học Thuật</Text>
+                  <Text style={{ fontSize: 10, color: theme.textSecondary }}>Hệ thống Gamification & Danh hiệu</Text>
+                </View>
+              </View>
+
               <TouchableOpacity
-                onPress={() => setShowAIMasteryModal(false)}
+                onPress={() => setShowLevelLadderModal(false)}
                 style={{ padding: 6 }}
               >
                 <IconClose size={20} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
-            {/* Level Card */}
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
-              <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.1)' : 'rgba(2, 132, 199, 0.08)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : 'rgba(2, 132, 199, 0.2)', alignItems: 'center' }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>
-                  CẤP ĐỘ: LEVEL {gamificationProfile?.level || 1}
-                </Text>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: theme.textPrimary, marginVertical: 2 }}>
-                  {gamificationProfile?.title || 'Novice Scholar 🌱'}
-                </Text>
-                <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-                  Tổng tích lũy: <b>{gamificationProfile?.totalXp || 0} XP</b> • Tiến độ: {gamificationProfile?.progressPercent || 0}%
-                </Text>
-              </View>
+            {/* Current Highlight */}
+            <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.12)' : 'rgba(2, 132, 199, 0.08)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : 'rgba(2, 132, 199, 0.2)', marginBottom: 12 }}>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent }}>CẤP ĐỘ HIỆN TẠI</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginVertical: 2 }}>
+                Level {gamificationProfile?.level || 1}: {gamificationProfile?.title || 'Novice Scholar 🌱'}
+              </Text>
+              <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+                Tổng tích lũy: <b>{gamificationProfile?.totalXp || 0} XP</b> • Tiến độ: {gamificationProfile?.progressPercent || 0}%
+              </Text>
+            </View>
 
-              {/* Memory Retention Breakdown */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>💎 THUỘC SÂU</Text>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>{masteredCount} từ</Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#38bdf8' }}>🌿 ĐANG NHỚ</Text>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>{totalCount - masteredCount} từ</Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#a855f7' }}>📘 MẪU CÂU</Text>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>{patterns.length}</Text>
-                </View>
-              </View>
+            {/* Ladder list */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {MOBILE_LEVEL_LADDER.map(item => {
+                const isCurrent = item.level === (gamificationProfile?.level || 1);
+                const isUnlocked = (gamificationProfile?.totalXp || 0) >= item.minXp;
 
-              {/* AI Assessment Advice */}
-              <View style={{ backgroundColor: theme.drawerCardBg, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: theme.cardBorder }}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.textPrimary, marginBottom: 4 }}>
-                  🧠 LỜI KHUYÊN PHÁT TRIỂN TỪ AI:
-                </Text>
-                <Text style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 18 }}>
-                  Kho từ vựng của bạn đang có {totalCount} từ. Hãy duy trì ôn tập hàng ngày theo chu kỳ SM-2 vào buổi sáng để tối ưu hóa trí nhớ dài hạn và thăng hạng lên danh hiệu cao hơn!
-                </Text>
-              </View>
+                return (
+                  <View
+                    key={item.level}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 10,
+                      borderRadius: 12,
+                      backgroundColor: isCurrent ? (isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)') : theme.drawerCardBg,
+                      borderWidth: isCurrent ? 1.5 : 1,
+                      borderColor: isCurrent ? theme.accent : theme.cardBorder,
+                      opacity: isUnlocked ? 1 : 0.6
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: isCurrent ? theme.accent : (isUnlocked ? theme.inputBg : theme.drawerCardBg), alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: isCurrent ? '#ffffff' : (isUnlocked ? theme.accent : theme.textMuted) }}>
+                          {item.level}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: theme.textPrimary }}>
+                          {item.title} {isCurrent ? '⭐' : ''}
+                        </Text>
+                        <Text style={{ fontSize: 10, color: theme.textSecondary }} numberOfLines={1}>
+                          {item.perk}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: isUnlocked ? theme.textPrimary : theme.textMuted, marginLeft: 8 }}>
+                      {item.minXp} XP
+                    </Text>
+                  </View>
+                );
+              })}
 
               <TouchableOpacity
-                onPress={() => setShowAIMasteryModal(false)}
-                style={{ backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 6 }}
+                onPress={() => setShowLevelLadderModal(false)}
+                style={{ backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 8 }}
               >
                 <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Đóng</Text>
               </TouchableOpacity>
