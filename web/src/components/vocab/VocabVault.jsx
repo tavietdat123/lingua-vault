@@ -118,17 +118,37 @@ export default function VocabVault({ words = [], onAddWord, onEditWord, onDelete
 
       {/* 2. TAGS PILLS FILTER */}
       {allTags.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
-          <Tag size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.45rem',
+          overflowX: 'auto',
+          paddingBottom: '0.5rem',
+          whiteSpace: 'nowrap',
+          flexWrap: 'nowrap',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-muted)', flexShrink: 0, paddingRight: '0.2rem' }}>
+            <Tag size={15} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tags:</span>
+          </div>
+
           <button
             onClick={() => setSelectedTag('all')}
             style={{
-              padding: '0.3rem 0.75rem',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              padding: '0.35rem 0.85rem',
               borderRadius: 'var(--radius-full)',
               fontSize: '0.8rem',
-              fontWeight: 600,
-              background: selectedTag === 'all' ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-              color: selectedTag === 'all' ? '#ffffff' : 'var(--text-secondary)'
+              fontWeight: 700,
+              border: selectedTag === 'all' ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+              background: selectedTag === 'all' ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+              color: selectedTag === 'all' ? '#ffffff' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: selectedTag === 'all' ? '0 2px 8px rgba(2, 132, 199, 0.25)' : 'none'
             }}
           >
             Tất cả thẻ ({words.length})
@@ -139,12 +159,18 @@ export default function VocabVault({ words = [], onAddWord, onEditWord, onDelete
               key={tag}
               onClick={() => setSelectedTag(tag)}
               style={{
-                padding: '0.3rem 0.75rem',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+                padding: '0.35rem 0.8rem',
                 borderRadius: 'var(--radius-full)',
                 fontSize: '0.8rem',
                 fontWeight: 600,
-                background: selectedTag === tag ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                color: selectedTag === tag ? '#ffffff' : 'var(--text-secondary)'
+                border: selectedTag === tag ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                background: selectedTag === tag ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                color: selectedTag === tag ? '#ffffff' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: selectedTag === tag ? '0 2px 8px rgba(2, 132, 199, 0.25)' : 'none'
               }}
             >
               #{tag}
