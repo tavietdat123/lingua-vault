@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Lock, CheckCircle2, AlertCircle, ShieldAlert, Sparkles, Trophy, XCircle } from 'lucide-react';
+import { Bell, Lock, CheckCircle2, AlertCircle, ShieldAlert, Trophy, XCircle } from 'lucide-react';
 import { alarmAudio } from '../../services/alarmAudio.js';
 
 export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, words = [], questionCount = 3 }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [wrongOptions, setWrongOptions] = useState([]);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(null);
   const [score, setScore] = useState(0);
@@ -54,6 +55,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       setScore(0);
       setIsCompleted(false);
       setSelectedOption(null);
+      setWrongOptions([]);
       setIsAnswered(false);
       setIsCorrect(null);
 
@@ -66,21 +68,21 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
     return () => {
       alarmAudio.stopAlarmSound();
     };
-  }, [isOpen]); // ONLY depends on isOpen to avoid resetting on data updates!
+  }, [isOpen]);
 
   if (!isOpen || questions.length === 0) return null;
 
   const currentQ = questions[currentIndex];
 
   const handleSelectOption = (opt) => {
-    if (isAnswered) return;
-    setSelectedOption(opt);
-    setIsAnswered(true);
+    if (isAnswered || wrongOptions.includes(opt)) return;
 
     const correct = opt.trim().toLowerCase() === currentQ.correctAnswer.trim().toLowerCase();
-    setIsCorrect(correct);
 
     if (correct) {
+      setSelectedOption(opt);
+      setIsAnswered(true);
+      setIsCorrect(true);
       setScore(prev => prev + 1);
 
       // Final Question: Stop audio immediately!
@@ -97,27 +99,25 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
         setTimeout(() => {
           setCurrentIndex(prev => prev + 1);
           setSelectedOption(null);
+          setWrongOptions([]);
           setIsAnswered(false);
           setIsCorrect(null);
         }, 600);
       }
     } else {
-      // Wrong option selected: Show correct answer and let user learn then advance
+      // Wrong option: Play error sound, mark this option as wrong, DO NOT reveal correct answer!
       alarmAudio.playErrorSound();
+      setWrongOptions(prev => [...prev, opt]);
+      setSelectedOption(opt);
+      setIsAnswered(true);
+      setIsCorrect(false);
+
       setTimeout(() => {
-        // Auto-advance after showing correct answer so user is never trapped
-        if (currentIndex + 1 >= questions.length) {
-          alarmAudio.stopAlarmSound();
-          alarmAudio.playSuccessSound();
-          setIsCompleted(true);
-          if (onChallengeCompleted) onChallengeCompleted();
-        } else {
-          setCurrentIndex(prev => prev + 1);
-          setSelectedOption(null);
-          setIsAnswered(false);
-          setIsCorrect(null);
-        }
-      }, 1400);
+        // Unlock immediately so user can pick other options on the same question
+        setSelectedOption(null);
+        setIsAnswered(false);
+        setIsCorrect(null);
+      }, 500);
     }
   };
 
@@ -255,27 +255,29 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
               {/* Options Grid */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 {currentQ.options.map((opt, idx) => {
+                  const isSelected = selectedOption === opt;
+                  const isWrong = wrongOptions.includes(opt) || (isSelected && isCorrect === false);
+                  const isRight = isSelected && isCorrect === true;
+
                   let btnBg = 'var(--bg-tertiary)';
                   let btnBorder = 'var(--border-color)';
                   let btnColor = 'var(--text-primary)';
 
-                  if (isAnswered) {
-                    if (opt === currentQ.correctAnswer) {
-                      btnBg = 'rgba(16, 185, 129, 0.2)';
-                      btnBorder = '#10b981';
-                      btnColor = '#10b981';
-                    } else if (opt === selectedOption) {
-                      btnBg = 'rgba(239, 68, 68, 0.2)';
-                      btnBorder = '#ef4444';
-                      btnColor = '#ef4444';
-                    }
+                  if (isRight) {
+                    btnBg = 'rgba(16, 185, 129, 0.2)';
+                    btnBorder = '#10b981';
+                    btnColor = '#10b981';
+                  } else if (isWrong) {
+                    btnBg = 'rgba(239, 68, 68, 0.15)';
+                    btnBorder = '#ef4444';
+                    btnColor = '#ef4444';
                   }
 
                   return (
                     <button
                       key={idx}
                       onClick={() => handleSelectOption(opt)}
-                      disabled={isAnswered}
+                      disabled={isAnswered || isWrong}
                       style={{
                         padding: '1rem',
                         borderRadius: '14px',
@@ -285,27 +287,24 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
                         fontSize: '0.95rem',
                         fontWeight: 600,
                         textAlign: 'left',
-                        cursor: isAnswered ? 'default' : 'pointer',
+                        cursor: isWrong ? 'not-allowed' : (isAnswered ? 'default' : 'pointer'),
                         transition: 'all 0.15s ease',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between'
+                        justifyContent: 'space-between',
+                        opacity: isWrong ? 0.6 : 1
                       }}
                     >
                       <span>{opt}</span>
-                      {isAnswered && opt === currentQ.correctAnswer && (
-                        <CheckCircle2 size={18} color="#10b981" />
-                      )}
-                      {isAnswered && opt === selectedOption && opt !== currentQ.correctAnswer && (
-                        <XCircle size={18} color="#ef4444" />
-                      )}
+                      {isRight && <CheckCircle2 size={18} color="#10b981" />}
+                      {isWrong && <XCircle size={18} color="#ef4444" />}
                     </button>
                   );
                 })}
               </div>
 
               {/* Wrong Answer Hint Banner */}
-              {isAnswered && !isCorrect && (
+              {isCorrect === false && (
                 <div style={{
                   padding: '0.75rem 1rem',
                   borderRadius: '12px',
@@ -315,10 +314,11 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
                   alignItems: 'center',
                   gap: '0.5rem',
                   color: '#ef4444',
-                  fontSize: '0.85rem'
+                  fontSize: '0.85rem',
+                  fontWeight: 600
                 }}>
                   <AlertCircle size={16} />
-                  <span>Chưa chính xác! Đáp án đúng màu xanh. Đang chuyển câu tiếp theo...</span>
+                  <span>Chưa chính xác! Hãy chọn đáp án khác cho đến khi đúng.</span>
                 </div>
               )}
             </>
@@ -357,7 +357,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
               }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981' }}>+30 XP Thưởng</span>
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>•</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-primary)' }}>Đã Hoàn Thành Ôn Luyện</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-primary)' }}>{questions.length}/{questions.length} Từ Vựng Đã Ôn</span>
               </div>
 
               <button

@@ -237,6 +237,7 @@ export default function App() {
   const [alarmIndex, setAlarmIndex] = useState(0);
   const [alarmAnswered, setAlarmAnswered] = useState(false);
   const [alarmSelectedOpt, setAlarmSelectedOpt] = useState(null);
+  const [alarmWrongOpts, setAlarmWrongOpts] = useState([]);
   const [alarmCompleted, setAlarmCompleted] = useState(false);
 
   const playMobileTone = (freq = 980, duration = 0.1) => {
@@ -291,6 +292,7 @@ export default function App() {
     setAlarmCompleted(false);
     setAlarmAnswered(false);
     setAlarmSelectedOpt(null);
+    setAlarmWrongOpts([]);
     setShowAlarmModal(true);
   };
 
@@ -3068,37 +3070,42 @@ export default function App() {
                   <View style={{ gap: 8 }}>
                     {alarmQuestions[alarmIndex].options.map((opt, idx) => {
                       const isSelected = alarmSelectedOpt === opt;
-                      const isCorrect = opt === alarmQuestions[alarmIndex].correct;
+                      const isWrong = alarmWrongOpts.includes(opt);
+                      const isRight = isSelected && opt === alarmQuestions[alarmIndex].correct;
+
                       let bg = theme.drawerCardBg;
                       let border = theme.cardBorder;
                       let textColor = theme.textPrimary;
 
-                      if (alarmAnswered) {
-                        if (isCorrect) {
-                          bg = 'rgba(16, 185, 129, 0.2)';
-                          border = '#10b981';
-                          textColor = '#10b981';
-                        } else if (isSelected) {
-                          bg = 'rgba(239, 68, 68, 0.2)';
-                          border = '#ef4444';
-                          textColor = '#ef4444';
-                        }
+                      if (isRight) {
+                        bg = 'rgba(16, 185, 129, 0.2)';
+                        border = '#10b981';
+                        textColor = '#10b981';
+                      } else if (isWrong) {
+                        bg = 'rgba(239, 68, 68, 0.15)';
+                        border = '#ef4444';
+                        textColor = '#ef4444';
                       }
 
                       return (
                         <TouchableOpacity
                           key={idx}
-                          disabled={alarmAnswered}
+                          disabled={alarmAnswered || isWrong}
                           onPress={() => {
-                            setAlarmSelectedOpt(opt);
-                            setAlarmAnswered(true);
+                            if (alarmAnswered || isWrong) return;
+
+                            const isCorrect = opt.trim().toLowerCase() === alarmQuestions[alarmIndex].correct.trim().toLowerCase();
+
                             if (isCorrect) {
+                              setAlarmSelectedOpt(opt);
+                              setAlarmAnswered(true);
                               playMobileTone(1046.5, 0.15);
                               setTimeout(() => {
                                 if (alarmIndex + 1 < alarmQuestions.length) {
                                   setAlarmIndex(prev => prev + 1);
                                   setAlarmAnswered(false);
                                   setAlarmSelectedOpt(null);
+                                  setAlarmWrongOpts([]);
                                 } else {
                                   playMobileTone(1200, 0.3);
                                   setAlarmCompleted(true);
@@ -3106,16 +3113,13 @@ export default function App() {
                               }, 500);
                             } else {
                               playMobileTone(220, 0.25);
+                              setAlarmWrongOpts(prev => [...prev, opt]);
+                              setAlarmSelectedOpt(opt);
+                              setAlarmAnswered(true);
                               setTimeout(() => {
-                                if (alarmIndex + 1 < alarmQuestions.length) {
-                                  setAlarmIndex(prev => prev + 1);
-                                  setAlarmAnswered(false);
-                                  setAlarmSelectedOpt(null);
-                                } else {
-                                  playMobileTone(1200, 0.3);
-                                  setAlarmCompleted(true);
-                                }
-                              }, 1200);
+                                setAlarmSelectedOpt(null);
+                                setAlarmAnswered(false);
+                              }, 500);
                             }
                           }}
                           style={{
@@ -3123,7 +3127,8 @@ export default function App() {
                             borderRadius: 12,
                             backgroundColor: bg,
                             borderWidth: 1.5,
-                            borderColor: border
+                            borderColor: border,
+                            opacity: isWrong ? 0.6 : 1
                           }}
                         >
                           <Text style={{ fontSize: 13, fontWeight: '600', color: textColor }}>{opt}</Text>
