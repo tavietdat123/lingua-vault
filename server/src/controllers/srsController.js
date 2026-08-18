@@ -123,10 +123,18 @@ export const srsController = {
         insertLog.run(logId, today, now);
       }
 
+      // Gamification: Reward +15 XP for SRS review
+      let xpResult = null;
+      try {
+        const { gamificationService } = await import('../services/gamificationService.js');
+        xpResult = gamificationService.addXp(15, `Ôn tập thẻ SM-2: ${item.word || item.name || ''}`);
+      } catch (e) {}
+
       res.json({
         success: true,
         message: 'Đã ghi nhận kết quả ôn tập',
-        data: nextSRS
+        data: nextSRS,
+        gamification: xpResult
       });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

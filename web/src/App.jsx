@@ -16,6 +16,8 @@ import SpeakingLab from './components/speaking/SpeakingLab';
 import AILab from './components/ai/AILab';
 import SettingsModal from './components/settings/SettingsModal';
 import AlarmModal from './components/alarm/AlarmModal';
+import LevelUpModal from './components/gamification/LevelUpModal';
+import AIMasteryReportModal from './components/gamification/AIMasteryReportModal';
 import { api } from './services/api';
 import { audioService } from './services/audioService';
 
@@ -47,6 +49,9 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isAIMasteryReportOpen, setIsAIMasteryReportOpen] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [gamificationProfile, setGamificationProfile] = useState(null);
   const [aiLabSentence, setAiLabSentence] = useState('');
 
   // Toast notifications state
@@ -96,12 +101,13 @@ export default function App() {
   // Load All App Data
   const refreshAllData = async () => {
     try {
-      const [wordsRes, patternsRes, notesRes, statsRes, dueRes] = await Promise.all([
+      const [wordsRes, patternsRes, notesRes, statsRes, dueRes, gamificationRes] = await Promise.all([
         api.getWords(),
         api.getPatterns(),
         api.getNotes(),
         api.getStats(),
-        api.getDueItems()
+        api.getDueItems(),
+        api.getGamificationProfile()
       ]);
 
       if (wordsRes.success) setWords(wordsRes.data || []);
@@ -114,6 +120,18 @@ export default function App() {
           ...(dueRes.data?.patterns || [])
         ];
         setDueItems(combinedDue);
+      }
+      if (gamificationRes && gamificationRes.success) {
+        const newProf = gamificationRes.data;
+        if (gamificationProfile && newProf.level > gamificationProfile.level) {
+          setLevelUpData({
+            newLevel: newProf.level,
+            title: newProf.title,
+            perk: newProf.perk,
+            totalXp: newProf.totalXp
+          });
+        }
+        setGamificationProfile(newProf);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -286,6 +304,8 @@ export default function App() {
           audioSpeed={audioSpeed}
           onAudioSpeedChange={handleAudioSpeedChange}
           onTriggerAlarm={() => setIsAlarmModalOpen(true)}
+          gamificationProfile={gamificationProfile}
+          onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
         />
 
         <div className="app-content">
@@ -299,6 +319,8 @@ export default function App() {
                   onStartReview={() => handleNavigate('review')}
                   onNavigate={handleNavigate}
                   audioSpeed={audioSpeed}
+                  gamificationProfile={gamificationProfile}
+                  onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
                 />
               } 
             />
@@ -311,6 +333,8 @@ export default function App() {
                   onStartReview={() => handleNavigate('review')}
                   onNavigate={handleNavigate}
                   audioSpeed={audioSpeed}
+                  gamificationProfile={gamificationProfile}
+                  onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
                 />
               } 
             />
@@ -443,15 +467,31 @@ export default function App() {
         />
       )}
 
-      {/* 4b. Urgent Ringing Alarm Clock Modal (Solve 3 Quiz Questions to Silence) */}
+      {/* 4b. Urgent Ringing Alarm Clock Modal (Solve Quiz Questions to Silence) */}
       <AlarmModal
         isOpen={isAlarmModalOpen}
         onClose={() => setIsAlarmModalOpen(false)}
         words={words}
-        onChallengeCompleted={() => {
+        onChallengeCompleted={async () => {
+          try {
+            await api.addXp(30, 'Giải mã Báo Thức Kỷ Luật Thép');
+          } catch (e) {}
           refreshAllData();
-          addToast('🎉 Xuất sắc! Bạn đã giải mã thành công & tắt chuông báo thức!', 'success');
+          addToast('🎉 Xuất sắc! Bạn đã giải mã thành công & tắt chuông báo thức! (+30 XP)', 'success');
         }}
+      />
+
+      {/* 4c. AI Vocabulary Mastery Assessment Report Modal */}
+      <AIMasteryReportModal
+        isOpen={isAIMasteryReportOpen}
+        onClose={() => setIsAIMasteryReportOpen(false)}
+      />
+
+      {/* 4d. Level Up Celebration Modal */}
+      <LevelUpModal
+        isOpen={!!levelUpData}
+        onClose={() => setLevelUpData(null)}
+        levelData={levelUpData}
       />
 
       {/* 5. Toast Notifications */}

@@ -15,29 +15,26 @@ import {
 } from 'lucide-react';
 import { playAudio } from '../../services/audioService';
 
-export default function Dashboard({ stats, recentWords = [], onStartReview, onNavigate, audioSpeed = 0.9 }) {
+export default function Dashboard({ 
+  stats, 
+  recentWords = [], 
+  onStartReview, 
+  onNavigate, 
+  audioSpeed = 0.9,
+  gamificationProfile,
+  onOpenAIMasteryReport
+}) {
   const [playingWordId, setPlayingWordId] = useState(null);
 
   const totalDue = stats?.total_due_today || 0;
   const wordStats = stats?.words || {};
   const streak = stats?.streak || 0;
 
-  // Calculate XP & Level
-  const totalMastered = wordStats.mastered || 0;
-  const totalLearned = (wordStats.total || 0) + (stats?.patterns?.total || 0);
-  let rank = '🌱 Apprentice (Tập sự)';
-  let nextRankGoal = 20;
-
-  if (totalMastered >= 100) {
-    rank = '👑 Polyglot Master (Bậc thầy)';
-    nextRankGoal = 500;
-  } else if (totalMastered >= 30) {
-    rank = '🎓 Fluent Scholar (Học giả)';
-    nextRankGoal = 100;
-  } else if (totalMastered >= 10) {
-    rank = '⚡ Agile Learner (Chuyên cần)';
-    nextRankGoal = 30;
-  }
+  const currentLevel = gamificationProfile?.level || 1;
+  const currentTitle = gamificationProfile?.title || 'Novice Scholar 🌱';
+  const totalXp = gamificationProfile?.totalXp || 0;
+  const progressPercent = gamificationProfile?.progressPercent || 0;
+  const nextLevel = gamificationProfile?.nextLevel || 2;
 
   const handlePlayAudio = (w) => {
     setPlayingWordId(w.id);
@@ -191,30 +188,71 @@ export default function Dashboard({ stats, recentWords = [], onStartReview, onNa
             <Sparkles size={18} />
             <span>Luyện Speaking AI</span>
           </button>
+
+          {onOpenAIMasteryReport && (
+            <button
+              onClick={onOpenAIMasteryReport}
+              style={{
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                color: '#ffffff',
+                padding: '0.9rem 1.35rem',
+                borderRadius: 'var(--radius-lg)',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                boxShadow: '0 8px 20px rgba(99, 102, 241, 0.3)'
+              }}
+              className="glow-hover"
+            >
+              <Brain size={18} />
+              <span>Báo Cáo Đánh Giá AI</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* 2. PRO MAX STATS & LEVEL CARD */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
-        {/* Streak & Rank Card */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem' }}>
+        {/* Streak & Gamification Level Card */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Cấp Độ & Danh Hiệu
+              <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                LEVEL {currentLevel} • {totalXp} XP
               </span>
-              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--text-primary)' }}>
-                {rank}
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--text-primary)' }}>
+                {currentTitle}
               </h4>
             </div>
-            <div style={{ background: 'var(--accent-warning-light)', padding: '0.75rem', borderRadius: 'var(--radius-lg)', color: 'var(--accent-warning)' }}>
-              <Flame size={24} />
+            <div style={{ background: 'var(--accent-primary-light)', padding: '0.6rem', borderRadius: 'var(--radius-lg)', color: 'var(--accent-primary)' }}>
+              <Award size={22} />
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-tertiary)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Daily Streak:</span>
-            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent-warning)' }}>
+          {/* XP Progress Bar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span>Tiến độ lên Lv.{nextLevel}</span>
+              <b>{progressPercent}%</b>
+            </div>
+            <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{
+                width: `${Math.min(100, Math.max(5, progressPercent))}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
+                borderRadius: '3px',
+                transition: 'width 0.5s ease'
+              }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-tertiary)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Daily Streak:</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--accent-warning)' }}>
               🔥 {streak} ngày liên tục
             </span>
           </div>

@@ -240,6 +240,12 @@ export default function App() {
   const [alarmWrongOpts, setAlarmWrongOpts] = useState([]);
   const [alarmCompleted, setAlarmCompleted] = useState(false);
 
+  // Gamification & AI Mastery Assessment State
+  const [gamificationProfile, setGamificationProfile] = useState({ level: 1, totalXp: 180, title: 'Novice Scholar 🌱', progressPercent: 20 });
+  const [showAIMasteryModal, setShowAIMasteryModal] = useState(false);
+  const [aiMasteryReport, setAiMasteryReport] = useState(null);
+  const [isLoadingAIMastery, setIsLoadingAIMastery] = useState(false);
+
   const playMobileTone = (freq = 980, duration = 0.1) => {
     try {
       if (typeof window !== 'undefined') {
@@ -304,7 +310,7 @@ export default function App() {
       setServerTestResult(health.success ? 'online' : 'offline');
       if (health.url) setServerUrlState(health.url);
 
-      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes] = await Promise.all([
+      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes, gamificationRes] = await Promise.all([
         mobileApi.getStats(),
         mobileApi.getDueItems(),
         mobileApi.getWords(),
@@ -313,10 +319,12 @@ export default function App() {
         mobileApi.getSettings(),
         mobileApi.getTelegramSettings(),
         mobileApi.getQuizTopics(),
-        mobileApi.getSpeakingPrompts()
+        mobileApi.getSpeakingPrompts(),
+        mobileApi.getGamificationProfile()
       ]);
 
       if (statsRes?.success) setStats(statsRes.data);
+      if (gamificationRes?.success && gamificationRes.data) setGamificationProfile(gamificationRes.data);
       if (dueRes?.success) {
         const combined = [
           ...(dueRes.data?.words || []),
@@ -963,6 +971,28 @@ export default function App() {
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: serverConnected ? '#10b981' : '#ef4444', marginRight: 4 }} />
             <Text style={{ fontSize: 10, fontWeight: '800', color: serverConnected ? '#10b981' : '#ef4444' }}>
               {serverConnected ? 'API OK' : 'API IP ⚙️'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* GAMIFICATION LEVEL PILL */}
+          <TouchableOpacity
+            onPress={() => setShowAIMasteryModal(true)}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 8,
+              paddingVertical: 5,
+              borderRadius: 16,
+              backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : 'rgba(2, 132, 199, 0.12)',
+              borderWidth: 1,
+              borderColor: theme.accent,
+              gap: 3
+            }}
+          >
+            <IconAward size={12} color={theme.accent} />
+            <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent }}>
+              Lv.{gamificationProfile?.level || 1} ({gamificationProfile?.totalXp || 0} XP)
             </Text>
           </TouchableOpacity>
 
@@ -3151,11 +3181,15 @@ export default function App() {
                   Chuông báo thức đã được tắt. Chuỗi Streak 🔥 của bạn đã an toàn!
                 </Text>
                 <TouchableOpacity
-                  onPress={() => {
+                  onPress={async () => {
+                    try {
+                      await mobileApi.addXp(30, 'Giải mã Báo Thức Kỷ Luật Thép');
+                    } catch (e) {}
                     setShowAlarmModal(false);
                     setAlarmCompleted(false);
                     setAlarmAnswered(false);
                     setAlarmIndex(0);
+                    loadData();
                   }}
                   style={{
                     width: '100%',
@@ -3166,10 +3200,90 @@ export default function App() {
                     marginTop: 6
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>✅ Tắt Báo Thức & Hoàn Thành</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>✅ Tắt Báo Thức & Hoàn Thành (+30 XP)</Text>
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* 9. AI VOCABULARY MASTERY ASSESSMENT REPORT MODAL */}
+      <Modal
+        visible={showAIMasteryModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAIMasteryModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '85%' }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconSparkles size={18} color={theme.accent} />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: theme.textPrimary }}>Báo Cáo Đánh Giá AI</Text>
+                  <Text style={{ fontSize: 10, color: theme.textSecondary }}>Khảo thí CEFR & Trí nhớ SM-2</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowAIMasteryModal(false)}
+                style={{ padding: 6 }}
+              >
+                <IconClose size={20} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Level Card */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+              <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.1)' : 'rgba(2, 132, 199, 0.08)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : 'rgba(2, 132, 199, 0.2)', alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>
+                  CẤP ĐỘ: LEVEL {gamificationProfile?.level || 1}
+                </Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: theme.textPrimary, marginVertical: 2 }}>
+                  {gamificationProfile?.title || 'Novice Scholar 🌱'}
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textSecondary }}>
+                  Tổng tích lũy: <b>{gamificationProfile?.totalXp || 0} XP</b> • Tiến độ: {gamificationProfile?.progressPercent || 0}%
+                </Text>
+              </View>
+
+              {/* Memory Retention Breakdown */}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>💎 THUỘC SÂU</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>{masteredCount} từ</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#38bdf8' }}>🌿 ĐANG NHỚ</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>{totalCount - masteredCount} từ</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: theme.drawerCardBg, padding: 10, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: theme.cardBorder }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#a855f7' }}>📘 MẪU CÂU</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary, marginTop: 2 }}>{patterns.length}</Text>
+                </View>
+              </View>
+
+              {/* AI Assessment Advice */}
+              <View style={{ backgroundColor: theme.drawerCardBg, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: theme.cardBorder }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.textPrimary, marginBottom: 4 }}>
+                  🧠 LỜI KHUYÊN PHÁT TRIỂN TỪ AI:
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 18 }}>
+                  Kho từ vựng của bạn đang có {totalCount} từ. Hãy duy trì ôn tập hàng ngày theo chu kỳ SM-2 vào buổi sáng để tối ưu hóa trí nhớ dài hạn và thăng hạng lên danh hiệu cao hơn!
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowAIMasteryModal(false)}
+                style={{ backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 6 }}
+              >
+                <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Đóng</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>

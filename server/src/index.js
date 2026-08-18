@@ -12,6 +12,7 @@ import { backupController } from './controllers/backupController.js';
 import { quizController } from './controllers/quizController.js';
 import { telegramController } from './controllers/telegramController.js';
 import { speakingController } from './controllers/speakingController.js';
+import { gamificationController } from './controllers/gamificationController.js';
 import { schedulerService } from './services/schedulerService.js';
 import { telegramBotService } from './services/telegramBotService.js';
 
@@ -96,6 +97,11 @@ app.post('/api/telegram/trigger-due-reminder', telegramController.triggerDueRemi
 app.get('/api/speaking/prompts', speakingController.getPrompts);
 app.post('/api/speaking/analyze-read-aloud', speakingController.analyzeReadAloud);
 app.post('/api/speaking/analyze-qa', speakingController.analyzeQA);
+
+// Gamification (EXP & Level) & AI Mastery Report Routes
+app.get('/api/gamification/profile', gamificationController.getProfile);
+app.post('/api/gamification/add-xp', gamificationController.addXp);
+app.get('/api/ai/mastery-report', gamificationController.getAIMasteryReport);
 
 // 4. Start Server, Schedulers & Telegram AI Copilot Poller
 schedulerService.start();

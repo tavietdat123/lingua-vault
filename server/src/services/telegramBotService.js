@@ -8,6 +8,8 @@ import { telegramService } from './telegramService.js';
 import { callGemini } from './aiService.js';
 import { quizService } from './quizService.js';
 import { calculateNextSRS, GRADE } from './srsAlgorithm.js';
+import { gamificationService } from './gamificationService.js';
+import { aiAssessmentService } from './aiAssessmentService.js';
 import crypto from 'node:crypto';
 
 let isPolling = false;
@@ -150,11 +152,14 @@ export const telegramBotService = {
           activeQuizSessions.delete(chatId);
 
           if (isPassed) {
+            const xpRes = gamificationService.addXp(30, 'Giải mã Báo Thức Kỷ Luật Thép');
+            const levelUpText = xpRes.leveledUp ? `\n\n🎉 <b>CHÚC MỪNG BẠN ĐÃ THĂNG CẤP!</b>\nBạn đã đạt <b>Level ${xpRes.newLevel} • ${xpRes.title}</b>! 🏆` : '';
+
             const successMsg = `
 🎉 <b>XUẤT SẮC! BẠN ĐÃ GIẢI MÃ THÀNH CÔNG NHIỆM VỤ!</b>
 
-📊 <b>Kết quả:</b> Đúng <b>${session.score}/${session.total} câu</b>
-✅ <b>Trạng thái:</b> Đã TẮT còi báo động hôm nay & Chuỗi Streak 🔥 được bảo vệ an toàn!
+📊 <b>Kết quả:</b> Đúng <b>${session.score}/${session.total} câu</b> (+30 XP)
+✅ <b>Trạng thái:</b> Đã TẮT còi báo động hôm nay & Chuỗi Streak 🔥 được bảo vệ an toàn!${levelUpText}
 
 <i>Chúc bạn một buổi tối tuyệt vời! Hẹn gặp lại bạn vào ngày mai 🚀</i>
             `.trim();
@@ -172,10 +177,15 @@ Báo động vẫn đang kích hoạt! Hãy bấm nút bên dưới để thử 
         }
       } else {
         // Single Quiz mode answer
-        const feedback = isCorrect 
-          ? `✅ <b>Chính xác!</b> Bạn đã trả lời đúng từ <b>${word.toUpperCase()}</b> (+10 XP) 🏆`
-          : `❌ <b>Chưa chính xác!</b> Hãy ôn lại từ <b>${word.toUpperCase()}</b> nhé!`;
-        await telegramService.sendMessage(botToken, chatId, feedback);
+        if (isCorrect) {
+          const xpRes = gamificationService.addXp(20, `Quiz: ${word}`);
+          const levelUpText = xpRes.leveledUp ? `\n🎉 <b>THĂNG CẤP:</b> Bạn đã lên <b>Level ${xpRes.newLevel} • ${xpRes.title}</b>!` : '';
+          const feedback = `✅ <b>Chính xác!</b> Bạn đã trả lời đúng từ <b>${word.toUpperCase()}</b> (+20 XP) 🏆${levelUpText}`;
+          await telegramService.sendMessage(botToken, chatId, feedback);
+        } else {
+          const feedback = `❌ <b>Chưa chính xác!</b> Hãy ôn lại từ <b>${word.toUpperCase()}</b> nhé!`;
+          await telegramService.sendMessage(botToken, chatId, feedback);
+        }
       }
     }
   },
@@ -233,14 +243,26 @@ Tôi là trợ lý tiếng Anh cá nhân kết nối trực tiếp với <b>Kho 
 
     if (text === '/status' || text === '/stats') {
       const progress = telegramService.getDailyProgress();
-      const statusMsg = `
-📊 <b>BÁO CÁO TIẾN ĐỘ HỌC TẬP HÔM NAY</b>
+      const profile = gamificationService.getProfile();
 
-🎯 <b>Chỉ tiêu:</b> <code>${progress.studiedToday} / ${progress.dailyGoal} từ</code>
+      // Generate visual XP progress bar
+      const filledBlocks = Math.round(profile.progressPercent / 10);
+      const emptyBlocks = 10 - filledBlocks;
+      const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+
+      const statusMsg = `
+📊 <b>BÁO CÁO TIẾN ĐỘ & NĂNG LỰC HỌC TẬP</b>
+
+🏆 <b>Cấp độ:</b> <b>Level ${profile.level} • ${profile.title}</b>
+⚡ <b>Kinh nghiệm:</b> <code>${profile.totalXp} XP</code> (Cần +${profile.xpNeededForLevel - profile.xpIntoLevel} XP lên Lv.${profile.nextLevel})
+📈 <b>Tiến trình Level:</b> [<code>${progressBar}</code>] <b>${profile.progressPercent}%</b>
+
+🎯 <b>Chỉ tiêu hôm nay:</b> <code>${progress.studiedToday} / ${progress.dailyGoal} từ</code>
 🔥 <b>Daily Streak:</b> <b>${progress.streak} ngày liên tục</b>
 🧠 <b>Từ cũ cần ôn tập:</b> <b>${progress.totalDueCount} thẻ</b>
 ✅ <b>Trạng thái:</b> ${progress.isGoalMet ? '🎉 Đã hoàn thành chỉ tiêu hôm nay!' : `⚡ Còn thiếu ${progress.remaining} từ`}
 
+💡 <i>Gõ /report để nhận Báo Cáo Đánh Giá Từ Vựng Chi Tiết do AI thẩm định!</i>
 👉 <a href="http://localhost:3000">Mở LinguaVault Web Hub</a>
       `.trim();
       await telegramService.sendMessage(botToken, chatId, statusMsg);
@@ -249,6 +271,54 @@ Tôi là trợ lý tiếng Anh cá nhân kết nối trực tiếp với <b>Kho 
 
     if (text === '/due') {
       await telegramService.sendDueReviewReminder(true);
+      return;
+    }
+
+    // ----------------------------------------------------
+    // 7.1b: AI Vocabulary Mastery Assessment Report (/report)
+    // ----------------------------------------------------
+    if (text === '/report' || text.toLowerCase().includes('đánh giá từ vựng') || text.toLowerCase().includes('báo cáo ai')) {
+      await telegramService.sendMessage(botToken, chatId, '🧠 <b>AI đang phân tích toàn bộ kho từ vựng và tiến độ SM-2 của bạn... Vui lòng chờ 3-5 giây!</b>');
+
+      try {
+        const report = await aiAssessmentService.generateMasteryReport();
+        const m = report.metrics;
+        const ai = report.aiAssessment;
+
+        const reportMsg = `
+🌟 <b>BÁO CÁO ĐÁNG GIÁ NĂNG LỰC TỪ VỰNG AI</b> 🌟
+<i>Phân tích theo tiêu chuẩn CEFR & Trí nhớ ngắt quãng SM-2</i>
+
+📊 <b>KẾT QUẢ TỔNG QUAN:</b>
+• <b>Trình độ ước tính:</b> <b>${ai.estimatedCefrLevel}</b>
+• <b>Điểm Năng Lực Từ Vựng:</b> <b>${ai.overallScore}/100</b>
+• <b>Tổng Vốn Từ:</b> <b>${m.totalWords} từ</b> (${m.totalPatterns} mẫu câu)
+• <b>Tỷ lệ làm chủ sâu:</b> <b>${m.masteryPercentage}%</b>
+
+🧠 <b>PHÂN BỔ TRÍ NHỚ SM-2:</b>
+• 💎 <b>Mastered (Đã thuộc vĩnh viễn):</b> <b>${m.masteredCount} từ</b>
+• 🌿 <b>Familiar (Đang nhớ tốt):</b> <b>${m.familiarCount} từ</b>
+• 🌱 <b>Learning (Cần củng cố):</b> <b>${m.learningCount} từ</b>
+
+🎯 <b>PHÂN BỔ CEFR:</b>
+• <code>B2-C1: ${m.cefrDistribution.B2 + m.cefrDistribution.C1} từ</code> | <code>A1-B1: ${m.cefrDistribution.A1 + m.cefrDistribution.A2 + m.cefrDistribution.B1} từ</code>
+
+📝 <b>NHẬN XÉT CỦA GIÁM KHẢO AI:</b>
+"${ai.evaluationSummary}"
+
+💪 <b>ĐIỂM MẠNH:</b>
+${ai.lexicalStrengths.map(s => `• ${s}`).join('\n')}
+
+🚀 <b>LỘ TRÌNH 3 BƯỚC TIẾP THEO:</b>
+${ai.actionPlan.map((step, idx) => `<b>${idx + 1}.</b> ${step}`).join('\n')}
+
+✨ <i>"${ai.aiPraiseQuote}"</i>
+        `.trim();
+
+        await telegramService.sendMessage(botToken, chatId, reportMsg);
+      } catch (err) {
+        await telegramService.sendMessage(botToken, chatId, `❌ Lỗi xuất báo cáo AI: ${err.message}`);
+      }
       return;
     }
 
@@ -391,15 +461,17 @@ Format JSON:
         now
       );
 
+      const xpRes = gamificationService.addXp(10, `Thêm từ: ${parsedData.word}`);
+      const levelUpText = xpRes.leveledUp ? `\n🎉 <b>THĂNG CẤP:</b> Bạn đã lên <b>Level ${xpRes.newLevel} • ${xpRes.title}</b>!` : '';
+
       const successCard = `
-✅ <b>ĐÃ LƯU THÀNH CÔNG VÀO KHO TỪ VỰNG!</b>
+✅ <b>ĐÃ LƯU THÀNH CÔNG VÀO KHO TỪ VỰNG!</b> (+10 XP)
 
 🔹 <b>${parsedData.word.toUpperCase()}</b> <code>${parsedData.phonetic || ''}</code> (${parsedData.part_of_speech})
 🇻🇳 <b>Nghĩa:</b> ${parsedData.meaning_vi}
 📊 <b>Level:</b> <code>${parsedData.level}</code>
-${parsedData.examples && parsedData.examples.length > 0 ? `💡 <b>Ví dụ:</b> <i>"${parsedData.examples[0]}"</i>` : ''}
-
-<i>Từ này đã được đưa vào chu kỳ ôn tập Spaced Repetition SM-2 trên LinguaVault! 🚀</i>
+${parsedData.examples && parsedData.examples.length > 0 ? `💡 <b>Ví dụ:</b> <i>"${parsedData.examples[0]}"</i>\n` : ''}
+<i>Từ này đã được đưa vào chu kỳ ôn tập Spaced Repetition SM-2 trên LinguaVault! 🚀</i>${levelUpText}
       `.trim();
 
       await telegramService.sendMessage(botToken, chatId, successCard);

@@ -444,5 +444,34 @@ export const mobileApi = {
     } catch (e) {
       return { success: true };
     }
+  },
+
+  // 9. Gamification & AI Mastery Assessment
+  getGamificationProfile: async () => {
+    try {
+      return await requestApi('/api/gamification/profile');
+    } catch (e) {
+      return { success: false, data: { level: 1, totalXp: 0, title: 'Novice Scholar 🌱', progressPercent: 0 } };
+    }
+  },
+
+  addXp: async (amount, reason) => {
+    try {
+      return await requestApi('/api/gamification/add-xp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, reason })
+      });
+    } catch (e) {
+      return { success: false };
+    }
+  },
+
+  getAIMasteryReport: async () => {
+    try {
+      return await requestApi('/api/ai/mastery-report');
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   }
 };

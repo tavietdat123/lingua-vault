@@ -124,7 +124,14 @@ export const vocabController = {
         now
       );
 
-      res.status(201).json({ success: true, data: { id, word, meaning_vi, status: 'new' } });
+      // Gamification: Reward +10 XP for adding new word
+      let xpResult = null;
+      try {
+        const { gamificationService } = await import('../services/gamificationService.js');
+        xpResult = gamificationService.addXp(10, `Thêm từ mới: ${word.trim()}`);
+      } catch (e) {}
+
+      res.status(201).json({ success: true, data: { id, word, meaning_vi, status: 'new' }, gamification: xpResult });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Moon, Sun, Search, Sparkles, Flame, Volume2, Command } from 'lucide-react';
+import { Moon, Sun, Search, Sparkles, Flame, Volume2, Command, Brain } from 'lucide-react';
 import AudioSpeedPopover from './AudioSpeedPopover';
+import LevelPill from '../gamification/LevelPill';
 
 export default function Header({ 
   currentTab, 
@@ -10,7 +11,9 @@ export default function Header({
   onOpenCommandPalette,
   audioSpeed = 0.9,
   onAudioSpeedChange,
-  onTriggerAlarm
+  onTriggerAlarm,
+  gamificationProfile,
+  onOpenAIMasteryReport
 }) {
   const titles = {
     dashboard: { title: 'Tổng Quan Tiến Độ', desc: 'Theo dõi chỉ số ghi nhớ, chuỗi ngày học và hàng đợi ôn tập hôm nay' },
@@ -50,6 +53,38 @@ export default function Header({
 
       {/* Action Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Gamification Level & XP Pill */}
+        <LevelPill 
+          profile={gamificationProfile} 
+          onOpenReport={onOpenAIMasteryReport} 
+        />
+
+        {/* AI Vocabulary Mastery Report Button */}
+        {onOpenAIMasteryReport && (
+          <button
+            onClick={onOpenAIMasteryReport}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
+              border: '1px solid rgba(2, 132, 199, 0.3)',
+              padding: '0.45rem 0.85rem',
+              borderRadius: 'var(--radius-full)',
+              color: 'var(--accent-primary)',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            className="hover-card"
+            title="Xem Báo Cáo Đánh Giá Năng Lực Từ Vựng Toàn Diện Theo AI (CEFR & SM-2)"
+          >
+            <Brain size={15} />
+            <span>Đánh Giá AI</span>
+          </button>
+        )}
+
         {/* Quick Alarm Trigger Button */}
         {onTriggerAlarm && (
           <button

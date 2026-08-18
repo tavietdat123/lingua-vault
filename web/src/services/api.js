@@ -318,5 +318,33 @@ export const api = {
       body: JSON.stringify(data)
     });
     return res.json();
+  },
+
+  // Gamification (EXP & Level) & AI Mastery Assessment Report
+  getGamificationProfile: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/gamification/profile`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: { level: 1, totalXp: 0, title: 'Novice Scholar 🌱', progressPercent: 0 } };
+    }
+  },
+
+  addXp: async (amount, reason) => {
+    try {
+      const res = await fetch(`${API_BASE}/gamification/add-xp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, reason })
+      });
+      return await res.json();
+    } catch (e) {
+      return { success: false };
+    }
+  },
+
+  getAIMasteryReport: async () => {
+    const res = await fetch(`${API_BASE}/ai/mastery-report`);
+    return await res.json();
   }
 };

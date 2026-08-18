@@ -97,5 +97,26 @@ export function initializeDatabase() {
     );
   `);
 
+  // 6. User Gamification Profile Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_profile (
+      id TEXT PRIMARY KEY,
+      total_xp INTEGER DEFAULT 0,
+      current_level INTEGER DEFAULT 1,
+      title TEXT DEFAULT 'Novice Scholar 🌱',
+      streak_record INTEGER DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  // Initialize default user profile if empty
+  const profileExists = db.prepare("SELECT id FROM user_profile WHERE id = 'default_user'").get();
+  if (!profileExists) {
+    db.prepare(`
+      INSERT INTO user_profile (id, total_xp, current_level, title, streak_record, updated_at)
+      VALUES ('default_user', 180, 1, 'Novice Scholar 🌱', 1, ?)
+    `).run(new Date().toISOString());
+  }
+
   console.log('✅ Native SQLite Database initialized at:', DB_PATH);
 }
