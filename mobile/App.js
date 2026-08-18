@@ -1089,18 +1089,6 @@ export default function App() {
             <IconFlame size={13} color="#f59e0b" />
             <Text style={styles.streakText}>{streak}d</Text>
           </View>
-
-          {/* THEME TOGGLE BUTTON */}
-          <TouchableOpacity
-            onPress={toggleTheme}
-            style={[styles.iconCircleBtn, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}
-          >
-            {isDark ? (
-              <IconSun size={15} color="#f59e0b" />
-            ) : (
-              <IconMoon size={15} color="#0284c7" />
-            )}
-          </TouchableOpacity>
         </View>
       </View>
 
