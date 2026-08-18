@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Volume2, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, Trophy } from 'lucide-react';
+import { Bell, Lock, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, Trophy } from 'lucide-react';
 import { alarmAudio } from '../../services/alarmAudio.js';
 import { api } from '../../services/api.js';
 
@@ -10,7 +10,6 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [isMutedTemporarily, setIsMutedTemporarily] = useState(false);
 
   // Initialize Questions and Start Alarm Sound
   useEffect(() => {
@@ -50,7 +49,7 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       setSelectedOption(null);
       setIsAnswered(false);
 
-      // Start ringing alarm
+      // Start ringing alarm continuously
       alarmAudio.startAlarmSound();
     } else {
       alarmAudio.stopAlarmSound();
@@ -98,23 +97,6 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
     }
   };
 
-  const toggleMuteTemp = () => {
-    if (isMutedTemporarily) {
-      alarmAudio.startAlarmSound();
-      setIsMutedTemporarily(false);
-    } else {
-      alarmAudio.stopAlarmSound();
-      setIsMutedTemporarily(true);
-      // Auto re-ring after 15 seconds if not solved!
-      setTimeout(() => {
-        if (!isCompleted && isOpen) {
-          alarmAudio.startAlarmSound();
-          setIsMutedTemporarily(false);
-        }
-      }, 15000);
-    }
-  };
-
   return (
     <div style={{
       position: 'fixed',
@@ -122,8 +104,8 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.92)',
-      backdropFilter: 'blur(8px)',
+      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+      backdropFilter: 'blur(10px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -136,9 +118,9 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
         backgroundColor: 'var(--bg-secondary)',
         borderRadius: '24px',
         border: '2px solid #ef4444',
-        boxShadow: '0 0 50px rgba(239, 68, 68, 0.35)',
+        boxShadow: '0 0 50px rgba(239, 68, 68, 0.45)',
         overflow: 'hidden',
-        animation: 'pulse 2s infinite'
+        animation: 'pulse 1.5s infinite'
       }}>
         {/* Urgent Header */}
         <div style={{
@@ -151,8 +133,8 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{
-              width: '36px',
-              height: '36px',
+              width: '38px',
+              height: '38px',
               borderRadius: '50%',
               backgroundColor: 'rgba(255,255,255,0.25)',
               display: 'flex',
@@ -164,34 +146,29 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
             </div>
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, letterSpacing: '0.5px' }}>
-                🚨 BÁO THỨC HỌC TẬP KHẨN CẤP
+                🚨 BÁO THỨC KỶ LUẬT THÉP
               </h3>
               <p style={{ fontSize: '0.78rem', margin: 0, opacity: 0.9 }}>
-                Giải mã đúng 3 câu trắc nghiệm để tắt chuông!
+                Bắt buộc giải đúng 3 câu trắc nghiệm để tắt chuông!
               </p>
             </div>
           </div>
 
-          <button
-            onClick={toggleMuteTemp}
-            style={{
-              background: 'rgba(0,0,0,0.2)',
-              border: 'none',
-              color: '#ffffff',
-              padding: '0.4rem 0.75rem',
-              borderRadius: '12px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem'
-            }}
-            title="Hoãn chuông 15 giây"
-          >
-            <Volume2 size={14} />
-            <span>{isMutedTemporarily ? 'Đang Hoãn 15s' : 'Hoãn 15s'}</span>
-          </button>
+          {/* Hardcore Zero Snooze Badge */}
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.35)',
+            padding: '0.4rem 0.75rem',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            <Lock size={13} color="#fef08a" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fef08a', letterSpacing: '0.5px' }}>
+              KHÔNG CHO HOÃN
+            </span>
+          </div>
         </div>
 
         {/* Modal Body */}
