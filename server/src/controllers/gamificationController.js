@@ -23,7 +23,8 @@ export const gamificationController = {
 
   getAIMasteryReport: async (req, res) => {
     try {
-      const report = await aiAssessmentService.generateMasteryReport();
+      const apiKey = req.query.apiKey || req.body?.apiKey || null;
+      const report = await aiAssessmentService.generateMasteryReport(apiKey);
       res.json(report);
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

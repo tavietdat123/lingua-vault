@@ -1,5 +1,17 @@
 import { getDb } from '../db/database.js';
 
+export function getEffectiveApiKey(apiKey = null) {
+  if (apiKey && typeof apiKey === 'string' && apiKey.trim()) return apiKey.trim();
+  try {
+    const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get('gemini_api_key');
+    if (row && row.value && row.value.trim()) return row.value.trim();
+  } catch (e) {}
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) {
+    return process.env.GEMINI_API_KEY.trim();
+  }
+  return null;
+}
+
 export function getSelectedModel() {
   try {
     const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get('gemini_model');
@@ -9,7 +21,7 @@ export function getSelectedModel() {
 }
 
 export async function callGemini(prompt, apiKey = null, audioData = null, customModel = null) {
-  const key = apiKey || process.env.GEMINI_API_KEY;
+  const key = getEffectiveApiKey(apiKey);
   if (!key) {
     throw new Error('Chưa cấu hình Gemini API Key. Vui lòng nhập API Key miễn phí trong mục Cài đặt.');
   }
