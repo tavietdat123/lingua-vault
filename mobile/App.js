@@ -270,7 +270,52 @@ const DEFAULT_PATTERN_CATEGORIES = [
   { id: 'advice', name: 'Khuyên bảo & Thúc giục', emoji: '⏰', color: '#ec4899', description: 'Đã đến lúc cần phải làm gì' }
 ];
 
-export default function App() {
+class MobileErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Mobile App Error Caught by Boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#090d16', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#111827', padding: 24, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', width: '100%', maxWidth: 440, alignItems: 'center' }}>
+            <Text style={{ fontSize: 40, marginBottom: 12 }}>⚠️</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: '#ffffff', marginBottom: 8, textAlign: 'center' }}>
+              Ứng Dụng Đã Khôi Phục An Toàn
+            </Text>
+            <Text style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 16 }}>
+              {this.state.error?.message || 'Đã xảy ra sự cố hiển thị nhỏ'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                this.setState({ hasError: false, error: null });
+                if (typeof window !== 'undefined' && window.location) window.location.reload();
+              }}
+              style={{ backgroundColor: '#0284c7', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, width: '100%', alignItems: 'center' }}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>
+                🔄 Tải Lại Ứng Dụng
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function MainApp() {
   // Theme State (Default: Light Theme)
   const [isDark, setIsDark] = useState(false);
   const theme = isDark ? themes.dark : themes.light;
@@ -11180,3 +11225,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default function App() {
+  return (
+    <MobileErrorBoundary>
+      <MainApp />
+    </MobileErrorBoundary>
+  );
+}
