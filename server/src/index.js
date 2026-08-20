@@ -63,6 +63,9 @@ if (fs.existsSync(webDistPath)) {
 
 // Serve Static Mobile App Build & Expo Assets
 if (fs.existsSync(mobileDistPath)) {
+  app.get('/mobile', (req, res) => {
+    res.sendFile(path.join(mobileDistPath, 'index.html'));
+  });
   app.use('/mobile', express.static(mobileDistPath));
   app.use('/_expo', express.static(path.join(mobileDistPath, '_expo')));
   app.get('/mobile/*', (req, res) => {
@@ -166,6 +169,8 @@ app.get('/api/srs/due', srsController.getDueItems);
 app.post('/api/srs/review', srsController.submitReview);
 app.get('/api/srs/stats', srsController.getStats);
 app.get('/api/dashboard/stats', srsController.getStats);
+app.get('/api/vocab/stats/overview', srsController.getStats);
+app.get('/api/stats', srsController.getStats);
 
 // AI Integration Routes (Gemini 0đ)
 app.post('/api/ai/parse-sentence', aiController.parseSentence);

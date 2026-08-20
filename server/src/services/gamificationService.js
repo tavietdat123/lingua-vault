@@ -84,6 +84,7 @@ export const gamificationService = {
     return {
       userId: row.user_id || userId,
       totalXp: row.total_xp,
+      total_xp: row.total_xp,
       ...levelDetails,
       streakRecord: row.streak_record || 1,
       ladder: LEVEL_LADDER

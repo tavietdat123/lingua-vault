@@ -4,22 +4,16 @@ const defaultHost = (typeof window !== 'undefined' && window.location && window.
   : 'localhost';
 
 export const CANDIDATE_SERVERS = [
+  'http://192.168.110.47:5001',
   `http://${defaultHost}:5001`,
   'http://localhost:5001',
   'http://127.0.0.1:5001',
-  'http://192.168.110.47:5001',
   'http://10.0.2.2:5001'
 ];
 
-let currentServerUrl = `http://${defaultHost}:5001`;
-
-// Load saved server URL from storage if available
-if (typeof localStorage !== 'undefined') {
-  try {
-    const saved = localStorage.getItem('linguavault_server_url');
-    if (saved) currentServerUrl = saved;
-  } catch (e) {}
-}
+let currentServerUrl = typeof localStorage !== 'undefined' && localStorage.getItem('linguavault_server_url')
+  ? localStorage.getItem('linguavault_server_url')
+  : (defaultHost && defaultHost !== 'localhost' ? `http://${defaultHost}:5001` : 'http://192.168.110.47:5001');
 
 export const getServerUrl = () => currentServerUrl;
 
@@ -126,6 +120,16 @@ export const mobileApi = {
       const res = await requestApi('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username, password })
+      });
+      if (res && res.success && res.data?.token) {
+        setMobileAuthToken(res.data.token);
+      }
+      return res;
+    },
+
+    guestLogin: async () => {
+      const res = await requestApi('/api/auth/guest-login', {
+        method: 'POST'
       });
       if (res && res.success && res.data?.token) {
         setMobileAuthToken(res.data.token);

@@ -285,8 +285,10 @@ export default function App() {
   
   // Auth State
   const [currentUser, setCurrentUser] = useState(null);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authFullName, setAuthFullName] = useState('');
   const [authShowPassword, setAuthShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -953,13 +955,11 @@ export default function App() {
       // Check current logged-in user
       try {
         const authRes = await mobileApi.auth.getMe();
-        if (authRes?.success && authRes.data && authRes.data.role !== 'guest') {
+        if (authRes?.success && authRes.data) {
           setCurrentUser(authRes.data);
-        } else {
-          setCurrentUser(null);
         }
       } catch (err) {
-        setCurrentUser(null);
+        console.warn('getMe error:', err);
       }
     } catch (e) {
       console.warn('Load data error:', e);
@@ -978,18 +978,43 @@ export default function App() {
 
     setAuthLoading(true);
     try {
-      const res = await mobileApi.auth.login(authUsername.trim(), authPassword);
-      if (res && res.success && res.data?.user) {
-        setCurrentUser(res.data.user);
+      const res = authMode === 'register' 
+        ? await mobileApi.auth.register({ username: authUsername.trim(), password: authPassword.trim(), full_name: authFullName.trim() || authUsername.trim() })
+        : await mobileApi.auth.login(authUsername.trim(), authPassword.trim());
+
+      if (res && res.success && (res.data?.user || res.data)) {
+        const user = res.data.user || res.data;
+        setCurrentUser(user);
         setAuthUsername('');
         setAuthPassword('');
-        Alert.alert('Thành công 🎉', `Chào mừng trở lại, ${res.data.user.full_name || res.data.user.username}!`);
+        setAuthFullName('');
+        Alert.alert('Thành công 🎉', `Chào mừng ${user.full_name || user.username}!`);
         loadData();
       } else {
-        setAuthError(res?.error || 'Đăng nhập không thành công');
+        setAuthError(res?.error || (authMode === 'register' ? 'Đăng ký không thành công' : 'Đăng nhập không thành công'));
       }
     } catch (err) {
       setAuthError(err.message || 'Lỗi kết nối máy chủ');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await mobileApi.auth.guestLogin();
+      if (res && res.success && (res.data?.user || res.data)) {
+        const user = res.data.user || res.data;
+        setCurrentUser(user);
+        Alert.alert('Chào Mừng 🎉', 'Đã vào ứng dụng với quyền Khách Trải Nghiệm!');
+        loadData();
+      } else {
+        setAuthError(res?.error || 'Không thể đăng nhập khách');
+      }
+    } catch (e) {
+      setAuthError(e.message || 'Lỗi kết nối máy chủ');
     } finally {
       setAuthLoading(false);
     }
@@ -2743,14 +2768,37 @@ export default function App() {
 
             {/* Card Container */}
             <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 1, borderColor: theme.cardBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 4 }}>
-              {/* Card Header Title */}
-              <View style={{ alignItems: 'center', marginBottom: 18 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: theme.textPrimary }}>
-                  Đăng Nhập Hệ Thống
-                </Text>
-                <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
-                  Vui lòng đăng nhập để mở khóa ứng dụng
-                </Text>
+              {/* Tab Switcher: Login / Register */}
+              <View style={{ flexDirection: 'row', backgroundColor: theme.drawerCardBg, borderRadius: 14, padding: 4, marginBottom: 18 }}>
+                <TouchableOpacity
+                  onPress={() => { setAuthMode('login'); setAuthError(''); }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    backgroundColor: authMode === 'login' ? theme.btnPrimaryBg : 'transparent'
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: authMode === 'login' ? '#ffffff' : theme.textMuted }}>
+                    Đăng Nhập
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => { setAuthMode('register'); setAuthError(''); }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    backgroundColor: authMode === 'register' ? theme.btnPrimaryBg : 'transparent'
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: authMode === 'register' ? '#ffffff' : theme.textMuted }}>
+                    Đăng Ký
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Error Box */}
@@ -2759,6 +2807,30 @@ export default function App() {
                   <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '700' }}>⚠️ {authError}</Text>
                 </View>
               ) : null}
+
+              {/* Full Name Input (Register only) */}
+              {authMode === 'register' && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginBottom: 6 }}>
+                    HỌ VÀ TÊN
+                  </Text>
+                  <TextInput
+                    style={{
+                      backgroundColor: theme.inputBg,
+                      color: theme.textPrimary,
+                      borderWidth: 1,
+                      borderColor: theme.cardBorder,
+                      borderRadius: 12,
+                      padding: 12,
+                      fontSize: 14
+                    }}
+                    placeholder="Ví dụ: Nguyễn Văn A..."
+                    placeholderTextColor={theme.textMuted}
+                    value={authFullName}
+                    onChangeText={setAuthFullName}
+                  />
+                </View>
+              )}
 
               {/* Username Input */}
               <View style={{ marginBottom: 14 }}>
@@ -2775,7 +2847,7 @@ export default function App() {
                     padding: 12,
                     fontSize: 14
                   }}
-                  placeholder="Nhập tên đăng nhập..."
+                  placeholder="admin hoặc tên đăng nhập..."
                   placeholderTextColor={theme.textMuted}
                   value={authUsername}
                   onChangeText={setAuthUsername}
@@ -2801,7 +2873,7 @@ export default function App() {
                       paddingRight: 40,
                       fontSize: 14
                     }}
-                    placeholder="Nhập mật khẩu..."
+                    placeholder="123456 hoặc mật khẩu..."
                     placeholderTextColor={theme.textMuted}
                     value={authPassword}
                     onChangeText={setAuthPassword}
@@ -2830,16 +2902,35 @@ export default function App() {
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
-                  elevation: 4
+                  elevation: 4,
+                  marginBottom: 12
                 }}
               >
                 {authLoading ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <Text style={{ fontSize: 15, fontWeight: '800', color: '#ffffff' }}>
-                    Đăng Nhập Vào Hệ Thống
+                    {authMode === 'register' ? 'Tạo Tài Khoản Mới' : 'Đăng Nhập Vào Hệ Thống'}
                   </Text>
                 )}
+              </TouchableOpacity>
+
+              {/* Guest Login 1-Click Button */}
+              <TouchableOpacity
+                onPress={handleGuestLogin}
+                disabled={authLoading}
+                style={{
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)',
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '800', color: theme.accent }}>
+                  🚀 Vào Thử Nghiệm Ngay (Khách / Demo)
+                </Text>
               </TouchableOpacity>
             </View>
 
