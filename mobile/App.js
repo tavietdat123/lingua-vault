@@ -3063,7 +3063,7 @@ function MainApp() {
       </View>
 
       {/* FLOATING XP TOAST NOTIFICATION */}
-      {floatingXp && (
+      {Boolean(floatingXp) && (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -3926,7 +3926,7 @@ function MainApp() {
                                   <Text style={[styles.cardWordMain, { color: theme.textPrimary }]}>
                                     {curItem?.word || curItem?.name}
                                   </Text>
-                                  {curItem?.phonetic && (
+                                  {Boolean(curItem?.phonetic) && (
                                     <View style={{
                                       backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : 'rgba(2, 132, 199, 0.08)',
                                       paddingHorizontal: 12,
@@ -3939,7 +3939,7 @@ function MainApp() {
                                       </Text>
                                     </View>
                                   )}
-                                  {curItem?.formula && (
+                                  {Boolean(curItem?.formula) && (
                                     <View style={{
                                       backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : 'rgba(236, 72, 153, 0.08)',
                                       paddingHorizontal: 12,
@@ -4171,7 +4171,7 @@ function MainApp() {
                                   </Text>
                                 </View>
 
-                                {curItem?.meaning_en && (
+                                {Boolean(curItem?.meaning_en) && (
                                   <View style={styles.backSectionBox}>
                                     <Text style={[styles.backSectionLabel, { color: theme.textSecondary }]}>Định nghĩa tiếng Anh:</Text>
                                     <Text style={[styles.backMeaningEn, { color: theme.textSecondary }]}>
@@ -5335,12 +5335,12 @@ function MainApp() {
                           {/* Explanation / Translation box if answered */}
                           {quizIsAnswered && (currentQ.explanation || currentQ.translation) && (
                             <View style={{ backgroundColor: theme.innerCard, borderColor: theme.accent, borderLeftWidth: 3, padding: 10, borderRadius: 8, marginTop: 12 }}>
-                              {currentQ.explanation && (
+                              {Boolean(currentQ.explanation) && (
                                 <Text style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 18 }}>
                                   📖 <Text style={{ fontWeight: '700', color: theme.textPrimary }}>Giải thích:</Text> {currentQ.explanation}
                                 </Text>
                               )}
-                              {currentQ.translation && (
+                              {Boolean(currentQ.translation) && (
                                 <Text style={{ fontSize: 12, fontStyle: 'italic', color: theme.textMuted, marginTop: 4 }}>
                                   🌐 <Text style={{ fontWeight: '700' }}>Dịch câu:</Text> "{currentQ.translation}"
                                 </Text>
@@ -6182,7 +6182,7 @@ function MainApp() {
                     </View>
 
                     {/* Band 8.5 Model Answer */}
-                    {speakingQAResult.modelAnswerBand85 && (
+                    {Boolean(speakingQAResult.modelAnswerBand85) && (
                       <View style={{ backgroundColor: theme.innerCard, padding: 12, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: theme.accent }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <Text style={{ fontWeight: '800', color: theme.accent, fontSize: 13 }}>Câu Trả Lời Mẫu Band 8.5+:</Text>
@@ -6821,7 +6821,7 @@ function MainApp() {
                           <Text style={[styles.backMeaningVi, { color: theme.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 4 }]}>
                             {aiParseResult.translation || aiParseResult.translation_vi}
                           </Text>
-                          {aiParseResult.grammar_notes && (
+                          {Boolean(aiParseResult.grammar_notes) && (
                             <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 6, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: theme.cardBorder, paddingTop: 6 }}>
                               💡 {aiParseResult.grammar_notes}
                             </Text>
@@ -6829,7 +6829,7 @@ function MainApp() {
                         </View>
 
                         {/* 2. Sentence Syntax & Structure Breakdown */}
-                        {aiParseResult.sentence_structure && (
+                        {Boolean(aiParseResult.sentence_structure) && (
                           <View style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff', borderWidth: 1, borderColor: isDark ? 'rgba(59, 130, 246, 0.35)' : '#bfdbfe', borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
                             <Text style={{ fontSize: 11, fontWeight: '800', color: '#3b82f6', textTransform: 'uppercase' }}>
                               📐 Bóc Tách Cấu Trúc Ngữ Pháp (Syntax Breakdown):
@@ -6862,7 +6862,7 @@ function MainApp() {
                                     </Text>
                                   </TouchableOpacity>
                                 </View>
-                                {p.formula && (
+                                {Boolean(p.formula) && (
                                   <View style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
                                     <Text style={{ fontSize: 11, fontFamily: 'monospace', color: theme.accent, fontWeight: '700' }}>
                                       {p.formula}
@@ -6891,7 +6891,7 @@ function MainApp() {
                                     </TouchableOpacity>
                                   </View>
                                   <Text style={[styles.vocabMeaningText, { color: theme.accent, fontSize: 13, marginTop: 2 }]}>{w.meaning_vi}</Text>
-                                  {w.context_usage && (
+                                  {Boolean(w.context_usage) && (
                                     <Text style={[styles.vocabExampleSub, { color: theme.textSecondary, fontSize: 11, marginTop: 2 }]} numberOfLines={2}>
                                       {w.context_usage}
                                     </Text>
@@ -9239,7 +9239,8 @@ function MainApp() {
                     </Text>
                     {aiMasteryReport.aiAssessment.actionPlan.map((step, idx) => (
                       <Text key={idx} style={{ fontSize: 11, color: theme.textSecondary, lineHeight: 16 }}>
-                        <b>{idx + 1}.</b> {step}
+                        <Text style={{ fontWeight: '700', color: theme.textPrimary }}>{idx + 1}. </Text>
+                        {step}
                       </Text>
                     ))}
                   </View>
@@ -9433,7 +9434,7 @@ function MainApp() {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                  {selectedWordDetail.phonetic && (
+                  {Boolean(selectedWordDetail.phonetic) && (
                     <Text style={{ fontSize: 14, color: theme.textMuted, fontStyle: 'italic' }}>
                       {selectedWordDetail.phonetic} {selectedWordDetail.part_of_speech ? `• (${selectedWordDetail.part_of_speech})` : ''}
                     </Text>
@@ -9459,7 +9460,7 @@ function MainApp() {
                       </Text>
                       {selectedWordDetail.collocations.map((col, idx) => (
                         <Text key={idx} style={{ fontSize: 13, color: theme.textPrimary, marginVertical: 2 }}>
-                          • <b>{typeof col === 'string' ? col : col.phrase}</b> {typeof col === 'object' && col.meaning ? `— ${col.meaning}` : ''}
+                          • <Text style={{ fontWeight: '700' }}>{typeof col === 'string' ? col : col.phrase}</Text> {typeof col === 'object' && col.meaning ? `— ${col.meaning}` : ''}
                         </Text>
                       ))}
                     </View>
