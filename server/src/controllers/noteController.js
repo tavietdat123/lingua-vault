@@ -2,12 +2,16 @@ import { db } from '../db/database.js';
 import crypto from 'node:crypto';
 
 export const noteController = {
-  // 1. Get all notes
+  // 1. Get all notes for specific account
   getAllNotes: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const { search, topic } = req.query;
-      let query = 'SELECT * FROM notes WHERE 1=1';
-      const params = [];
+      let query = `
+        SELECT * FROM notes 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `;
+      const params = [userId, userId, userId];
 
       if (search) {
         query += ' AND (title LIKE ? OR content LIKE ?)';
@@ -41,8 +45,12 @@ export const noteController = {
   getNoteById: (req, res) => {
     try {
       const { id } = req.params;
-      const stmt = db.prepare('SELECT * FROM notes WHERE id = ?');
-      const note = stmt.get(id);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const stmt = db.prepare(`
+        SELECT * FROM notes 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `);
+      const note = stmt.get(id, userId, userId);
 
       if (!note) {
         return res.status(404).json({ success: false, error: 'Không tìm thấy ghi chú / tài liệu' });
@@ -60,6 +68,7 @@ export const noteController = {
   // 3. Create note
   createNote: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const {
         title,
         content,
@@ -77,9 +86,9 @@ export const noteController = {
 
       const stmt = db.prepare(`
         INSERT INTO notes (
-          id, title, content, topic, tags, linked_words, created_at, updated_at
+          id, title, content, topic, tags, linked_words, created_at, updated_at, user_id
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `);
 
@@ -91,7 +100,8 @@ export const noteController = {
         JSON.stringify(tags),
         JSON.stringify(linked_words),
         now,
-        now
+        now,
+        userId
       );
 
       res.status(201).json({ success: true, data: { id, title, topic } });
@@ -104,13 +114,14 @@ export const noteController = {
   updateNote: (req, res) => {
     try {
       const { id } = req.params;
+      const userId = req.user?.id || 'admin_master_user_id';
       const { title, content, topic, tags = [], linked_words = [] } = req.body;
       const now = new Date().toISOString();
 
       const stmt = db.prepare(`
         UPDATE notes SET
           title = ?, content = ?, topic = ?, tags = ?, linked_words = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
       `);
 
       stmt.run(
@@ -120,7 +131,9 @@ export const noteController = {
         JSON.stringify(tags),
         JSON.stringify(linked_words),
         now,
-        id
+        id,
+        userId,
+        userId
       );
 
       res.json({ success: true, message: 'Cập nhật ghi chú thành công' });
@@ -133,8 +146,12 @@ export const noteController = {
   deleteNote: (req, res) => {
     try {
       const { id } = req.params;
-      const stmt = db.prepare('DELETE FROM notes WHERE id = ?');
-      stmt.run(id);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const stmt = db.prepare(`
+        DELETE FROM notes 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `);
+      stmt.run(id, userId, userId);
       res.json({ success: true, message: 'Đã xóa ghi chú' });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Lock, CheckCircle2, AlertCircle, ShieldAlert, Trophy, XCircle } from 'lucide-react';
 import { alarmAudio } from '../../services/alarmAudio.js';
+import { api } from '../../services/api.js';
 
 export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, words = [], questionCount = 3 }) {
   const [questions, setQuestions] = useState([]);
@@ -22,12 +23,14 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       // Get target question count (default 3, max 10)
       const count = parseInt(localStorage.getItem('linguavault_alarm_q_count') || questionCount, 10) || 3;
       const currentWords = wordsRef.current && wordsRef.current.length >= count ? wordsRef.current : [
+        { word: 'deliverable', meaning_vi: 'Sản phẩm / kết quả bàn giao của dự án' },
+        { word: 'bottleneck', meaning_vi: 'Điểm nghẽn, nút thắt cổ chai gây đình trệ tiến độ' },
+        { word: 'stakeholder', meaning_vi: 'Các bên liên quan (khách hàng, ban điều hành, đối tác)' },
         { word: 'resilient', meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh sau khó khăn' },
         { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc rõ ràng' },
         { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn thận từng chi tiết nhỏ' },
         { word: 'leverage', meaning_vi: 'Tận dụng, phát huy tối đa đòn bẩy / thế mạnh' },
-        { word: 'pragmatic', meaning_vi: 'Thực tế, thực dụng và hiệu quả' },
-        { word: 'streamline', meaning_vi: 'Tinh giản, tối ưu hóa quy trình' }
+        { word: 'pragmatic', meaning_vi: 'Thực tế, thực dụng và hiệu quả' }
       ];
 
       // Shuffle & pick required count
@@ -59,8 +62,11 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       setIsAnswered(false);
       setIsCorrect(null);
 
-      // Start ringing alarm continuously
+      // Start ringing alarm continuously at Web Audio and OS level
       alarmAudio.startAlarmSound();
+      try {
+        api.triggerSystemAlarm();
+      } catch (e) {}
     } else {
       alarmAudio.stopAlarmSound();
     }
@@ -88,6 +94,9 @@ export default function AlarmModal({ isOpen, onClose, onChallengeCompleted, word
       // Final Question: Stop audio immediately!
       if (currentIndex + 1 >= questions.length) {
         alarmAudio.stopAlarmSound();
+        try {
+          api.stopSystemAlarm();
+        } catch (e) {}
         alarmAudio.playSuccessSound();
 
         setTimeout(() => {

@@ -38,8 +38,26 @@ export const setServerUrl = (url) => {
   return currentServerUrl;
 };
 
-// Safe Fast Fetch with Timeout (Default 3 seconds)
-export const safeFetch = async (url, options = {}, timeoutMs = 3000) => {
+let authToken = null;
+if (typeof localStorage !== 'undefined') {
+  try {
+    authToken = localStorage.getItem('linguavault_auth_token');
+  } catch (e) {}
+}
+
+export const getMobileAuthToken = () => authToken;
+export const setMobileAuthToken = (token) => {
+  authToken = token;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      if (token) localStorage.setItem('linguavault_auth_token', token);
+      else localStorage.removeItem('linguavault_auth_token');
+    } catch (e) {}
+  }
+};
+
+// Safe Fast Fetch with Timeout (Default 15 seconds)
+export const safeFetch = async (url, options = {}, timeoutMs = 15000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -53,12 +71,22 @@ export const safeFetch = async (url, options = {}, timeoutMs = 3000) => {
 };
 
 // Auto-healing API requester
-export const requestApi = async (endpoint, options = {}, timeoutMs = 3000) => {
+export const requestApi = async (endpoint, options = {}, timeoutMs = 35000) => {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  const mergedOptions = { ...options, headers };
+
   // 1. Try with current configured server
   try {
-    const res = await safeFetch(`${currentServerUrl}${endpoint}`, options, timeoutMs);
+    const res = await safeFetch(`${currentServerUrl}${endpoint}`, mergedOptions, timeoutMs);
+    const data = await res.json().catch(() => null);
+    if (data) {
+      return data;
+    }
     if (res.ok) {
-      return await res.json();
+      return { success: true };
     }
   } catch (err) {
     // Current server failed, scan candidate servers
@@ -68,10 +96,11 @@ export const requestApi = async (endpoint, options = {}, timeoutMs = 3000) => {
   for (const candidate of CANDIDATE_SERVERS) {
     if (candidate === currentServerUrl) continue;
     try {
-      const res = await safeFetch(`${candidate}${endpoint}`, options, 1200);
-      if (res.ok) {
+      const res = await safeFetch(`${candidate}${endpoint}`, mergedOptions, Math.min(timeoutMs, 4000));
+      const data = await res.json().catch(() => null);
+      if (data) {
         setServerUrl(candidate);
-        return await res.json();
+        return data;
       }
     } catch (e) {}
   }
@@ -80,7 +109,55 @@ export const requestApi = async (endpoint, options = {}, timeoutMs = 3000) => {
 };
 
 export const mobileApi = {
-  // 0. Connection & Server Health
+  // 0. Authentication & User Profile
+  auth: {
+    register: async (data) => {
+      const res = await requestApi('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      if (res && res.success && res.data?.token) {
+        setMobileAuthToken(res.data.token);
+      }
+      return res;
+    },
+
+    login: async (username, password) => {
+      const res = await requestApi('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      if (res && res.success && res.data?.token) {
+        setMobileAuthToken(res.data.token);
+      }
+      return res;
+    },
+
+    getMe: async () => {
+      try {
+        return await requestApi('/api/auth/me');
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    },
+
+    updateProfile: async (data) => {
+      return await requestApi('/api/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+
+    logout: async () => {
+      setMobileAuthToken(null);
+      try {
+        await requestApi('/api/auth/logout', { method: 'POST' });
+      } catch (e) {}
+      return { success: true };
+    }
+  },
+
+  // 0.1 Connection & Server Health
   checkHealth: async () => {
     try {
       const data = await requestApi('/api/health', {}, 1500);
@@ -129,6 +206,43 @@ export const mobileApi = {
     return await requestApi(`/api/vocab/lookup?word=${encodeURIComponent(word)}`);
   },
 
+  // 1.5 Topics & Categories (Quản lý Chủ đề)
+  getTopics: async () => {
+    try {
+      return await requestApi('/api/topics');
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  createTopic: async (data) => {
+    return await requestApi('/api/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  updateTopic: async (id, data) => {
+    return await requestApi(`/api/topics/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  deleteTopic: async (id) => {
+    return await requestApi(`/api/topics/${id}`, { method: 'DELETE' });
+  },
+
+  assignTopic: async (word_id, topic_id) => {
+    return await requestApi('/api/topics/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word_id, topic_id })
+    });
+  },
+
   // 2. Sentence Patterns (Mẫu câu)
   getPatterns: async (params = {}) => {
     try {
@@ -161,6 +275,35 @@ export const mobileApi = {
 
   deletePattern: async (id) => {
     return await requestApi(`/api/patterns/${id}`, { method: 'DELETE' });
+  },
+
+  // 2b. Sentence Pattern Categories (Chức năng mẫu câu)
+  getPatternCategories: async () => {
+    try {
+      return await requestApi('/api/pattern-categories');
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  createPatternCategory: async (data) => {
+    return await requestApi('/api/pattern-categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  updatePatternCategory: async (id, data) => {
+    return await requestApi(`/api/pattern-categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  },
+
+  deletePatternCategory: async (id) => {
+    return await requestApi(`/api/pattern-categories/${id}`, { method: 'DELETE' });
   },
 
   // 3. Notes & Smart Reader (Ghi chú & Bài đọc)
@@ -228,7 +371,7 @@ export const mobileApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sentence })
-    });
+    }, 35000);
   },
 
   checkSentenceAI: async (targetItem, userSentence) => {
@@ -236,7 +379,7 @@ export const mobileApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ targetItem, userSentence })
-    });
+    }, 35000);
   },
 
   generateStoryAI: async (words = []) => {
@@ -244,7 +387,39 @@ export const mobileApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ words })
-    });
+    }, 35000);
+  },
+
+  paraphraseSentenceAI: async (sentence, tone = 'business') => {
+    return await requestApi('/api/ai/paraphrase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sentence, tone })
+    }, 35000);
+  },
+
+  exploreCollocationsAI: async (word) => {
+    return await requestApi('/api/ai/collocations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word })
+    }, 35000);
+  },
+
+  generateDialogueAI: async (scenario, userWords = []) => {
+    return await requestApi('/api/ai/dialogue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario, userWords })
+    }, 35000);
+  },
+
+  translateInContextAI: async ({ text, contextSentence = '', articleTitle = '', articleTopic = 'General' }) => {
+    return await requestApi('/api/ai/translate-in-context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, contextSentence, articleTitle, articleTopic })
+    }, 30000);
   },
 
   // 6. Settings & Backup / Restore
@@ -291,12 +466,59 @@ export const mobileApi = {
     });
   },
 
-  submitQuiz: async (answers = []) => {
+  generateAIQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed', words: [], level: 'all' }) => {
+    return await requestApi('/api/quiz/generate-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    }, 45000);
+  },
+
+  generatePatternQuiz: async (params = { tone: 'all', count: 5, mode: 'mixed', level: 'all' }) => {
+    return await requestApi('/api/quiz/generate-pattern', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+  },
+
+  generateAIPatternQuiz: async (params = { tone: 'all', count: 5, level: 'all', mode: 'mixed' }) => {
+    return await requestApi('/api/quiz/generate-pattern-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    }, 45000);
+  },
+
+  submitQuiz: async (answers = [], history_id = null) => {
+    const payload = typeof answers === 'object' && !Array.isArray(answers) ? answers : { answers, history_id };
     return await requestApi('/api/quiz/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers })
+      body: JSON.stringify(payload)
     });
+  },
+
+  // Quiz History (Lịch Sử Đề & Làm Lại)
+  getQuizHistory: async (params = {}) => {
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await requestApi(`/api/quiz/history?${query}`);
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
+  getQuizHistoryById: async (id) => {
+    try {
+      return await requestApi(`/api/quiz/history/${id}`);
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  deleteQuizHistory: async (id) => {
+    return await requestApi(`/api/quiz/history/${id}`, { method: 'DELETE' });
   },
 
   // 8. Telegram Bot & Daily Goal
@@ -402,5 +624,28 @@ export const mobileApi = {
 
   getAIMasteryReport: async () => {
     return await requestApi('/api/ai/mastery-report');
+  },
+
+  // 11. OS-Level Continuous System Alarm Control
+  triggerSystemAlarm: async () => {
+    try {
+      return await requestApi('/api/alarm/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (e) {
+      return { success: false };
+    }
+  },
+
+  stopSystemAlarm: async () => {
+    try {
+      return await requestApi('/api/alarm/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (e) {
+      return { success: false };
+    }
   }
 };

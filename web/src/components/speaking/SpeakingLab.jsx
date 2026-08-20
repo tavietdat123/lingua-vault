@@ -19,7 +19,10 @@ import {
   Ear,
   Play,
   Pause,
-  Radio
+  Radio,
+  Target,
+  Edit3,
+  Lightbulb
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { audioService } from '../../services/audioService';
@@ -416,16 +419,36 @@ export default function SpeakingLab({ onSaveWord }) {
       {/* 2. PROMPT SELECTOR ROW */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {activeMode === 'read-aloud' ? '📚 Chọn Đoạn Văn Luyện Đọc:' : '🎯 Chọn Chủ Đề Câu Hỏi Speaking:'}
+          <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            {activeMode === 'read-aloud' ? (
+              <>
+                <BookOpen size={16} color="var(--accent-primary)" />
+                <span>Chọn Đoạn Văn Luyện Đọc:</span>
+              </>
+            ) : (
+              <>
+                <Target size={16} color="var(--accent-primary)" />
+                <span>Chọn Chủ Đề Câu Hỏi Speaking:</span>
+              </>
+            )}
           </h4>
           {activeMode === 'read-aloud' && (
             <button
               onClick={() => { setIsCustomMode(!isCustomMode); resetSession(); }}
               className="btn-secondary"
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              {isCustomMode ? 'Xem đoạn văn mẫu' : '✍️ Tự nhập văn bản của bạn'}
+              {isCustomMode ? (
+                <>
+                  <BookOpen size={13} />
+                  <span>Xem đoạn văn mẫu</span>
+                </>
+              ) : (
+                <>
+                  <Edit3 size={13} />
+                  <span>Tự nhập văn bản của bạn</span>
+                </>
+              )}
             </button>
           )}
         </div>
@@ -542,7 +565,8 @@ export default function SpeakingLab({ onSaveWord }) {
               alignItems: 'center',
               gap: '0.5rem'
             }}>
-              <span>💡 <b>Mẹo phát âm:</b> {selectedPrompt.tips}</span>
+              <Lightbulb size={16} color="var(--accent-warning)" />
+              <span><b>Mẹo phát âm:</b> {selectedPrompt.tips}</span>
             </div>
           )}
         </div>
@@ -838,7 +862,10 @@ export default function SpeakingLab({ onSaveWord }) {
 
             {/* Phonetic Tips & General Feedback */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 800 }}>💡 Lời Khuyên Cải Thiện Phát Âm:</h4>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Lightbulb size={16} color="var(--accent-warning)" />
+                <span>Lời Khuyên Cải Thiện Phát Âm:</span>
+              </h4>
               {readAloudResult.phoneticTips?.map((tip, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                   <CheckCircle2 size={16} style={{ color: '#10b981', flexShrink: 0, marginTop: '2px' }} />

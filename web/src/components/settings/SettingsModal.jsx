@@ -151,6 +151,58 @@ export default function SettingsModal({ onClose, onDataRestored }) {
     }
   };
 
+  const handleTestStreakSaver = async () => {
+    try {
+      const res = await api.triggerStreakSaver();
+      if (res.success) {
+        alert('🔥 Đã gửi Cảnh Báo Cứu Streak Khẩn Cấp tới Telegram!');
+      } else {
+        alert('Lỗi gửi: ' + (res.error || res.reason));
+      }
+    } catch (err) {
+      alert('Lỗi gửi: ' + err.message);
+    }
+  };
+
+  const handleTestWordOfDay = async () => {
+    try {
+      const res = await api.triggerWordOfDay();
+      if (res.success) {
+        alert('☕ Đã gửi Từ Vựng Giờ Nghỉ Trưa tới Telegram!');
+      } else {
+        alert('Lỗi gửi: ' + (res.error || res.reason));
+      }
+    } catch (err) {
+      alert('Lỗi gửi: ' + err.message);
+    }
+  };
+
+  const handleTestWeeklyDigest = async () => {
+    try {
+      const res = await api.triggerWeeklyDigest();
+      if (res.success) {
+        alert('📈 Đã gửi Báo Cáo Tổng Kết Tuần tới Telegram!');
+      } else {
+        alert('Lỗi gửi: ' + (res.error || res.reason));
+      }
+    } catch (err) {
+      alert('Lỗi gửi: ' + err.message);
+    }
+  };
+
+  const handleTestLeechAlert = async () => {
+    try {
+      const res = await api.triggerLeechAlert();
+      if (res.success) {
+        alert('💡 Đã gửi Báo Động Từ Hay Quên (AI Mnemonic) tới Telegram!');
+      } else {
+        alert('Lỗi gửi: ' + (res.error || res.reason));
+      }
+    } catch (err) {
+      alert('Lỗi gửi: ' + err.message);
+    }
+  };
+
   const handleTestTelegram = async () => {
     if (!botToken || !chatId) {
       alert('Vui lòng nhập đầy đủ Telegram Bot Token và Chat ID trước khi test!');
@@ -288,8 +340,9 @@ export default function SettingsModal({ onClose, onDataRestored }) {
               {/* Daily Goal & Dual Reminder Times */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
-                    🎯 Mục tiêu từ/ngày:
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px', marginBottom: '0.35rem' }}>
+                    <Target size={14} color="var(--accent-primary)" />
+                    <span>Mục tiêu từ/ngày:</span>
                   </label>
                   <div style={{ display: 'flex', gap: '0.3rem' }}>
                     {[5, 10, 15, 20].map(cnt => (
@@ -399,8 +452,9 @@ export default function SettingsModal({ onClose, onDataRestored }) {
 
                 {disciplineMode === 'hardcore' && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem', paddingTop: '0.6rem', borderTop: '1px dashed rgba(239, 68, 68, 0.3)' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      🎯 Số câu Quiz bắt buộc giải đúng để tắt chuông:
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <Target size={13} color="#ef4444" />
+                      <span>Số câu Quiz bắt buộc giải đúng:</span>
                     </span>
                     <div style={{ display: 'flex', gap: '0.35rem' }}>
                       {[3, 5, 10].map(num => (
@@ -473,35 +527,13 @@ export default function SettingsModal({ onClose, onDataRestored }) {
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={handleTestAlarm}
-                    disabled={isTriggeringAlarm}
-                    className="btn-secondary"
-                    style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                    title="Gửi thử báo động Kỷ Luật Thép"
-                  >
-                    {isTriggeringAlarm ? <Loader2 size={13} className="animate-spin" /> : '🚨 Báo Động'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleTestDueReminder}
-                    disabled={isTriggeringDue}
-                    className="btn-secondary"
-                    style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem', color: 'var(--accent-primary)' }}
-                    title="Gửi thử danh sách từ cũ cần ôn"
-                  >
-                    {isTriggeringDue ? <Loader2 size={13} className="animate-spin" /> : '🧠 Từ Cũ'}
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={handleTestTelegram}
                     disabled={isTestingTelegram}
                     className="btn-secondary"
                     style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
                   >
                     {isTestingTelegram ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                    <span>Test Bot</span>
+                    <span>Test Kết Nối</span>
                   </button>
 
                   <button
@@ -512,6 +544,83 @@ export default function SettingsModal({ onClose, onDataRestored }) {
                   >
                     {isSavingTelegram ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                     <span>Lưu Cài Đặt</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Notification Test Triggers */}
+              <div style={{
+                marginTop: '0.75rem',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ⚡ Gửi Thử Các Loại Thông Báo Thông Minh Đến Telegram:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleTestStreakSaver}
+                    className="btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                    title="Gửi cảnh báo cứu Streak khẩn cấp lúc 22:30"
+                  >
+                    🔥 Cứu Streak (22:30)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestWordOfDay}
+                    className="btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: 'var(--accent-primary)', borderColor: 'rgba(2, 132, 199, 0.4)' }}
+                    title="Gửi từ vựng giờ nghỉ trưa lúc 12:00"
+                  >
+                    ☕ Từ Giờ Trưa (12:00)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestWeeklyDigest}
+                    className="btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                    title="Gửi báo cáo tổng kết tuần sáng Chủ Nhật"
+                  >
+                    📈 Tổng Kết Tuần (CN)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestLeechAlert}
+                    className="btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: '#a855f7', borderColor: 'rgba(168, 85, 247, 0.4)' }}
+                    title="Gửi báo động từ cứng đầu hay quên kèm mẹo nhớ AI"
+                  >
+                    💡 Từ Hay Quên (AI)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestDueReminder}
+                    disabled={isTriggeringDue}
+                    className="btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: 'var(--accent-primary)' }}
+                    title="Gửi tóm tắt từ cũ đến hạn chu kỳ vàng lúc 08:30"
+                  >
+                    {isTriggeringDue ? <Loader2 size={12} className="animate-spin" /> : '🧠 Từ Cũ (08:30)'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestAlarm}
+                    disabled={isTriggeringAlarm}
+                    className="btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                    title="Gửi báo động Kỷ Luật Thép lúc 20:00"
+                  >
+                    {isTriggeringAlarm ? <Loader2 size={12} className="animate-spin" /> : '🚨 Báo Động (20:00)'}
                   </button>
                 </div>
               </div>
@@ -582,10 +691,10 @@ export default function SettingsModal({ onClose, onDataRestored }) {
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem' }}>
                   {[
-                    { id: 'gemini-2.0-flash', name: '⚡ Gemini 2.0 Flash', desc: 'Mới nhất, siêu nhanh & 15 req/phút' },
-                    { id: 'gemini-1.5-pro', name: '🧠 Gemini 1.5 Pro', desc: 'Suy luận sâu nhất (2 req/phút)' },
-                    { id: 'gemini-2.0-flash-thinking-exp-01-21', name: '💡 2.0 Flash Thinking', desc: 'Suy luận từng bước' },
-                    { id: 'gemini-1.5-flash', name: '🚀 Gemini 1.5 Flash', desc: 'Bản chuẩn ổn định' }
+                    { id: 'gemini-3.5-flash', name: '🚀 Gemini 3.5 Flash', desc: 'Tối ưu phản hồi & Ổn định cao (Khuyên dùng)' },
+                    { id: 'gemini-flash-latest', name: '✨ Gemini Flash Latest', desc: 'Tự động luân chuyển bản mới nhất' },
+                    { id: 'gemini-3.7-flash', name: '🧠 Gemini 3.7 Flash', desc: 'Suy luận sâu & phân tích ngữ cảnh' },
+                    { id: 'gemini-3.6-flash', name: '⚡ Gemini 3.6 Flash', desc: 'Mới nhất, độ chi tiết cao' }
                   ].map(m => (
                     <button
                       key={m.id}

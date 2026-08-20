@@ -4,7 +4,8 @@ import { aiAssessmentService } from '../services/aiAssessmentService.js';
 export const gamificationController = {
   getProfile: (req, res) => {
     try {
-      const profile = gamificationService.getProfile();
+      const userId = req.user?.id || req.query.userId || 'admin_master_user_id';
+      const profile = gamificationService.getProfile(userId);
       res.json({ success: true, data: profile });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -14,7 +15,8 @@ export const gamificationController = {
   addXp: (req, res) => {
     try {
       const { amount, reason } = req.body;
-      const result = gamificationService.addXp(parseInt(amount, 10) || 10, reason || 'Hoạt động học tập');
+      const userId = req.user?.id || req.body?.userId || 'admin_master_user_id';
+      const result = gamificationService.addXp(userId, parseInt(amount, 10) || 10, reason || 'Hoạt động học tập');
       res.json(result);
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -24,7 +26,8 @@ export const gamificationController = {
   getAIMasteryReport: async (req, res) => {
     try {
       const apiKey = req.query.apiKey || req.body?.apiKey || null;
-      const report = await aiAssessmentService.generateMasteryReport(apiKey);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const report = await aiAssessmentService.generateMasteryReport(apiKey, userId);
       res.json(report);
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

@@ -13,10 +13,34 @@ import {
   Search,
   Tag,
   Clock,
-  BookOpen
+  BookOpen,
+  Loader2
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { playAudio } from '../../services/audioService';
+
+// Helper: Remove Vietnamese Tones for Accent-Insensitive Smart Search
+const removeVietnameseTones = (str) => {
+  if (!str) return '';
+  let s = String(str);
+  s = s.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
+  s = s.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
+  s = s.replace(/ì|í|ị|ỉ|ĩ/g, 'i');
+  s = s.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o');
+  s = s.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u');
+  s = s.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y');
+  s = s.replace(/đ/g, 'd');
+  s = s.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, 'A');
+  s = s.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, 'E');
+  s = s.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, 'I');
+  s = s.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, 'O');
+  s = s.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, 'U');
+  s = s.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, 'Y');
+  s = s.replace(/Đ/g, 'D');
+  s = s.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, '');
+  s = s.replace(/\u02C6|\u0306|\u031B/g, '');
+  return s;
+};
 
 export default function SmartReader({ 
   notes = [], 
@@ -40,6 +64,8 @@ export default function SmartReader({
     x: 0,
     y: 0
   });
+  const [contextTranslation, setContextTranslation] = useState(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const contentRef = useRef(null);
 
@@ -53,10 +79,14 @@ export default function SmartReader({
     }
   }, [selectedNote, isEditing]);
 
-  // Handle Text Selection Popup
-  const handleMouseUp = () => {
+  const [selectedIpa, setSelectedIpa] = useState('');
+  const [translationError, setTranslationError] = useState('');
+  const clientCacheRef = useRef({});
+
+  // Handle Text Selection Popup: Fetch IPA immediately without triggering slow translation
+  const handleMouseUp = async () => {
     const selection = window.getSelection();
-    const text = selection.toString().trim();
+    const text = selection ? selection.toString().trim() : '';
 
     if (text && text.length > 0 && text.length < 300) {
       const range = selection.getRangeAt(0);
@@ -68,8 +98,92 @@ export default function SmartReader({
         x: rect.left + rect.width / 2,
         y: rect.top - 10
       });
+
+      const cleanWord = text.replace(/^[^\w]+|[^\w]+$/g, '').trim();
+
+      // Check if already translated in this reading session -> Instant 0ms!
+      const cached = clientCacheRef.current[cleanWord.toLowerCase()];
+      if (cached) {
+        setContextTranslation(cached);
+        if (cached.phonetic) setSelectedIpa(cached.phonetic);
+        setIsTranslating(false);
+        setTranslationError('');
+        return;
+      }
+
+      setContextTranslation(null);
+      setIsTranslating(false);
+      setTranslationError('');
+
+      const inVault = words.find(w => w.word?.toLowerCase() === cleanWord.toLowerCase());
+      if (inVault && inVault.phonetic) {
+        setSelectedIpa(inVault.phonetic);
+      } else if (cleanWord) {
+        try {
+          const lookup = await api.autoLookup(cleanWord);
+          const ipa = lookup?.data?.phonetic || lookup?.phonetic || '';
+          if (ipa) setSelectedIpa(ipa);
+        } catch (e) {
+          // Keep existing IPA if present
+        }
+      }
     } else {
       setSelectionPopup(prev => ({ ...prev, visible: false }));
+      setContextTranslation(null);
+      setSelectedIpa('');
+      setTranslationError('');
+    }
+  };
+
+  // Trigger Contextual AI Translation on demand (with Instant Optimistic Preview & 0ms Cache)
+  const handleTranslateContextual = async () => {
+    const cleanWord = selectionPopup.text.replace(/^[^\w]+|[^\w]+$/g, '').trim();
+    if (!cleanWord || !selectedNote?.content) return;
+
+    // Check client cache first
+    const cached = clientCacheRef.current[cleanWord.toLowerCase()];
+    if (cached) {
+      setContextTranslation(cached);
+      return;
+    }
+
+    // Optimistic Preview: If word is in Vault, display immediate definition
+    const inVault = words.find(w => w.word?.toLowerCase() === cleanWord.toLowerCase());
+    if (inVault && inVault.meaning_vi) {
+      setContextTranslation({
+        targetText: cleanWord,
+        phonetic: inVault.phonetic || selectedIpa,
+        partOfSpeech: inVault.part_of_speech || 'noun',
+        contextualMeaningVi: inVault.meaning_vi,
+        contextExplanation: '⚡ AI đang tinh chỉnh phân tích ngữ cảnh bài đọc...',
+        overallSentenceVi: '',
+        collocations: inVault.collocations || []
+      });
+    }
+
+    setIsTranslating(true);
+    setTranslationError('');
+    try {
+      const sentences = selectedNote.content.split(/(?<=[.?!])\s+/);
+      const foundSentence = sentences.find(s => s.toLowerCase().includes(cleanWord.toLowerCase())) || selectionPopup.text;
+      const res = await api.translateInContextAI({
+        text: cleanWord,
+        contextSentence: foundSentence,
+        articleTitle: selectedNote.title || '',
+        articleTopic: selectedNote.topic || 'General'
+      });
+      if (res?.success && res.data) {
+        setContextTranslation(res.data);
+        clientCacheRef.current[cleanWord.toLowerCase()] = res.data;
+        if (res.data.phonetic) setSelectedIpa(res.data.phonetic);
+      } else {
+        if (!inVault) setTranslationError(res?.error || 'Lỗi khi phân tích ngữ cảnh');
+      }
+    } catch (e) {
+      console.warn('Context translation error:', e);
+      if (!inVault) setTranslationError(e.message || 'Lỗi kết nối máy chủ');
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -95,11 +209,22 @@ export default function SmartReader({
     setIsEditing(false);
   };
 
-  const filteredNotes = notes.filter(n => 
-    n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    n.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (n.topic && n.topic.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredNotes = notes.filter(n => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase().trim();
+    const qClean = removeVietnameseTones(q);
+    const title = (n.title || '').toLowerCase();
+    const topic = (n.topic || '').toLowerCase();
+    const content = (n.content || '').toLowerCase();
+    return (
+      title.includes(q) ||
+      topic.includes(q) ||
+      content.includes(q) ||
+      removeVietnameseTones(title).includes(qClean) ||
+      removeVietnameseTones(topic).includes(qClean) ||
+      removeVietnameseTones(content).includes(qClean)
+    );
+  });
 
   // Calculate reading stats
   const wordCount = selectedNote?.content ? selectedNote.content.split(/\s+/).filter(w => w.length > 0).length : 0;
@@ -304,7 +429,7 @@ export default function SmartReader({
             }}>
               <Sparkles size={18} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
               <span>
-                💡 <b>Smart Highlighter Pro</b>: Bôi đen bất kỳ từ hoặc câu nào trong văn bản dưới đây để phát âm, lưu nhanh vào kho từ hoặc gửi AI phân tích!
+                <b>Smart Highlighter Pro</b>: Bôi đen bất kỳ từ hoặc câu nào trong văn bản dưới đây để phát âm, lưu nhanh vào kho từ hoặc gửi AI phân tích!
               </span>
             </div>
 
@@ -347,55 +472,133 @@ export default function SmartReader({
               left: `${selectionPopup.x}px`,
               transform: 'translate(-50%, -100%)',
               background: 'var(--bg-card)',
-              border: '1px solid var(--accent-primary)',
+              border: '1.5px solid var(--accent-primary)',
               borderRadius: 'var(--radius-xl)',
-              boxShadow: '0 12px 30px rgba(0,0,0,0.4), var(--shadow-glow)',
-              padding: '0.45rem',
+              boxShadow: '0 16px 36px rgba(0,0,0,0.45), var(--shadow-glow)',
+              padding: '0.75rem',
               display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
+              flexDirection: 'column',
+              gap: '0.6rem',
               zIndex: 1000,
-              backdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(20px)',
+              maxWidth: '380px',
               animation: 'modalPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}
           >
-            {/* Pronounce audio button */}
-            <button
-              onClick={() => playAudio(selectionPopup.text)}
-              className="btn-secondary"
-              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-              title="Phát âm từ được chọn"
-            >
-              <Volume2 size={15} style={{ color: 'var(--accent-primary)' }} />
-              <span>Đọc</span>
-            </button>
+            {/* Top Info: Word and IPA */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontWeight: 800, color: 'var(--accent-primary)', fontSize: '0.95rem' }}>
+                  "{selectionPopup.text}"
+                </span>
+                {(selectedIpa || contextTranslation?.phonetic) && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    {selectedIpa || contextTranslation?.phonetic}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => playAudio(selectionPopup.text)}
+                className="btn-icon"
+                style={{ padding: '0.2rem', color: 'var(--accent-primary)' }}
+                title="Phát âm từ"
+              >
+                <Volume2 size={15} />
+              </button>
+            </div>
 
-            {/* Save to Vocab Vault */}
-            <button
-              onClick={() => {
-                onSaveWordFromSelection(selectionPopup.text);
-                setSelectionPopup(prev => ({ ...prev, visible: false }));
-              }}
-              className="btn-primary"
-              style={{ padding: '0.4rem 0.9rem', fontSize: '0.8rem' }}
-            >
-              <BookPlus size={15} />
-              <span>Lưu vào Kho Từ</span>
-            </button>
+            {/* Trigger Translate Button if NOT yet translated */}
+            {!contextTranslation && !isTranslating && (
+              <button
+                onClick={handleTranslateContextual}
+                className="btn-secondary"
+                style={{
+                  padding: '0.4rem 0.65rem',
+                  fontSize: '0.8rem',
+                  justifyContent: 'center',
+                  background: 'var(--accent-primary-light)',
+                  borderColor: 'var(--accent-primary)',
+                  color: 'var(--accent-primary)',
+                  fontWeight: 700
+                }}
+              >
+                <Sparkles size={14} />
+                <span>Bấm để dịch theo ngữ cảnh</span>
+              </button>
+            )}
 
-            {/* Send to AI Lab */}
-            <button
-              onClick={() => {
-                onSendToAiLab(selectionPopup.text);
-                setSelectionPopup(prev => ({ ...prev, visible: false }));
-              }}
-              className="btn-secondary"
-              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-              title="Bóc tách phân tích câu bằng AI"
-            >
-              <BrainCircuit size={15} style={{ color: '#a855f7' }} />
-              <span>AI Bóc Tách</span>
-            </button>
+            {translationError ? (
+              <div style={{ fontSize: '0.75rem', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-md)' }}>
+                ⚠️ {translationError}
+              </div>
+            ) : null}
+
+            {/* Contextual Translation Header / Body if loading or ready */}
+            {isTranslating ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--accent-primary)', padding: '0.2rem 0.4rem' }}>
+                <Loader2 size={14} className="animate-spin" />
+                <span>AI đang dịch nghĩa theo ngữ cảnh bài đọc...</span>
+              </div>
+            ) : contextTranslation ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
+                    🎯 {contextTranslation.contextualMeaningVi}
+                  </span>
+                </div>
+                {contextTranslation.contextExplanation && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                    💡 {contextTranslation.contextExplanation}
+                  </p>
+                )}
+                {contextTranslation.overallSentenceVi && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: '0.2rem 0 0 0', lineHeight: 1.4 }}>
+                    🌐 "{contextTranslation.overallSentenceVi}"
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {/* Quick Action Buttons Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {/* Pronounce audio button */}
+              <button
+                onClick={() => playAudio(selectionPopup.text)}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                title="Phát âm từ được chọn"
+              >
+                <Volume2 size={15} style={{ color: 'var(--accent-primary)' }} />
+                <span>Đọc</span>
+              </button>
+
+              {/* Save to Vocab Vault */}
+              <button
+                onClick={() => {
+                  onSaveWordFromSelection(selectionPopup.text, contextTranslation);
+                  setSelectionPopup(prev => ({ ...prev, visible: false }));
+                }}
+                className="btn-primary"
+                style={{ padding: '0.4rem 0.9rem', fontSize: '0.8rem' }}
+              >
+                <BookPlus size={15} />
+                <span>Lưu vào Kho Từ</span>
+              </button>
+
+              {/* Send to AI Lab */}
+              <button
+                onClick={() => {
+                  onSendToAiLab(selectionPopup.text);
+                  setSelectionPopup(prev => ({ ...prev, visible: false }));
+                }}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                title="Bóc tách phân tích câu bằng AI"
+              >
+                <BrainCircuit size={15} style={{ color: '#a855f7' }} />
+                <span>AI Bóc Tách</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

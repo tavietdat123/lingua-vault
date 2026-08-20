@@ -11,7 +11,7 @@ function createMobileSimulator() {
     minHeight: 700,
     maxWidth: 480,
     title: '📱 LinguaVault - iPhone 15 Pro Mobile Simulator',
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'default',
     backgroundColor: '#090d16',
     webPreferences: {
       nodeIntegration: false,
@@ -26,8 +26,10 @@ function createMobileSimulator() {
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
   );
 
-  // Load the React Native Expo Mobile App
-  mobileWindow.loadURL('http://localhost:8081');
+  // Clear cache and load the React Native Expo Mobile App from local backend
+  mobileWindow.webContents.session.clearCache().then(() => {
+    mobileWindow.loadURL('http://localhost:5001/mobile/');
+  });
 
   mobileWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

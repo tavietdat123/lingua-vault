@@ -3,7 +3,7 @@
  * Powered by Google Gemini 1.5 Flash (0đ) + Local Heuristic Acoustic & Phonetic Engine
  */
 
-import { callGemini } from './aiService.js';
+import { callGemini, safeParseJson } from './aiService.js';
 import { getDb } from '../db/database.js';
 
 // Comprehensive Curated Bank of Speaking Prompts
@@ -117,40 +117,40 @@ export async function analyzeReadAloud({ targetText, spokenText = '', audioData 
   if (apiKey && (cleanSpoken || audioData)) {
     try {
       const prompt = `
-Bạn là một chuyên gia ngữ âm học và giám khảo khảo thí phát âm tiếng Anh quốc tế (Linguistic Phonetics & IELTS Speaking Examiner).
-${audioData ? 'HÃY LẮNG NGHE TRỰC TIẾP FILE ÂM THANH ĐÍNH KÈM' : 'HÃY ĐÁNH GIÁ BÀI NÓI DỰA TRÊN TRANSCRIPT'}.
+Bạn là Giám khảo Khảo thí Ngữ âm & Trưởng ban Chấm thi IELTS Speaking Quốc tế (Senior IELTS Band 9.0 Examiner & Phonetician).
+Áp dụng TIÊU CHÍ CHẤM ĐIỂM CỰC KỲ NGHIÊM KHẮC, CHUẨN XÁC TỪNG ÂM TIẾT, KHÔNG NƯƠNG TAY:
 
 MỤC TIÊU KHẢO THÍ:
 - VĂN BẢN GỐC CẦN ĐỌC (TARGET TEXT): "${cleanTarget}"
 - VĂN BẢN TRANSCRIPT BỔ TRỢ: "${cleanSpoken}"
 
-TIÊU CHÍ SOI KỸ PHÁT ÂM (CHÍNH XÁC TUYỆT ĐỐI):
-1. Âm cuối & Phụ âm đuôi (Ending Consonants): Kiểm tra xem người nói có bỏ sót các âm đuôi quan trọng (/s/, /z/, /t/, /d/, /ed/, /θ/, /ð/, /ks/) hay không.
-2. Nguyên âm chuẩn xác (Vowel Precision): Phân biệt nguyên âm dài/ngắn (ví dụ: /iː/ vs /ɪ/, /uː/ vs /ʊ/).
-3. Trọng âm từ (Word Stress): Đặt trọng âm đúng âm tiết hay bị nói ngang/sai vị trí.
-4. Độ trôi chảy & ngắt nghỉ (Fluency & Chunking): Tốc độ tự nhiên, không ngập ngừng quá dài.
+QUY TẮC PHẠT LỖI NGHIÊM KHẮC:
+1. Âm cuối & Phụ âm đuôi (Ending Consonants): Phạt nặng nếu nuốt hoặc quên bật âm đuôi (/s/, /z/, /t/, /d/, /ed/, /θ/, /ð/, /ks/, /tʃ/, /dʒ/). Mỗi từ thiếu âm đuôi PHẢI đánh dấu "mispronounced".
+2. Trọng âm từ (Word Stress): Nếu nhấn sai trọng âm của từ đa âm tiết, lập tức đánh dấu "mispronounced" và chỉ rõ trọng âm đúng.
+3. Nguyên âm dài vs ngắn (/iː/ vs /ɪ/, /uː/ vs /ʊ/, /ɔː/ vs /ɒ/): Bắt buộc phân biệt rõ ràng.
+4. Nối âm & Ngắt nhịp (Linking & Chunking): Đọc rời rạc từng từ như robot hoặc ngập ngừng quá lâu sẽ bị trừ mạnh điểm Fluency.
 
 HÃY ĐÁNH GIÁ VÀ TRẢ VỀ DUY NHẤT MỘT ĐỊNH DẠNG JSON (Không kèm markdown \`\`\`json):
 {
-  "overallScore": 88, // Số nguyên 0 - 100
-  "accuracyScore": 85, // Độ chuẩn xác âm vị từng từ (0 - 100)
-  "fluencyScore": 90, // Độ trôi chảy & nhịp điệu (0 - 100)
-  "completenessScore": 95, // Mức độ đọc đầy đủ câu (0 - 100)
+  "overallScore": 72, // Điểm số thực tế khắt khe (0 - 100)
+  "accuracyScore": 70, // Độ chuẩn xác âm vị từng từ (0 - 100)
+  "fluencyScore": 75, // Độ trôi chảy & nhịp điệu (0 - 100)
+  "completenessScore": 90, // Mức độ đọc đầy đủ câu (0 - 100)
   "wordsAnalysis": [
     // Phân tích MỌI từ trong VĂN BẢN GỐC theo thứ tự:
-    // status: "correct" (phát âm rõ và chuẩn), "mispronounced" (phát âm sai, nuốt âm đuôi, sai trọng âm), "missing" (bỏ qua từ này)
+    // status: "correct" (phát âm chuẩn hoàn hảo), "mispronounced" (thiếu âm đuôi, sai trọng âm, sai nguyên âm), "missing" (bỏ qua từ này)
     {
       "word": "từ_gốc",
       "status": "correct",
       "phonetic": "/IPA_chuẩn/",
-      "feedback": "Nhận xét chi tiết âm nào bị sai/thiếu (hoặc null nếu phát âm chuẩn)"
+      "feedback": "Chỉ rõ lỗi sai cụ thể (ví dụ: thiếu âm đuôi /z/, nhấn sai âm tiết 1 thay vì 2) hoặc null nếu chuẩn"
     }
   ],
   "phoneticTips": [
-    "Lời khuyên 1 về khẩu hình hoặc âm đuôi cụ thể cần sửa",
-    "Lời khuyên 2 về ngữ điệu hoặc nối âm"
+    "Lời khuyên giải phẫu khẩu hình cụ thể cho lỗi nặng nhất",
+    "Lời khuyên ngữ điệu/nối âm"
   ],
-  "generalFeedback": "Nhận xét chuyên sâu, chân thực và có tính xây dựng"
+  "generalFeedback": "Nhận xét học thuật, thẳng thắn, mang tính rèn giũa cao"
 }
 `;
       const aiResponse = await callGemini(prompt, apiKey, audioData);
@@ -162,41 +162,25 @@ HÃY ĐÁNH GIÁ VÀ TRẢ VỀ DUY NHẤT MỘT ĐỊNH DẠNG JSON (Không kè
     }
   }
 
-  // Fallback Algorithmic Scoring (Offline / Without Gemini)
-  let correctCount = 0;
-  const wordsAnalysis = targetWords.map((tw, idx) => {
-    const cleanTw = tw.toLowerCase();
-    const sw = spokenWords[idx]?.toLowerCase();
-
-    let status = 'missing';
-    let feedback = 'Từ này dường như chưa được phát âm hoặc phát âm quá nhỏ';
-
-    if (sw) {
-      if (cleanTw === sw) {
-        status = 'correct';
-        feedback = null;
-        correctCount++;
-      } else if (cleanTw.includes(sw) || sw.includes(cleanTw)) {
-        status = 'mispronounced';
-        feedback = `Phát âm chưa chuẩn âm đuôi hoặc trọng âm (nhận diện: "${sw}")`;
-        correctCount += 0.5;
-      } else {
-        status = 'mispronounced';
-        feedback = `Phát âm lệch so với chuẩn (nhận diện: "${sw}")`;
-      }
-    }
-
+  // Fallback heuristic scoring with strict penalties
+  let matchedCount = 0;
+  const wordsAnalysis = targetWords.map((tWord, idx) => {
+    const isMatched = spokenWords.some(sWord => 
+      sWord.toLowerCase() === tWord.toLowerCase() || 
+      (tWord.length >= 4 && sWord.toLowerCase().includes(tWord.toLowerCase().slice(0, 3)))
+    );
+    if (isMatched) matchedCount++;
     return {
-      word: tw,
-      status,
-      phonetic: `/${cleanTw}/`,
-      feedback
+      word: tWord,
+      status: isMatched ? 'correct' : (idx < spokenWords.length ? 'mispronounced' : 'missing'),
+      phonetic: '',
+      feedback: isMatched ? null : 'Cần chú ý phát âm rõ âm đuôi và trọng âm'
     };
   });
 
-  const accuracyScore = Math.round((correctCount / Math.max(targetWords.length, 1)) * 100);
-  const completenessScore = Math.min(100, Math.round((spokenWords.length / Math.max(targetWords.length, 1)) * 100));
-  const fluencyScore = cleanSpoken.length > 0 ? Math.min(100, Math.max(50, accuracyScore - 5)) : 0;
+  const accuracyScore = targetWords.length > 0 ? Math.round((matchedCount / targetWords.length) * 80) : 40;
+  const completenessScore = targetWords.length > 0 ? Math.min(100, Math.round((spokenWords.length / targetWords.length) * 85)) : 30;
+  const fluencyScore = Math.min(85, Math.max(30, accuracyScore - 5));
   const overallScore = Math.round((accuracyScore * 0.5) + (completenessScore * 0.25) + (fluencyScore * 0.25));
 
   return {
@@ -206,12 +190,12 @@ HÃY ĐÁNH GIÁ VÀ TRẢ VỀ DUY NHẤT MỘT ĐỊNH DẠNG JSON (Không kè
     completenessScore,
     wordsAnalysis,
     phoneticTips: [
-      'Hãy chú ý phát âm rõ ràng các âm đuôi (ending sounds: /s/, /t/, /d/, /ed/).',
-      'Giữ nhịp thở đều đặn và ngắt nghỉ tự nhiên theo các cụm nghĩa (chunks).'
+      'Hãy chú ý phát âm dứt khoát các âm đuôi (ending sounds: /s/, /t/, /d/, /ed/, /θ/).',
+      'Giữ nhịp thở đều đặn và ngắt nghỉ tự nhiên theo các cụm nghĩa (thought groups).'
     ],
     generalFeedback: overallScore >= 80 
-      ? 'Phát âm rất tốt! Giọng đọc rõ ràng, giữ vững tốc độ này nhé.' 
-      : 'Bạn đã hoàn thành bài đọc! Hãy luyện phát âm lại các từ được đánh dấu màu đỏ/vàng.'
+      ? 'Bài đọc đạt yêu cầu. Tiếp tục duy trì độ dứt khoát của các phụ âm đuôi.' 
+      : 'Cần siết chặt phát âm các từ bị đánh dấu đỏ/vàng. Hãy luyện tập bật âm đuôi rõ ràng hơn.'
   };
 }
 
@@ -235,37 +219,47 @@ export async function analyzeQASpeaking({ question, topic = 'General', spokenTex
   if (apiKey) {
     try {
       const prompt = `
-Bạn là Trưởng ban Khảo thí Speaking IELTS & Hội đồng Chấm thi Quốc tế (IELTS Examiner Band 9.0).
-${audioData ? 'HÃY LẮNG NGHE TRỰC TIẾP FILE ÂM THANH CỦA THÍ SINH ĐÍNH KÈM' : 'HÃY ĐÁNH GIÁ DỰA TRÊN TRANSCRIPT'}.
+Bạn là Trưởng ban Giám khảo Khảo thí IELTS Speaking Quốc tế (Senior IELTS Band 9.0 Examiner).
+ÁP DỤNG THANG CHẤM CHUẨN MỰC, KHẮT KHE TUYỆT ĐỐI (STRICT UNCOMPROMISING BAND DESCRIPTORS):
 
 THÔNG TIN BÀI THI:
 - CHỦ ĐỀ (TOPIC): "${topic}"
 - CÂU HỎI (QUESTION): "${cleanQuestion}"
 - BẢN TRANSCRIPT THAM CHIẾU: "${cleanSpoken}"
 
+QUY TẮC CHẤM THI CHẶT CHẼ:
+1. Độ dài & Phát triển ý (Fluency & Coherence):
+   - Nếu câu trả lời quá ngắn (< 30 từ) hoặc trả lời cụt lủn: Band TỐI ĐA là 5.0 - 5.5.
+   - Để đạt Band 7.0+: Phải phát triển ý rõ ràng, có luận điểm, dẫn chứng và dùng từ nối tự nhiên.
+2. Vốn từ vựng (Lexical Resource):
+   - Dùng từ vựng cơ bản lặp đi lặp lại (very, good, nice, think): Band 5.5 - 6.0.
+   - Để đạt Band 7.5+: Bắt buộc có collocations chuẩn xác, thành ngữ tự nhiên (idiomatic expressions) và từ vựng mang tính học thuật cao.
+3. Ngữ pháp & Cấu trúc câu (Grammatical Range & Accuracy):
+   - Sai thì, thiếu mạo từ, sai chia động từ: Vạch rõ trong danh sách grammarMistakes và hạ band điểm.
+4. Phát âm & Ngữ điệu (Pronunciation):
+   - Đánh giá thẳng thắn về độ tự nhiên, nối âm và ngữ điệu (Intonation).
+
 HÃY CHẤM ĐIỂM CHÍNH XÁC THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘT CHUỖI JSON HỢP LỆ (Không có markdown \`\`\`json):
 {
-  "overallBand": 7.0, // Điểm IELTS ước tính (4.0 - 9.0, bước 0.5)
-  "overallScore": 75, // Thang điểm 0 - 100
+  "overallBand": 6.5, // Điểm IELTS ước tính thực tế (4.0 - 9.0, bước 0.5)
+  "overallScore": 68, // Thang điểm 0 - 100
   "criteria": {
     "fluency": {
-      "score": 75, // 0 - 100
-      "band": 7.0,
-      "feedback": "Nhận xét độ trôi chảy, phản xạ, ngắt nghỉ thực tế"
+      "score": 65, // 0 - 100
+      "band": 6.5,
+      "feedback": "Nhận xét độ trôi chảy, sự phát triển ý và độ tự nhiên"
     },
     "pronunciation": {
-      "score": 70, // 0 - 100
-      "band": 7.0,
-      "feedback": "Nhận xét chi tiết ngữ điệu, trọng âm từ và âm vị nghe được từ audio"
+      "score": 65, // 0 - 100
+      "band": 6.5,
+      "feedback": "Nhận xét ngữ điệu, trọng âm câu và độ rõ ràng của âm tiết"
     },
     "grammar": {
-      "score": 80, // 0 - 100
-      "band": 7.5,
-      "feedback": "Nhận xét độ đa dạng và chính xác của cấu trúc câu"
+      "score": 70, // 0 - 100
+      "band": 7.0,
+      "feedback": "Nhận xét độ chuẩn xác và phong phú của cấu trúc ngữ pháp"
     },
     "vocabulary": {
-      "score": 75, // 0 - 100
-      "band": 7.0,
       "feedback": "Nhận xét vốn từ vựng, collocations, idiomatic expressions"
     }
   },
@@ -290,9 +284,10 @@ HÃY CHẤM ĐIỂM CHÍNH XÁC THEO 4 TIÊU CHÍ VÀ TRẢ VỀ DUY NHẤT MỘ
 }
 `;
       const aiResponse = await callGemini(prompt, apiKey, audioData);
-      const cleaned = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      return parsed;
+      const parsed = safeParseJson(aiResponse);
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+        return parsed;
+      }
     } catch (err) {
       console.warn('Gemini Q&A Speaking AI fallback:', err.message);
     }

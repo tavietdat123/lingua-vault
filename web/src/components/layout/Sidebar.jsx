@@ -144,35 +144,88 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
               </div>
 
               {item.dueCount > 0 && (
-                <span style={{
-                  background: 'var(--accent-danger)',
-                  color: '#ffffff',
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  padding: '0.15rem 0.55rem',
-                  borderRadius: 'var(--radius-full)',
-                  boxShadow: '0 0 12px rgba(239, 68, 68, 0.45)',
-                  animation: 'wave 2s infinite'
-                }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '22px',
+                    height: '20px',
+                    padding: '0 6px',
+                    background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                    color: '#ffffff',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    borderRadius: '10px',
+                    lineHeight: 1,
+                    boxShadow: '0 2px 8px rgba(225, 29, 72, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    letterSpacing: '-0.2px'
+                  }}
+                >
                   {item.dueCount}
                 </span>
               )}
 
               {item.count !== undefined && !item.dueCount && (
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '20px',
+                    height: '18px',
+                    padding: '0 6px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    border: '1px solid var(--border-color)'
+                  }}
+                >
                   {item.count}
                 </span>
               )}
 
               {item.isNew && (
-                <span className="badge badge-emerald" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
-                  Mới
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2px 7px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.25))',
+                    color: '#10b981',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    lineHeight: 1
+                  }}
+                >
+                  MỚI
                 </span>
               )}
 
               {item.isAi && (
-                <span className="badge badge-purple" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
-                  AI 0đ
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2px 7px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(168, 85, 247, 0.25))',
+                    color: '#a855f7',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    lineHeight: 1
+                  }}
+                >
+                  AI ⚡
                 </span>
               )}
             </NavLink>

@@ -1,34 +1,48 @@
 import { db } from '../db/database.js';
 
 export const backupController = {
-  // 1. Export entire Vault to JSON
+  // 1. Export entire Vault to JSON for specific account
   exportData: (req, res) => {
     try {
-      const words = db.prepare('SELECT * FROM words').all().map(w => ({
+      const userId = req.user?.id || req.query.userId || 'admin_master_user_id';
+      const words = db.prepare(`
+        SELECT * FROM words 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `).all(userId, userId, userId).map(w => ({
         ...w,
         collocations: JSON.parse(w.collocations || '[]'),
         examples: JSON.parse(w.examples || '[]'),
         tags: JSON.parse(w.tags || '[]')
       }));
 
-      const patterns = db.prepare('SELECT * FROM patterns').all().map(p => ({
+      const patterns = db.prepare(`
+        SELECT * FROM patterns 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `).all(userId, userId, userId).map(p => ({
         ...p,
         examples: JSON.parse(p.examples || '[]'),
         tags: JSON.parse(p.tags || '[]')
       }));
 
-      const notes = db.prepare('SELECT * FROM notes').all().map(n => ({
+      const notes = db.prepare(`
+        SELECT * FROM notes 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `).all(userId, userId, userId).map(n => ({
         ...n,
         tags: JSON.parse(n.tags || '[]'),
         linked_words: JSON.parse(n.linked_words || '[]')
       }));
 
-      const study_logs = db.prepare('SELECT * FROM study_logs').all();
+      const study_logs = db.prepare(`
+        SELECT * FROM study_logs 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `).all(userId, userId, userId);
 
       const backup = {
         app: 'LinguaVault',
         version: '1.0.0',
         exported_at: new Date().toISOString(),
+        user_id: userId,
         data: {
           words,
           patterns,
@@ -45,9 +59,10 @@ export const backupController = {
     }
   },
 
-  // 2. Import and restore data from JSON
+  // 2. Import and restore data from JSON for specific account
   importData: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const { data } = req.body;
       if (!data) {
         return res.status(400).json({ success: false, error: 'Dữ liệu sao lưu không hợp lệ' });
@@ -60,11 +75,11 @@ export const backupController = {
         INSERT INTO words (
           id, word, phonetic, audio_url, part_of_speech, meaning_vi, meaning_en,
           collocations, examples, tags, level, repetition, interval, ease_factor,
-          due_date, status, last_reviewed_at, created_at, updated_at
+          due_date, status, last_reviewed_at, created_at, updated_at, user_id
         ) VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
           word = excluded.word,
@@ -98,7 +113,8 @@ export const backupController = {
           w.status || 'new',
           w.last_reviewed_at || null,
           w.created_at || new Date().toISOString(),
-          w.updated_at || new Date().toISOString()
+          w.updated_at || new Date().toISOString(),
+          userId
         );
       }
 
@@ -107,11 +123,11 @@ export const backupController = {
         INSERT INTO patterns (
           id, name, formula, explanation, meaning_vi, tone,
           examples, tags, repetition, interval, ease_factor,
-          due_date, status, created_at, updated_at
+          due_date, status, created_at, updated_at, user_id
         ) VALUES (
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?,
-          ?, ?, ?, ?
+          ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name,
@@ -140,14 +156,15 @@ export const backupController = {
           p.due_date || new Date().toISOString().split('T')[0],
           p.status || 'new',
           p.created_at || new Date().toISOString(),
-          p.updated_at || new Date().toISOString()
+          p.updated_at || new Date().toISOString(),
+          userId
         );
       }
 
       // Import notes
       const insertNote = db.prepare(`
-        INSERT INTO notes (id, title, content, topic, tags, linked_words, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO notes (id, title, content, topic, tags, linked_words, created_at, updated_at, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           title = excluded.title,
           content = excluded.content,
@@ -166,7 +183,8 @@ export const backupController = {
           JSON.stringify(n.tags || []),
           JSON.stringify(n.linked_words || []),
           n.created_at || new Date().toISOString(),
-          n.updated_at || new Date().toISOString()
+          n.updated_at || new Date().toISOString(),
+          userId
         );
       }
 

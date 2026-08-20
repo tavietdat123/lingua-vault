@@ -1,4 +1,66 @@
+import https from 'node:https';
 import { getDb } from '../db/database.js';
+
+const telegramAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  maxFreeSockets: 10,
+  timeout: 30000
+});
+
+export function escapeHtml(str = '') {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function postTelegramJson(botToken, method, payload) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(payload);
+    const options = {
+      hostname: 'api.telegram.org',
+      port: 443,
+      path: `/bot${botToken}/${method}`,
+      method: 'POST',
+      agent: telegramAgent,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      },
+      timeout: 15000
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          if (!json.ok) {
+            reject(new Error(json.description || `Telegram API Error: ${res.statusCode}`));
+          } else {
+            resolve(json);
+          }
+        } catch (err) {
+          reject(new Error(`Failed to parse Telegram response: ${body}`));
+        }
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy(new Error('Telegram API request timed out'));
+    });
+
+    req.on('error', (err) => {
+      reject(err);
+    });
+
+    req.write(data);
+    req.end();
+  });
+}
 
 export const telegramService = {
   // 1. Send an arbitrary HTML message to Telegram Chat
@@ -7,26 +69,12 @@ export const telegramService = {
       throw new Error('Telegram Bot Token và Chat ID không được để trống.');
     }
 
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    const payload = {
+    return await postTelegramJson(botToken, 'sendMessage', {
       chat_id: chatId,
       text,
       parse_mode: 'HTML',
       disable_web_page_preview: true
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
     });
-
-    const result = await response.json();
-    if (!result.ok) {
-      throw new Error(result.description || 'Lỗi gửi tin nhắn Telegram');
-    }
-
-    return result;
   },
 
   // 1b. Send HTML message with Inline Keyboard Buttons
@@ -35,8 +83,7 @@ export const telegramService = {
       throw new Error('Telegram Bot Token và Chat ID không được để trống.');
     }
 
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    const payload = {
+    return await postTelegramJson(botToken, 'sendMessage', {
       chat_id: chatId,
       text,
       parse_mode: 'HTML',
@@ -44,20 +91,7 @@ export const telegramService = {
       reply_markup: {
         inline_keyboard: inlineKeyboard
       }
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
     });
-
-    const result = await response.json();
-    if (!result.ok) {
-      throw new Error(result.description || 'Lỗi gửi tin nhắn kèm nút Telegram');
-    }
-
-    return result;
   },
 
   // 2. Send instant verification test message
@@ -296,5 +330,224 @@ ${wordListText}
       progress,
       result
     };
+  },
+
+  // 6. Send Late-Night Streak Saver Warning (22:30 / 23:00)
+  sendStreakSaverWarning: async (force = false) => {
+    const db = getDb();
+    const tokenRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+    const chatRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
+    const botToken = tokenRow?.value;
+    const chatId = chatRow?.value;
+
+    if (!botToken || !chatId) {
+      return { skipped: true, reason: 'Missing bot token or chat ID' };
+    }
+
+    const progress = telegramService.getDailyProgress();
+    if (progress.isGoalMet && !force) {
+      return { skipped: true, reason: 'Goal already met tonight' };
+    }
+
+    const text = `
+🔥🚨 <b>KHẨN CẤP • BẢO VỆ CHUỖI STREAK CỦA BẠN!</b> 🚨🔥
+
+⏰ <b>Chỉ còn ít phút nữa là qua ngày mới!</b>
+Ngọn lửa chuỗi <b>${progress.streak} ngày liên tục</b> của bạn đang có nguy cơ bị dập tắt:
+📊 <b>Tiến độ hôm nay:</b> <code>${progress.studiedToday} / ${progress.dailyGoal} từ</code> (Còn thiếu <b>${progress.remaining} từ</b>)
+
+⚡ <b>HÀNH ĐỘNG CỨU STREAK NGAY (30 GIÂY):</b>
+Bấm nút bên dưới để giải nhanh 1 câu Quiz trắc nghiệm và giữ vững chuỗi ngày học tập chăm chỉ!
+    `.trim();
+
+    const buttons = [
+      [{ text: '⚡ Giải 1 Câu Quiz Cứu Streak Ngay (30s)', callback_data: 'start_quiz_challenge' }],
+      [{ text: '📊 Kiểm Tra Tiến Độ Hôm Nay', callback_data: 'check_status' }]
+    ];
+
+    const result = await telegramService.sendMessageWithButtons(botToken, chatId, text, buttons);
+    return { success: true, sent: true, progress, result };
+  },
+
+  // 7. Send Bite-Sized Word of the Day (12:00 Lunchtime)
+  sendWordOfTheDay: async (force = false) => {
+    const db = getDb();
+    const tokenRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+    const chatRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
+    const botToken = tokenRow?.value;
+    const chatId = chatRow?.value;
+
+    if (!botToken || !chatId) {
+      return { skipped: true, reason: 'Missing bot token or chat ID' };
+    }
+
+    // Pick a featured word (random from words table or fallback)
+    const randomWordRow = db.prepare(`
+      SELECT word, phonetic, part_of_speech, meaning_vi, meaning_en, examples, collocations, level
+      FROM words 
+      ORDER BY RANDOM() 
+      LIMIT 1
+    `).get();
+
+    let featured = randomWordRow;
+    if (!featured) {
+      featured = {
+        word: 'serendipity',
+        phonetic: '/ˌser.ənˈdɪp.ə.ti/',
+        part_of_speech: 'noun',
+        meaning_vi: 'Sự may mắn tình cờ, duyên may bất ngờ',
+        meaning_en: 'The occurrence and development of events by chance in a happy or beneficial way',
+        examples: JSON.stringify(['Finding this incredible app was pure serendipity.']),
+        collocations: JSON.stringify(['pure serendipity', 'a stroke of serendipity']),
+        level: 'C1'
+      };
+    }
+
+    const examplesList = Array.isArray(featured.examples) ? featured.examples : JSON.parse(featured.examples || '[]');
+    const collocationsList = Array.isArray(featured.collocations) ? featured.collocations : JSON.parse(featured.collocations || '[]');
+    const exampleStr = examplesList.length > 0 ? `\n💬 <i>"${examplesList[0]}"</i>` : '';
+    const collocationsStr = collocationsList.length > 0 ? `\n🔗 <b>Collocation:</b> <code>${collocationsList.slice(0, 2).map(c => typeof c === 'string' ? c : c.phrase).join(', ')}</code>` : '';
+
+    const text = `
+✨☕ <b>TỪ VỰNG GIỜ NGHỈ TRƯA • WORD OF THE DAY</b> ☕✨
+
+💎 <b>${featured.word.toUpperCase()}</b>  <code>${featured.phonetic || ''}</code>  [${featured.level || 'B2'}]
+🏷️ <i>${featured.part_of_speech || 'noun'}</i>
+
+🇻🇳 <b>Nghĩa:</b> ${featured.meaning_vi}
+${featured.meaning_en ? `🇬🇧 <b>Definition:</b> ${featured.meaning_en}` : ''}${collocationsStr}${exampleStr}
+
+━━━━━━━━━━━━━━━━━━━━
+💡 <i>Dành 30 giây giờ nghỉ trưa nạp thêm 1 từ vựng tinh hoa mỗi ngày!</i>
+    `.trim();
+
+    const buttons = [
+      [{ text: '🎯 Thử Thách Trắc Nghiệm Từ Này', callback_data: 'start_quiz_challenge' }]
+    ];
+
+    const result = await telegramService.sendMessageWithButtons(botToken, chatId, text, buttons);
+    return { success: true, sent: true, word: featured.word, result };
+  },
+
+  // 8. Send Weekly Memory & Progress Digest (Sunday Morning)
+  sendWeeklyDigest: async (force = false) => {
+    const db = getDb();
+    const tokenRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+    const chatRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
+    const botToken = tokenRow?.value;
+    const chatId = chatRow?.value;
+
+    if (!botToken || !chatId) {
+      return { skipped: true, reason: 'Missing bot token or chat ID' };
+    }
+
+    // Stats for past 7 days
+    const weekLogs = db.prepare(`
+      SELECT SUM(reviews_count) as total_reviews, SUM(new_words_count) as total_new
+      FROM study_logs
+      WHERE date >= date('now', '-7 days')
+    `).get();
+
+    const profileRow = db.prepare("SELECT total_xp, current_level, title FROM user_profile LIMIT 1").get();
+    const totalXp = profileRow?.total_xp || 0;
+    const currentLevel = profileRow?.current_level || 1;
+    const userTitle = profileRow?.title || 'Novice Scholar 🌱';
+
+    const totalWords = db.prepare("SELECT COUNT(*) as count FROM words").get()?.count || 0;
+    const masteredWords = db.prepare("SELECT COUNT(*) as count FROM words WHERE repetition >= 5 OR interval >= 45").get()?.count || 0;
+    const streakRow = db.prepare("SELECT value FROM settings WHERE key = 'streak'").get();
+    const streak = streakRow ? parseInt(streakRow.value, 10) || 0 : 0;
+
+    const totalReviews = weekLogs?.total_reviews || 0;
+    const totalNew = weekLogs?.total_new || 0;
+
+    // Top words reviewed
+    const topWords = db.prepare(`
+      SELECT word, meaning_vi, repetition
+      FROM words
+      ORDER BY repetition DESC, updated_at DESC
+      LIMIT 3
+    `).all();
+
+    const topWordsText = topWords.map(w => `• <b>${w.word}</b>: ${w.meaning_vi} (Thuộc: ${w.repetition} lần)`).join('\n');
+
+    const text = `
+📈🏆 <b>BÁO CÁO TIẾN ĐỘ TUẦN QUA • LINGUAVAULT</b> 🏆📈
+
+Chúc mừng bạn đã hoàn thành một tuần học tập bền bỉ! Dưới đây là bức tranh tổng thể về sự tiến bộ của bạn:
+
+📊 <b>THỐNG KÊ 7 NGÀY QUA:</b>
+• Từ mới đã nạp: <b>+${totalNew} từ</b>
+• Lượt ôn tập Spaced Repetition: <b>${totalReviews} lượt</b>
+• Kinh nghiệm tích lũy: <b>+${totalXp} XP</b>
+• Chuỗi ngày Streak: 🔥 <b>${streak} ngày liên tục</b>
+
+🧠 <b>ĐỘ PHÂN BỔ TRÍ NHỚ TỔNG QUAN:</b>
+• Tổng kho từ: <b>${totalWords} từ</b>
+• Đã thuộc vĩnh viễn (Mastered): <b>${masteredWords} từ</b> (${totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0}%)
+
+📌 <b>TỪ VỰNG NỔI BẬT TUẦN QUA:</b>
+${topWordsText || '• <i>Chưa có dữ liệu chi tiết</i>'}
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 <i>Hãy tiếp tục duy trì phong độ xuất sắc trong tuần mới nhé!</i>
+    `.trim();
+
+    const result = await telegramService.sendMessage(botToken, chatId, text);
+    return { success: true, sent: true, result };
+  },
+
+  // 9. Send Leech Words Alert (Từ hay quên / cần củng cố)
+  sendLeechWordsAlert: async (force = false) => {
+    const db = getDb();
+    const tokenRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+    const chatRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
+    const botToken = tokenRow?.value;
+    const chatId = chatRow?.value;
+
+    if (!botToken || !chatId) {
+      return { skipped: true, reason: 'Missing bot token or chat ID' };
+    }
+
+    // Identify Leech words (repetition <= 1 and ease_factor <= 1.8)
+    const leechWords = db.prepare(`
+      SELECT word, phonetic, part_of_speech, meaning_vi, examples
+      FROM words
+      WHERE ease_factor <= 1.8 OR (repetition = 0 AND interval = 0)
+      LIMIT 3
+    `).all();
+
+    if ((!leechWords || leechWords.length === 0) && !force) {
+      return { skipped: true, reason: 'No leech words detected' };
+    }
+
+    const wordsText = (leechWords.length > 0 ? leechWords : [
+      { word: 'reluctant', phonetic: '/rɪˈlʌk.tənt/', meaning_vi: 'Lưỡng lự, miễn cưỡng', examples: '["She was reluctant to leave."]' }
+    ]).map((w, i) => {
+      return `<b>${i + 1}. ${w.word.toUpperCase()}</b> <code>${w.phonetic || ''}</code>\n   🇻🇳 <i>${w.meaning_vi}</i>`;
+    }).join('\n\n');
+
+    const text = `
+💡🧠 <b>BÁO ĐỘNG TỪ CỨNG ĐẦU • AI MNEMONIC HINT</b> 🧠💡
+
+Hệ thống phát hiện một số từ vựng bạn <b>thường hay quên hoặc bấm lặp lại nhiều lần</b>:
+
+${wordsText}
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 <b>Mẹo nhớ siêu tốc (AI Association):</b>
+• Hãy liên tưởng từ với một hình ảnh ngộ nghĩnh hoặc tình huống thực tế trong ngày.
+• Đặt 1 câu văn cá nhân của chính bạn với từ này để ghim chặt vào bán cầu não phải.
+
+👉 <b>Mở Quiz thực chiến ngay:</b>
+    `.trim();
+
+    const buttons = [
+      [{ text: '⚡ Làm Quiz Củng Cố Ngay', callback_data: 'start_quiz_challenge' }]
+    ];
+
+    const result = await telegramService.sendMessageWithButtons(botToken, chatId, text, buttons);
+    return { success: true, sent: true, count: leechWords.length, result };
   }
 };
+

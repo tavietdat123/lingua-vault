@@ -1,17 +1,23 @@
 import { getDb } from '../db/database.js';
 import { telegramService } from './telegramService.js';
+import { systemAlarmService } from './systemAlarmService.js';
 
 let intervalTimer = null;
 let lastMorningSentDate = null;
+let lastLunchSentDate = null;
 let lastEveningSentDate = null;
+let lastStreakSaverSentDate = null;
+let lastWeeklyDigestSentDate = null;
+let hardcoreAlarmCountToday = 0;
+let lastHardcoreAlarmTimestamp = 0;
 
 export const schedulerService = {
   start: () => {
     if (intervalTimer) return;
 
-    console.log('⏰ [Scheduler] Telegram Dual-Schedule (Morning Due Recap & Evening Alert) initialized.');
+    console.log('⏰ [Scheduler] Full-Suite Smart Study Notification Scheduler initialized.');
 
-    // Check every 60 seconds
+    // Check every 20 seconds for precise time triggering
     intervalTimer = setInterval(async () => {
       try {
         const db = getDb();
@@ -22,19 +28,31 @@ export const schedulerService = {
         const currentMinutes = String(now.getMinutes()).padStart(2, '0');
         const currentTimeStr = `${currentHours}:${currentMinutes}`;
         const todayDateStr = now.toISOString().slice(0, 10);
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ...
+
+        // Reset daily counters on new day
+        if (lastEveningSentDate && lastEveningSentDate !== todayDateStr) {
+          hardcoreAlarmCountToday = 0;
+        }
 
         // 1. Morning Spaced Repetition Due Words Reminder (Default 08:30)
         const morningTimeRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_morning_time'").get();
         const morningTargetTime = morningTimeRow?.value || '08:30';
 
         if (currentTimeStr === morningTargetTime && lastMorningSentDate !== todayDateStr) {
-          console.log(`⏰ [Scheduler] Triggering Morning Spaced Repetition Due Words Digest at ${currentTimeStr}...`);
+          console.log(`⏰ [Scheduler] Triggering Morning Due Words Digest at ${currentTimeStr}...`);
           lastMorningSentDate = todayDateStr;
-          const morningResult = await telegramService.sendDueReviewReminder();
-          console.log('⏰ [Scheduler] Morning Due Digest result:', morningResult);
+          await telegramService.sendDueReviewReminder();
         }
 
-        // 2. Evening Daily Goal Progress & Hardcore Alarm Loop
+        // 2. Lunchtime Word of the Day (12:00)
+        if (currentTimeStr === '12:00' && lastLunchSentDate !== todayDateStr) {
+          console.log(`⏰ [Scheduler] Triggering Lunchtime Word of the Day at ${currentTimeStr}...`);
+          lastLunchSentDate = todayDateStr;
+          await telegramService.sendWordOfTheDay();
+        }
+
+        // 3. Evening Daily Goal Progress & Hardcore Alarm Loop (Default 20:00)
         const eveningTimeRow = db.prepare("SELECT value FROM settings WHERE key = 'telegram_reminder_time'").get();
         const eveningTargetTime = eveningTimeRow?.value || '20:00';
 
@@ -43,23 +61,51 @@ export const schedulerService = {
 
         // Check if we hit the primary evening time
         if (currentTimeStr === eveningTargetTime && lastEveningSentDate !== todayDateStr) {
-          console.log(`⏰ [Scheduler] Triggering Evening Study Progress Check at ${currentTimeStr}...`);
+          console.log(`⏰ [Scheduler] Triggering Evening Study Progress Check & System Alarm at ${currentTimeStr}...`);
           lastEveningSentDate = todayDateStr;
+          hardcoreAlarmCountToday = 1;
+          lastHardcoreAlarmTimestamp = Date.now();
+
+          // Trigger continuous system alarm at OS level!
+          systemAlarmService.startAlarm();
+
           if (isHardcore) {
             await telegramService.sendHardcoreAlarmMessage();
           } else {
             await telegramService.checkAndSendDailyReminder();
           }
-        } else if (isHardcore && currentTimeStr > eveningTargetTime && now.getHours() < 24) {
-          // Hardcore Mode: Repeat alarm every 10 minutes if goal is not yet met!
-          if (now.getMinutes() % 10 === 0 && now.getSeconds() < 60) {
+        } else if (isHardcore && currentTimeStr > eveningTargetTime && now.getHours() >= 19 && now.getHours() < 23) {
+          // Hardcore Mode: Repeat alarm at most 3 times per evening, spaced at least 30 minutes apart
+          const thirtyMinutesMs = 30 * 60 * 1000;
+          if (hardcoreAlarmCountToday < 3 && (Date.now() - lastHardcoreAlarmTimestamp >= thirtyMinutesMs)) {
             const progress = telegramService.getDailyProgress();
             if (!progress.isGoalMet) {
-              console.log(`🚨 [Scheduler] HARDCORE ALARM repeating at ${currentTimeStr} (Missing ${progress.remaining} words)...`);
+              console.log(`🚨 [Scheduler] HARDCORE ALARM reminder #${hardcoreAlarmCountToday + 1} at ${currentTimeStr} (Missing ${progress.remaining} words)...`);
+              hardcoreAlarmCountToday++;
+              lastHardcoreAlarmTimestamp = Date.now();
+              systemAlarmService.startAlarm();
               await telegramService.sendHardcoreAlarmMessage();
             }
           }
         }
+
+        // 4. Late-Night Streak Saver Warning (22:30)
+        if (currentTimeStr === '22:30' && lastStreakSaverSentDate !== todayDateStr) {
+          console.log(`🔥 [Scheduler] Checking Late-Night Streak Saver at ${currentTimeStr}...`);
+          lastStreakSaverSentDate = todayDateStr;
+          const progress = telegramService.getDailyProgress();
+          if (!progress.isGoalMet) {
+            await telegramService.sendStreakSaverWarning();
+          }
+        }
+
+        // 5. Sunday Morning Weekly Progress & Memory Digest (09:00 Sunday)
+        if (dayOfWeek === 0 && currentTimeStr === '09:00' && lastWeeklyDigestSentDate !== todayDateStr) {
+          console.log(`📈 [Scheduler] Triggering Sunday Weekly Digest at ${currentTimeStr}...`);
+          lastWeeklyDigestSentDate = todayDateStr;
+          await telegramService.sendWeeklyDigest();
+        }
+
       } catch (err) {
         console.error('⏰ [Scheduler Error]:', err.message);
       }

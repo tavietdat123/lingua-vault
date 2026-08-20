@@ -7,22 +7,29 @@ export default function PatternModal({ initialData = null, onClose, onSaved }) {
   const [formula, setFormula] = useState('');
   const [explanation, setExplanation] = useState('');
   const [meaningVi, setMeaningVi] = useState('');
-  const [tone, setTone] = useState('Neutral');
+  const [category, setCategory] = useState('emphasis');
+  const [categories, setCategories] = useState([]);
+  const [tone, setTone] = useState('Formal');
   const [examples, setExamples] = useState(['']);
-  const [tags, setTags] = useState('Grammar, Writing');
   
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
+    api.getPatternCategories().then(res => {
+      if (res.success && res.data) {
+        setCategories(res.data);
+      }
+    });
+
     if (initialData) {
       setName(initialData.name || '');
       setFormula(initialData.formula || '');
       setExplanation(initialData.explanation || '');
       setMeaningVi(initialData.meaning_vi || '');
-      setTone(initialData.tone || 'Neutral');
+      setCategory(initialData.category || 'emphasis');
+      setTone(initialData.tone || 'Formal');
       setExamples(initialData.examples?.length > 0 ? initialData.examples : ['']);
-      setTags(Array.isArray(initialData.tags) ? initialData.tags.join(', ') : 'Grammar');
     }
   }, [initialData]);
 
@@ -41,9 +48,10 @@ export default function PatternModal({ initialData = null, onClose, onSaved }) {
       formula: formula.trim(),
       explanation: explanation.trim(),
       meaning_vi: meaningVi.trim(),
+      category,
       tone,
       examples: examples.filter(ex => ex.trim() !== ''),
-      tags: tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
+      tags: []
     };
 
     try {
@@ -104,8 +112,8 @@ export default function PatternModal({ initialData = null, onClose, onSaved }) {
             </div>
           )}
 
-          {/* 1. Name & Tone */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+          {/* 1. Name & Category */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '0.75rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.3rem' }}>
                 Tên cấu trúc (Pattern Name) *
@@ -123,17 +131,30 @@ export default function PatternModal({ initialData = null, onClose, onSaved }) {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.3rem' }}>
-                Sắc thái (Tone)
+                Mục đích / Chức năng *
               </label>
               <select
                 className="input-control"
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
               >
-                <option value="Neutral">Neutral (Trung tính)</option>
-                <option value="Formal">Formal (Trang trọng)</option>
-                <option value="Daily / Business">Daily / Business (Công việc / Đời sống)</option>
-                <option value="Academic / Formal">Academic (Học thuật / IELTS)</option>
+                {categories.length > 0 ? (
+                  categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.emoji ? `${c.emoji} ` : ''}{c.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="emphasis">💥 Nhấn mạnh & Đảo ngữ</option>
+                    <option value="concession">⚖️ Nhượng bộ & Đối lập</option>
+                    <option value="purpose">🎯 Mục đích & Kết quả</option>
+                    <option value="condition">⚠️ Điều kiện & Giả định</option>
+                    <option value="opinion">💬 Khẳng định Quan điểm</option>
+                    <option value="sequence">⏳ Thời gian & Trình tự</option>
+                    <option value="advice">⏰ Khuyên bảo & Thúc giục</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -223,20 +244,7 @@ export default function PatternModal({ initialData = null, onClose, onSaved }) {
             ))}
           </div>
 
-          {/* 6. Tags */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
-              Thẻ phân loại (Tags)
-            </label>
-            <input
-              type="text"
-              className="input-control"
-              placeholder="IELTS, Speaking, Writing, Work..."
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              style={{ fontSize: '0.85rem' }}
-            />
-          </div>
+
 
           {/* Actions */}
           <div style={{

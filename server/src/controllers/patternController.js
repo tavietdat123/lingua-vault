@@ -2,17 +2,26 @@ import { db } from '../db/database.js';
 import crypto from 'node:crypto';
 
 export const patternController = {
-  // 1. Get all sentence patterns
+  // 1. Get all sentence patterns for specific account
   getAllPatterns: (req, res) => {
     try {
-      const { search, tone, tag } = req.query;
-      let query = 'SELECT * FROM patterns WHERE 1=1';
-      const params = [];
+      const userId = req.user?.id || 'admin_master_user_id';
+      const { search, category, tone } = req.query;
+      let query = `
+        SELECT * FROM patterns 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `;
+      const params = [userId, userId, userId];
 
       if (search) {
         query += ' AND (name LIKE ? OR formula LIKE ? OR meaning_vi LIKE ? OR explanation LIKE ?)';
         const term = `%${search}%`;
         params.push(term, term, term, term);
+      }
+
+      if (category && category !== 'all') {
+        query += ' AND category = ?';
+        params.push(category);
       }
 
       if (tone && tone !== 'all') {
@@ -27,13 +36,10 @@ export const patternController = {
 
       patterns = patterns.map(p => ({
         ...p,
+        category: p.category || 'emphasis',
         examples: JSON.parse(p.examples || '[]'),
         tags: JSON.parse(p.tags || '[]')
       }));
-
-      if (tag && tag !== 'all') {
-        patterns = patterns.filter(p => p.tags.includes(tag));
-      }
 
       res.json({ success: true, data: patterns });
     } catch (err) {
@@ -45,13 +51,18 @@ export const patternController = {
   getPatternById: (req, res) => {
     try {
       const { id } = req.params;
-      const stmt = db.prepare('SELECT * FROM patterns WHERE id = ?');
-      const pattern = stmt.get(id);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const stmt = db.prepare(`
+        SELECT * FROM patterns 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `);
+      const pattern = stmt.get(id, userId, userId);
 
       if (!pattern) {
         return res.status(404).json({ success: false, error: 'Không tìm thấy mẫu câu' });
       }
 
+      pattern.category = pattern.category || 'emphasis';
       pattern.examples = JSON.parse(pattern.examples || '[]');
       pattern.tags = JSON.parse(pattern.tags || '[]');
 
@@ -64,11 +75,13 @@ export const patternController = {
   // 3. Create pattern
   createPattern: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const {
         name,
         formula,
         explanation,
         meaning_vi,
+        category = 'emphasis',
         tone = 'Neutral',
         examples = [],
         tags = []
@@ -84,13 +97,13 @@ export const patternController = {
 
       const stmt = db.prepare(`
         INSERT INTO patterns (
-          id, name, formula, explanation, meaning_vi, tone,
+          id, name, formula, explanation, meaning_vi, category, tone,
           examples, tags, repetition, interval, ease_factor,
-          due_date, status, created_at, updated_at
+          due_date, status, created_at, updated_at, user_id
         ) VALUES (
-          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?,
           ?, ?, 0, 0, 2.5,
-          ?, 'new', ?, ?
+          ?, 'new', ?, ?, ?
         )
       `);
 
@@ -100,15 +113,17 @@ export const patternController = {
         formula.trim(),
         explanation || '',
         meaning_vi.trim(),
+        category || 'emphasis',
         tone,
         JSON.stringify(examples),
         JSON.stringify(tags),
         today,
         now,
-        now
+        now,
+        userId
       );
 
-      res.status(201).json({ success: true, data: { id, name, formula, status: 'new' } });
+      res.status(201).json({ success: true, data: { id, name, formula, category, status: 'new' } });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
@@ -118,14 +133,25 @@ export const patternController = {
   updatePattern: (req, res) => {
     try {
       const { id } = req.params;
+      const userId = req.user?.id || 'admin_master_user_id';
+      const existing = db.prepare(`
+        SELECT * FROM patterns 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `).get(id, userId, userId);
+
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Không tìm thấy mẫu câu' });
+      }
+
       const {
-        name,
-        formula,
-        explanation,
-        meaning_vi,
-        tone,
-        examples = [],
-        tags = []
+        name = existing.name,
+        formula = existing.formula,
+        explanation = existing.explanation,
+        meaning_vi = existing.meaning_vi,
+        category = existing.category || 'emphasis',
+        tone = existing.tone || 'Neutral',
+        examples = (req.body.examples !== undefined ? req.body.examples : JSON.parse(existing.examples || '[]')),
+        tags = (req.body.tags !== undefined ? req.body.tags : JSON.parse(existing.tags || '[]'))
       } = req.body;
 
       const now = new Date().toISOString();
@@ -133,20 +159,23 @@ export const patternController = {
       const stmt = db.prepare(`
         UPDATE patterns SET
           name = ?, formula = ?, explanation = ?, meaning_vi = ?,
-          tone = ?, examples = ?, tags = ?, updated_at = ?
-        WHERE id = ?
+          category = ?, tone = ?, examples = ?, tags = ?, updated_at = ?
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
       `);
 
       stmt.run(
-        name.trim(),
-        formula.trim(),
+        String(name || '').trim(),
+        String(formula || '').trim(),
         explanation || '',
-        meaning_vi.trim(),
+        String(meaning_vi || '').trim(),
+        category || 'emphasis',
         tone || 'Neutral',
-        JSON.stringify(examples),
-        JSON.stringify(tags),
+        typeof examples === 'string' ? examples : JSON.stringify(examples),
+        typeof tags === 'string' ? tags : JSON.stringify(tags),
         now,
-        id
+        id,
+        userId,
+        userId
       );
 
       res.json({ success: true, message: 'Cập nhật mẫu câu thành công' });
@@ -159,8 +188,12 @@ export const patternController = {
   deletePattern: (req, res) => {
     try {
       const { id } = req.params;
-      const stmt = db.prepare('DELETE FROM patterns WHERE id = ?');
-      stmt.run(id);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const stmt = db.prepare(`
+        DELETE FROM patterns 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `);
+      stmt.run(id, userId, userId);
       res.json({ success: true, message: 'Đã xóa mẫu câu' });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

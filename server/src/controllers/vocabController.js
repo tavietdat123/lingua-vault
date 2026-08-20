@@ -4,12 +4,16 @@ import { lookupDictionary } from '../services/dictionaryService.js';
 import { gamificationService } from '../services/gamificationService.js';
 
 export const vocabController = {
-  // 1. Get all words with search & filtering
+  // 1. Get all words with search & filtering for specific account
   getAllWords: (req, res) => {
     try {
-      const { search, tag, status, level } = req.query;
-      let query = 'SELECT * FROM words WHERE 1=1';
-      const params = [];
+      const userId = req.user?.id || 'admin_master_user_id';
+      const { search, tag, status, level, topic_id } = req.query;
+      let query = `
+        SELECT * FROM words 
+        WHERE (user_id = ? OR user_id IS NULL OR user_id = 'admin_master_user_id')
+      `;
+      const params = [userId];
 
       if (search) {
         query += ' AND (word LIKE ? OR meaning_vi LIKE ? OR meaning_en LIKE ?)';
@@ -27,6 +31,11 @@ export const vocabController = {
         params.push(level);
       }
 
+      if (topic_id && topic_id !== 'all') {
+        query += ' AND topic_id = ?';
+        params.push(topic_id);
+      }
+
       query += ' ORDER BY created_at DESC';
 
       const stmt = db.prepare(query);
@@ -35,6 +44,7 @@ export const vocabController = {
       // Parse JSON fields
       words = words.map(w => ({
         ...w,
+        topic_id: w.topic_id || 'daily',
         collocations: JSON.parse(w.collocations || '[]'),
         examples: JSON.parse(w.examples || '[]'),
         tags: JSON.parse(w.tags || '[]')
@@ -42,7 +52,7 @@ export const vocabController = {
 
       // Filter by tag if provided
       if (tag && tag !== 'all') {
-        words = words.filter(w => w.tags.includes(tag));
+        words = words.filter(w => w.tags.includes(tag) || w.topic_id === tag);
       }
 
       res.json({ success: true, data: words });
@@ -55,13 +65,18 @@ export const vocabController = {
   getWordById: (req, res) => {
     try {
       const { id } = req.params;
-      const stmt = db.prepare('SELECT * FROM words WHERE id = ?');
-      const word = stmt.get(id);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const stmt = db.prepare(`
+        SELECT * FROM words 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `);
+      const word = stmt.get(id, userId, userId);
 
       if (!word) {
         return res.status(404).json({ success: false, error: 'Không tìm thấy từ vựng' });
       }
 
+      word.topic_id = word.topic_id || 'daily';
       word.collocations = JSON.parse(word.collocations || '[]');
       word.examples = JSON.parse(word.examples || '[]');
       word.tags = JSON.parse(word.tags || '[]');
@@ -75,6 +90,7 @@ export const vocabController = {
   // 3. Create new word
   createWord: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const {
         word,
         phonetic,
@@ -85,7 +101,8 @@ export const vocabController = {
         collocations = [],
         examples = [],
         tags = [],
-        level = 'B1'
+        level = 'B1',
+        topic_id = 'daily'
       } = req.body;
 
       if (!word || !meaning_vi) {
@@ -100,11 +117,11 @@ export const vocabController = {
         INSERT INTO words (
           id, word, phonetic, audio_url, part_of_speech, meaning_vi, meaning_en,
           collocations, examples, tags, level, repetition, interval, ease_factor,
-          due_date, status, created_at, updated_at
+          due_date, status, created_at, updated_at, topic_id, user_id
         ) VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, 0, 0, 2.5,
-          ?, 'new', ?, ?
+          ?, 'new', ?, ?, ?, ?
         )
       `);
 
@@ -122,16 +139,18 @@ export const vocabController = {
         level,
         today,
         now,
-        now
+        now,
+        topic_id || 'daily',
+        userId
       );
 
       // Gamification: Reward +10 XP for adding new word
       let xpResult = null;
       try {
-        xpResult = gamificationService.addXp(10, `Thêm từ mới: ${word.trim()}`);
+        xpResult = gamificationService.addXp(userId, 10, `Thêm từ mới: ${word.trim()}`);
       } catch (e) {}
 
-      res.status(201).json({ success: true, data: { id, word, meaning_vi, status: 'new' }, gamification: xpResult });
+      res.status(201).json({ success: true, data: { id, word, meaning_vi, topic_id: topic_id || 'daily', status: 'new' }, gamification: xpResult });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
@@ -151,38 +170,54 @@ export const vocabController = {
         collocations = [],
         examples = [],
         tags = [],
-        level
+        level,
+        topic_id
       } = req.body;
 
       const now = new Date().toISOString();
+
+      const userId = req.user?.id || 'admin_master_user_id';
+      const existingWord = db.prepare(`
+        SELECT * FROM words 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `).get(id, userId, userId);
+
+      if (!existingWord) {
+        return res.status(404).json({ success: false, error: 'Không tìm thấy từ vựng' });
+      }
+
+      const finalTopicId = topic_id !== undefined ? topic_id : (existingWord.topic_id || 'daily');
 
       const stmt = db.prepare(`
         UPDATE words SET
           word = ?, phonetic = ?, audio_url = ?, part_of_speech = ?,
           meaning_vi = ?, meaning_en = ?, collocations = ?, examples = ?,
-          tags = ?, level = ?, updated_at = ?
-        WHERE id = ?
+          tags = ?, level = ?, updated_at = ?, topic_id = ?
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
       `);
 
       stmt.run(
-        word.trim(),
-        phonetic || '',
-        audio_url || '',
-        part_of_speech || 'noun',
-        meaning_vi.trim(),
-        meaning_en || '',
-        JSON.stringify(collocations),
-        JSON.stringify(examples),
-        JSON.stringify(tags),
-        level || 'B1',
+        word ? word.trim() : existingWord.word,
+        phonetic !== undefined ? phonetic : existingWord.phonetic,
+        audio_url !== undefined ? audio_url : existingWord.audio_url,
+        part_of_speech || existingWord.part_of_speech || 'noun',
+        meaning_vi ? meaning_vi.trim() : existingWord.meaning_vi,
+        meaning_en !== undefined ? meaning_en : existingWord.meaning_en,
+        JSON.stringify(collocations !== undefined ? collocations : JSON.parse(existingWord.collocations || '[]')),
+        JSON.stringify(examples !== undefined ? examples : JSON.parse(existingWord.examples || '[]')),
+        JSON.stringify(tags !== undefined ? tags : JSON.parse(existingWord.tags || '[]')),
+        level || existingWord.level || 'B1',
         now,
-        id
+        finalTopicId,
+        id,
+        userId,
+        userId
       );
 
       res.json({ 
         success: true, 
         message: 'Cập nhật từ vựng thành công',
-        data: { id, word: word.trim(), meaning_vi: meaning_vi.trim(), level: level || 'B1' }
+        data: { id, word: word?.trim() || existingWord.word, meaning_vi: meaning_vi?.trim() || existingWord.meaning_vi, level: level || existingWord.level, topic_id: finalTopicId }
       });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -193,8 +228,12 @@ export const vocabController = {
   deleteWord: (req, res) => {
     try {
       const { id } = req.params;
-      const stmt = db.prepare('DELETE FROM words WHERE id = ?');
-      stmt.run(id);
+      const userId = req.user?.id || 'admin_master_user_id';
+      const stmt = db.prepare(`
+        DELETE FROM words 
+        WHERE id = ? AND (user_id = ? OR user_id IS NULL OR ? = 'admin_master_user_id')
+      `);
+      stmt.run(id, userId, userId);
       res.json({ success: true, message: 'Đã xóa từ vựng' });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });

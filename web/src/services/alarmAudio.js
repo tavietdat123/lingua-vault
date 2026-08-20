@@ -36,7 +36,7 @@ class AlarmAudioService {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
 
-      gain.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
 
       osc.connect(gain);

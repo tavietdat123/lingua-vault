@@ -6,6 +6,44 @@
 import { db } from '../db/database.js';
 import { callGemini, getEffectiveApiKey } from './aiService.js';
 
+// Topic Identifier Mapping Helper
+export function inferTopic(word, partOfSpeech = '', meaningVi = '') {
+  const w = (word || '').toLowerCase();
+  const m = (meaningVi || '').toLowerCase();
+
+  // Tech & Engineering
+  if (/^(code|tech|data|software|cloud|api|dev|ai|scale|async|bug|server|cyber|network|crypto|algorithm|pipeline|deploy|refactor|idempotent|latency|deprecated|telemetry|robust|seamless)/i.test(w) ||
+      /(lập trình|mã nguồn|máy tính|dữ liệu|hạ tầng|thuật toán|phần mềm|công nghệ|mạng|đám mây)/i.test(m)) {
+    return 'tech';
+  }
+
+  // Work & Career
+  if (/^(work|job|career|business|market|lead|manage|leverage|streamline|delegate|prioritize|collaborate|facilitate|synergy|benchmark|deliverable|stakeholder|bottleneck|deadline|bandwidth|consensus|optimize|implement|negotiate|revenue|executive)/i.test(w) ||
+      /(công việc|sự nghiệp|kinh doanh|doanh nghiệp|lãnh đạo|quản lý|dự án|đàm phán|khách hàng|hợp đồng)/i.test(m)) {
+    return 'work';
+  }
+
+  // Academic & IELTS
+  if (/^(academic|ielts|essay|scrutiny|paradigm|cogent|esoteric|ubiquitous|procrastinate|conundrum|ameliorate|mitigate|eloquent|superfluous|versatile|vulnerable|ambiguous|comprehensive|indispensable|inevitable|feasible|prevalent|ephemeral|phenomenon|hypothesis)/i.test(w) ||
+      /(học thuật|nghiên cứu|luận văn|khảo sát|giả thuyết|phân tích sâu|hiện tượng|chứng minh)/i.test(m)) {
+    return 'ielts';
+  }
+
+  // Mindset & Psychology
+  if (/^(mindset|psych|resilient|serendipity|mindful|stoic|grit|growth|discipline|cognitive|perseverance|empathy|emotion|habit|lucid|introspection|philosophy)/i.test(w) ||
+      /(tư duy|tâm lý|cảm xúc|kiên cường|phát triển bản thân|thói quen|nhận thức|triết học|tinh thần)/i.test(m)) {
+    return 'mindset';
+  }
+
+  // Travel & Culture
+  if (/^(travel|trip|tour|itinerary|wanderlust|hospitality|breathtaking|picturesque|souvenir|destination|excursion|heritage|flight|hotel|explore)/i.test(w) ||
+      /(du lịch|khách sạn|chuyến bay|văn hóa|thắng cảnh|ẩm thực|hành trình|khám phá)/i.test(m)) {
+    return 'travel';
+  }
+
+  return 'daily';
+}
+
 // High-Yield Curated Learner's Lexicon for Instant, Flawless Results
 const CURATED_LEXICON = {
   resilient: {
@@ -25,7 +63,8 @@ const CURATED_LEXICON = {
       'The team remained remarkably resilient despite facing unexpected project delays. (Cả nhóm vẫn kiên cường đáng nể dù gặp phải những trì hoãn bất ngờ trong dự án.)',
       'Developing a resilient mindset is essential for long-term career success. (Rèn luyện tư duy kiên cường là điều cốt yếu để thành công lâu dài trong sự nghiệp.)'
     ],
-    level: 'B2'
+    level: 'B2',
+    topic_id: 'mindset'
   },
   articulate: {
     word: 'articulate',
@@ -44,7 +83,8 @@ const CURATED_LEXICON = {
       'She gave an articulate and persuasive presentation to the executive board. (Cô ấy đã có một bài thuyết trình lưu loát và đầy thuyết phục trước ban giám đốc.)',
       'Engineers must learn to articulate technical trade-offs to non-technical stakeholders. (Kỹ sư cần học cách diễn đạt gãy gọn các bài toán đánh đổi kỹ thuật cho các bên liên quan.)'
     ],
-    level: 'C1'
+    level: 'C1',
+    topic_id: 'work'
   },
   meticulous: {
     word: 'meticulous',
@@ -63,7 +103,8 @@ const CURATED_LEXICON = {
       'The database migration was executed with meticulous care without any downtime. (Quá trình chuyển đổi cơ sở dữ liệu đã được thực hiện với sự cẩn trọng tỉ mỉ mà không gây gián đoạn hệ thống.)',
       'His meticulous code reviews helped the engineering team prevent critical bugs. (Những lần rà soát mã nguồn tỉ mỉ của anh ấy đã giúp đội ngũ kỹ thuật ngăn chặn các lỗi nghiêm trọng.)'
     ],
-    level: 'C1'
+    level: 'C1',
+    topic_id: 'work'
   },
   pragmatic: {
     word: 'pragmatic',
@@ -82,7 +123,8 @@ const CURATED_LEXICON = {
       'We took a pragmatic approach to launch the minimum viable product within two weeks. (Chúng tôi đã áp dụng cách tiếp cận thực tế để ra mắt sản phẩm khả dụng tối thiểu trong vòng hai tuần.)',
       'Good software architecture requires pragmatic trade-offs over academic perfection. (Kiến trúc phần mềm tốt đòi hỏi những thỏa hiệp thực tế thay vì sự hoàn hảo trên lý thuyết.)'
     ],
-    level: 'C1'
+    level: 'C1',
+    topic_id: 'work'
   },
   leverage: {
     word: 'leverage',
@@ -101,7 +143,8 @@ const CURATED_LEXICON = {
       'Startups can leverage modern cloud infrastructure to scale rapidly at low cost. (Các công ty khởi nghiệp có thể tận dụng hạ tầng đám mây hiện đại để mở rộng nhanh với chi phí thấp.)',
       'The company leveraged its brand reputation to expand into international markets. (Công ty đã phát huy tối đa danh tiếng thương hiệu để mở rộng ra thị trường quốc tế.)'
     ],
-    level: 'B2'
+    level: 'B2',
+    topic_id: 'work'
   },
   streamline: {
     word: 'streamline',
@@ -120,7 +163,8 @@ const CURATED_LEXICON = {
       'The automated CI/CD pipeline streamlined our software release cycle significantly. (Quy trình tự động hóa CI/CD đã tinh giản chu kỳ phát hành phần mềm của chúng tôi một cách đáng kể.)',
       'We need to streamline customer support to resolve inquiries within minutes. (Chúng ta cần tinh giản quy trình hỗ trợ khách hàng để xử lý các yêu cầu chỉ trong vài phút.)'
     ],
-    level: 'B2'
+    level: 'B2',
+    topic_id: 'work'
   },
   ubiquitous: {
     word: 'ubiquitous',
@@ -138,7 +182,8 @@ const CURATED_LEXICON = {
       'Smartphones have become ubiquitous in modern society. (Điện thoại thông minh đã trở nên phổ biến ở khắp mọi ngõ ngách của xã hội hiện đại.)',
       'High-speed internet is now a ubiquitous utility in urban areas. (Internet tốc độ cao giờ đây là tiện ích có mặt khắp nơi tại các khu đô thị.)'
     ],
-    level: 'C1'
+    level: 'C1',
+    topic_id: 'tech'
   },
   lucid: {
     word: 'lucid',
@@ -156,7 +201,182 @@ const CURATED_LEXICON = {
       'The author provided a lucid explanation of complex quantum physics concepts. (Tác giả đã đưa ra một lời giải thích cực kỳ sáng rõ về các khái niệm vật lý lượng tử phức tạp.)',
       'Even in stressful situations, she maintained a lucid and composed perspective. (Ngay cả trong những tình huống áp lực, cô ấy vẫn giữ được cái nhìn sáng suốt và bình tĩnh.)'
     ],
-    level: 'C1'
+    level: 'C1',
+    topic_id: 'mindset'
+  },
+  serendipity: {
+    word: 'serendipity',
+    phonetic: '/ˌser.ənˈdɪp.ə.t̬i/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/serendipity-us.mp3',
+    part_of_speech: 'noun',
+    meaning_vi: 'Sự tình cờ may mắn (cơ duyên tìm thấy điều tốt đẹp bất ngờ)',
+    meaning_en: 'The occurrence and development of events by chance in a happy or beneficial way.',
+    collocations: [
+      'pure serendipity (hoàn toàn là sự tình cờ may mắn)',
+      'moment of serendipity (khoảnh khắc may mắn tình cờ)',
+      'serendipity and fate (duyên may và định mệnh)'
+    ],
+    examples: [
+      'Discovering penicillin was a famous example of scientific serendipity. (Việc phát hiện ra penicillin là một ví dụ nổi tiếng về sự tình cờ may mắn trong khoa học.)',
+      'They met by pure serendipity at an airport terminal in Tokyo. (Họ đã gặp nhau hoàn toàn do sự tình cờ may mắn tại nhà ga sân bay ở Tokyo.)'
+    ],
+    level: 'C2',
+    topic_id: 'mindset'
+  },
+  procrastinate: {
+    word: 'procrastinate',
+    phonetic: '/prəˈkræs.tə.neɪt/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/procrastinate-us.mp3',
+    part_of_speech: 'verb',
+    meaning_vi: 'Trì hoãn, chần chừ (thói quen lần lữa công việc đến phút chót)',
+    meaning_en: 'To delay doing something that you should do, often because it is unpleasant or boring.',
+    collocations: [
+      'tend to procrastinate (có xu hướng trì hoãn)',
+      'procrastinate on tasks (trì hoãn nhiệm vụ)',
+      'stop procrastinating (ngừng chần chừ)'
+    ],
+    examples: [
+      'I tend to procrastinate whenever I have to write a lengthy report. (Tôi thường có xu hướng trì hoãn mỗi khi phải viết một bản báo cáo dài dòng.)',
+      'Do not procrastinate on important decisions that shape your career. (Đừng lần lữa trước những quyết định quan trọng định hình sự nghiệp của bạn.)'
+    ],
+    level: 'B2',
+    topic_id: 'mindset'
+  },
+  ephemeral: {
+    word: 'ephemeral',
+    phonetic: '/əˈfem.ər.əl/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/ephemeral-us.mp3',
+    part_of_speech: 'adjective',
+    meaning_vi: 'Phù du, ngắn ngủi, chóng tàn (chỉ tồn tại trong thoáng chốc)',
+    meaning_en: 'Lasting for a very short time.',
+    collocations: [
+      'ephemeral pleasure (niềm vui thoáng qua)',
+      'ephemeral nature (bản chất phù du)',
+      'ephemeral fame (danh tiếng nhất thời)'
+    ],
+    examples: [
+      'Fame on social media is often ephemeral and fades quickly. (Sự nổi tiếng trên mạng xã hội thường chỉ là phù du và phai tàn rất nhanh.)',
+      'The beauty of cherry blossoms is ephemeral yet deeply cherished. (Vẻ đẹp của hoa anh đào tuy ngắn ngủi nhưng lại được vô cùng trân quý.)'
+    ],
+    level: 'C2',
+    topic_id: 'ielts'
+  },
+  'take for granted': {
+    word: 'take for granted',
+    phonetic: '/teɪk fɔːr ˈɡræn.tɪd/',
+    audio_url: '',
+    part_of_speech: 'phrase',
+    meaning_vi: 'Coi điều gì đó là hiển nhiên (không biết trân trọng giá trị sẵn có)',
+    meaning_en: 'To fail to properly appreciate someone or something, especially as a result of overfamiliarity.',
+    collocations: [
+      'take things for granted (coi mọi thứ là điều hiển nhiên)',
+      'take someone for granted (không trân trọng một ai đó)',
+      'never take it for granted (không bao giờ coi đó là hiển nhiên)'
+    ],
+    examples: [
+      'We often take good health for granted until we fall seriously ill. (Chúng ta thường coi sức khỏe tốt là điều hiển nhiên cho đến khi đổ bệnh nặng.)',
+      'Never take the support of your loyal colleagues for granted. (Đừng bao giờ xem nhẹ và coi sự ủng hộ của các đồng nghiệp trung thành là điều hiển nhiên.)'
+    ],
+    level: 'B2',
+    topic_id: 'daily'
+  },
+  sustainable: {
+    word: 'sustainable',
+    phonetic: '/səˈsteɪ.nə.bəl/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/sustainable-us.mp3',
+    part_of_speech: 'adjective',
+    meaning_vi: 'Bền vững (có thể duy trì lâu dài mà không gây cạn kiệt tài nguyên)',
+    meaning_en: 'Able to be maintained at a certain rate or level without exhausting resources.',
+    collocations: [
+      'sustainable development (phát triển bền vững)',
+      'sustainable energy (năng lượng bền vững)',
+      'sustainable practice (thực tiễn bền vững)',
+      'sustainable growth (tăng trưởng bền vững)'
+    ],
+    examples: [
+      'Companies must adopt sustainable business practices to protect the environment. (Các công ty phải áp dụng các phương thức kinh doanh bền vững để bảo vệ môi trường.)',
+      'Sustainable economic growth benefits both the current and future generations. (Tăng trưởng kinh tế bền vững mang lại lợi ích cho cả thế hệ hiện tại và tương lai.)'
+    ],
+    level: 'B2',
+    topic_id: 'work'
+  },
+  scalable: {
+    word: 'scalable',
+    phonetic: '/ˈskeɪ.lə.bəl/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/scalable-us.mp3',
+    part_of_speech: 'adjective',
+    meaning_vi: 'Có khả năng mở rộng (hệ thống có thể tải lớn mà không suy giảm hiệu năng)',
+    meaning_en: 'Able to be changed in size or scale; able to handle a growing amount of work or customers.',
+    collocations: [
+      'scalable architecture (kiến trúc có khả năng mở rộng)',
+      'scalable solution (giải pháp có thể mở rộng)',
+      'highly scalable (khả năng mở rộng rất cao)',
+      'scalable infrastructure (hạ tầng có khả năng mở rộng)'
+    ],
+    examples: [
+      'We built a scalable microservices backend capable of serving millions of concurrent requests. (Chúng tôi đã xây dựng hạ tầng microservices có khả năng mở rộng để phục vụ hàng triệu yêu cầu đồng thời.)',
+      'Cloud technology provides businesses with flexible, scalable computing resources. (Công nghệ đám mây cung cấp cho doanh nghiệp nguồn tài nguyên máy tính linh hoạt và có khả năng mở rộng.)'
+    ],
+    level: 'B2',
+    topic_id: 'tech'
+  },
+  mindfulness: {
+    word: 'mindfulness',
+    phonetic: '/ˈmaɪnd.fəl.nəs/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/mindfulness-us.mp3',
+    part_of_speech: 'noun',
+    meaning_vi: 'Chánh niệm, sự tỉnh thức (trạng thái nhận biết trọn vẹn hiện tại)',
+    meaning_en: 'The practice of maintaining a nonjudgmental state of heightened or complete awareness of one’s thoughts, emotions, or experiences on a moment-to-moment basis.',
+    collocations: [
+      'practice mindfulness (thực hành chánh niệm)',
+      'mindfulness meditation (thiền chánh niệm)',
+      'mindfulness in daily life (chánh niệm trong đời sống)'
+    ],
+    examples: [
+      'Practicing mindfulness for ten minutes every morning can reduce stress noticeably. (Thực hành chánh niệm mười phút mỗi sáng có thể giúp giảm căng thẳng rõ rệt.)',
+      'Mindfulness allows professionals to stay calm and focused under intense pressure. (Sự tỉnh thức giúp các chuyên gia giữ được bình tĩnh và tập trung dưới áp lực cao.)'
+    ],
+    level: 'B2',
+    topic_id: 'mindset'
+  },
+  itinerary: {
+    word: 'itinerary',
+    phonetic: '/aɪˈtɪn.ə.rer.i/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/itinerary-us.mp3',
+    part_of_speech: 'noun',
+    meaning_vi: 'Lịch trình, hành trình chi tiết (kế hoạch chuyến đi theo từng ngày)',
+    meaning_en: 'A planned route or journey with a detailed list of places to visit and times.',
+    collocations: [
+      'travel itinerary (lịch trình du lịch)',
+      'plan an itinerary (lên lịch trình)',
+      'detailed itinerary (lịch trình chi tiết)',
+      'flexible itinerary (lịch trình linh hoạt)'
+    ],
+    examples: [
+      'We followed a detailed itinerary covering five major cities in Japan over ten days. (Chúng tôi đã đi theo một lịch trình chi tiết khám phá năm thành phố lớn tại Nhật Bản trong mười ngày.)',
+      'The tour guide handed out the official itinerary to all travelers at the airport. (Hướng dẫn viên du lịch đã phát lịch trình chính thức cho tất cả du khách tại sân bay.)'
+    ],
+    level: 'B2',
+    topic_id: 'travel'
+  },
+  wanderlust: {
+    word: 'wanderlust',
+    phonetic: '/ˈwɑːn.dɚ.lʌst/',
+    audio_url: 'https://api.dictionaryapi.dev/media/pronunciations/en/wanderlust-us.mp3',
+    part_of_speech: 'noun',
+    meaning_vi: 'Niềm đam mê xê dịch, khát khao đi du lịch khám phá khắp thế giới',
+    meaning_en: 'A strong desire to travel and explore the world.',
+    collocations: [
+      'filled with wanderlust (tràn ngập niềm đam mê xê dịch)',
+      'cure one’s wanderlust (thỏa mãn khát khao du lịch)',
+      'sense of wanderlust (cảm giác muốn xách balo lên và đi)'
+    ],
+    examples: [
+      'Her deep sense of wanderlust led her to backpack across Southeast Asia for a whole year. (Niềm đam mê xê dịch sâu sắc đã thôi thúc cô ấy đi du lịch bụi khắp Đông Nam Á trong suốt một năm.)',
+      'Seeing photos of remote mountain ranges always sparks my wanderlust. (Nhìn ngắm những bức ảnh về các dãy núi hoang sơ luôn khơi dậy trong tôi niềm đam mê khám phá thế giới.)'
+    ],
+    level: 'C1',
+    topic_id: 'travel'
   }
 };
 
@@ -169,7 +389,11 @@ export async function lookupDictionary(word) {
 
   // 1. Check if word exists in Curated High-Yield Lexicon
   if (CURATED_LEXICON[cleanWord]) {
-    return CURATED_LEXICON[cleanWord];
+    const item = CURATED_LEXICON[cleanWord];
+    return {
+      ...item,
+      topic_id: item.topic_id || inferTopic(item.word, item.part_of_speech, item.meaning_vi)
+    };
   }
 
   // 2. Check if Gemini API Key is configured
@@ -186,10 +410,17 @@ YÊU CẦU BIÊN SOẠN CHUẨN XÁC:
 1. "meaning_vi": Nghĩa tiếng Việt PHẢI chuẩn xác, súc tích, tự nhiên, truyền tải đúng sắc thái cốt lõi của từ (kèm giải thích ngắn trong ngoặc nếu cần làm rõ ngữ cảnh). KHÔNG dịch máy thô sơ.
 2. "meaning_en": Định nghĩa bằng tiếng Anh súc tích, dễ hiểu theo phong cách Oxford/Cambridge Learner (dùng từ vựng giải thích đơn giản, rõ ràng).
 3. "phonetic": Phiên âm chuẩn quốc tế IPA (Anh - Mỹ) có đánh dấu trọng âm chuẩn (ví dụ: /ˈæp.əl/ hoặc /rɪˈzɪl.i.ənt/).
-4. "part_of_speech": Từ loại chuẩn (noun / verb / adjective / adverb / phrasal_verb / idiom / phrase).
+4. "part_of_speech": Từ loại chuẩn (chỉ chọn 1 trong: noun, verb, adjective, adverb, phrasal_verb, idiom, phrase).
 5. "collocations": 3-4 cụm từ / collocation tự nhiên, phổ biến nhất đi kèm với từ này. MỖI CỤM PHẢI KÈM NGHĨA TIẾNG VIỆT TRONG NGOẶC (Ví dụ: "resilient mindset (tư duy kiên cường)").
 6. "examples": Đúng 2 câu ví dụ thực tế trong đời sống/công việc/học thuật. MỖI CÂU VÍ DỤ PHẢI KÈM BẢN DỊCH TIẾNG VIỆT TỰ NHIÊN TRONG NGOẶC ĐƠN (Ví dụ: "She gave a lucid explanation. (Cô ấy đã đưa ra một lời giải thích sáng rõ.)").
 7. "level": Đánh giá cấp độ CEFR chuẩn xác (A1, A2, B1, B2, C1, hoặc C2).
+8. "topic_id": Chọn đúng 1 mã chủ đề phù hợp nhất trong 6 mã sau:
+   - "work" (Công việc, đàm phán, email, quản lý, nghề nghiệp)
+   - "tech" (Công nghệ, IT, phần mềm, dữ liệu, kỹ thuật)
+   - "ielts" (Học thuật, bài luận, IELTS Band cao, nghiên cứu)
+   - "daily" (Giao tiếp hàng ngày, đời sống, quán xá, sinh hoạt)
+   - "travel" (Du lịch, khách sạn, sân bay, văn hóa, ẩm thực)
+   - "mindset" (Tâm lý, tư duy, phát triển bản thân, triết học)
 
 Trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`json ngoài JSON):
 {
@@ -207,7 +438,8 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`
     "English sentence 1. (Dịch nghĩa tiếng Việt 1.)",
     "English sentence 2. (Dịch nghĩa tiếng Việt 2.)"
   ],
-  "level": "B2"
+  "level": "B2",
+  "topic_id": "work"
 }
 `.trim();
 
@@ -236,7 +468,8 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`
 
       return {
         ...aiData,
-        audio_url: audioUrl
+        audio_url: audioUrl || '',
+        topic_id: aiData.topic_id || inferTopic(aiData.word, aiData.part_of_speech, aiData.meaning_vi)
       };
     } catch (err) {
       console.warn('⚠️ Gemini AI lookup fallback to dictionary:', err.message);
@@ -356,15 +589,19 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`
   else if (c1Words.includes(cleanWord) || cleanWord.endsWith('tion') && cleanWord.length > 10 || cleanWord.endsWith('ous') || cleanWord.endsWith('ic')) level = 'B2';
   if (cleanWord.length >= 11) level = 'C1';
 
+  const finalMeaningVi = meaningVi ? (meaningVi.charAt(0).toUpperCase() + meaningVi.slice(1)) : 'Tra cứu thêm để cập nhật nghĩa';
+  const inferredTopic = inferTopic(cleanWord, partOfSpeech, finalMeaningVi);
+
   return {
     word: cleanWord,
     phonetic: phonetic || `/${cleanWord}/`,
     audio_url: audioUrl,
     part_of_speech: partOfSpeech,
-    meaning_vi: meaningVi ? (meaningVi.charAt(0).toUpperCase() + meaningVi.slice(1)) : 'Tra cứu thêm để cập nhật nghĩa',
+    meaning_vi: finalMeaningVi,
     meaning_en: meaningEn || `Definition and common usage of ${cleanWord}`,
     examples: formattedExamples.slice(0, 2),
     collocations: collocations.length > 0 ? collocations : [`use ${cleanWord}`, `apply ${cleanWord}`],
-    level
+    level,
+    topic_id: inferredTopic
   };
 }

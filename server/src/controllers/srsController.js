@@ -1,41 +1,46 @@
 import { db } from '../db/database.js';
-import { calculateNextSRS } from '../services/srsAlgorithm.js';
+import { calculateNextSRS, previewNextIntervals } from '../services/srsAlgorithm.js';
 import crypto from 'node:crypto';
 import { gamificationService } from '../services/gamificationService.js';
 
 export const srsController = {
-  // 1. Get all items due for review today
+  // 1. Get all items due for review today for specific account
   getDueItems: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const today = new Date().toISOString().split('T')[0];
 
       // Due words
       const wordsStmt = db.prepare(`
         SELECT * FROM words
-        WHERE due_date <= ? OR due_date IS NULL
+        WHERE (due_date <= ? OR due_date IS NULL)
+          AND (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
         ORDER BY status ASC, repetition ASC
       `);
-      let words = wordsStmt.all(today);
+      let words = wordsStmt.all(today, userId, userId, userId);
       words = words.map(w => ({
         ...w,
         type: 'word',
         collocations: JSON.parse(w.collocations || '[]'),
         examples: JSON.parse(w.examples || '[]'),
-        tags: JSON.parse(w.tags || '[]')
+        tags: JSON.parse(w.tags || '[]'),
+        previewIntervals: previewNextIntervals(w)
       }));
 
       // Due patterns
       const patternsStmt = db.prepare(`
         SELECT * FROM patterns
-        WHERE due_date <= ? OR due_date IS NULL
+        WHERE (due_date <= ? OR due_date IS NULL)
+          AND (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
         ORDER BY status ASC, repetition ASC
       `);
-      let patterns = patternsStmt.all(today);
+      let patterns = patternsStmt.all(today, userId, userId, userId);
       patterns = patterns.map(p => ({
         ...p,
         type: 'pattern',
         examples: JSON.parse(p.examples || '[]'),
-        tags: JSON.parse(p.tags || '[]')
+        tags: JSON.parse(p.tags || '[]'),
+        previewIntervals: previewNextIntervals(p)
       }));
 
       res.json({
@@ -57,6 +62,7 @@ export const srsController = {
   // 2. Submit SRS Review for a Word or Pattern
   submitReview: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const { id, type = 'word', rating = 'good' } = req.body;
 
       if (!id) {
@@ -75,10 +81,13 @@ export const srsController = {
       const nextSRS = calculateNextSRS({
         repetition: item.repetition,
         interval: item.interval,
-        easeFactor: item.ease_factor
-      }, rating);
+        easeFactor: item.ease_factor,
+        rating
+      });
 
-      // Update in DB
+      const now = new Date().toISOString();
+
+      // Update Word / Pattern record
       const updateStmt = db.prepare(`
         UPDATE ${table} SET
           repetition = ?,
@@ -91,7 +100,6 @@ export const srsController = {
         WHERE id = ?
       `);
 
-      const now = new Date().toISOString();
       updateStmt.run(
         nextSRS.repetition,
         nextSRS.interval,
@@ -103,31 +111,30 @@ export const srsController = {
         id
       );
 
-      // Update today's study log (for daily streak tracking)
+      // Record daily study log for specific account
       const today = now.split('T')[0];
-      const logStmt = db.prepare('SELECT * FROM study_logs WHERE date = ?');
-      const log = logStmt.get(today);
+      const logId = `${userId}_${today}`;
+      const existingLog = db.prepare('SELECT * FROM study_logs WHERE (id = ? OR (date = ? AND user_id = ?))').get(logId, today, userId);
 
-      if (log) {
+      if (existingLog) {
         const updateLog = db.prepare(`
-          UPDATE study_logs SET
-            reviews_count = reviews_count + 1
-          WHERE date = ?
+          UPDATE study_logs 
+          SET reviews_count = reviews_count + 1
+          WHERE id = ?
         `);
-        updateLog.run(today);
+        updateLog.run(existingLog.id);
       } else {
-        const logId = crypto.randomUUID();
         const insertLog = db.prepare(`
-          INSERT INTO study_logs (id, date, reviews_count, new_words_count, duration_seconds, created_at)
-          VALUES (?, ?, 1, 0, 0, ?)
+          INSERT INTO study_logs (id, date, reviews_count, new_words_count, duration_seconds, created_at, user_id)
+          VALUES (?, ?, 1, 0, 0, ?, ?)
         `);
-        insertLog.run(logId, today, now);
+        insertLog.run(logId, today, now, userId);
       }
 
       // Gamification: Reward +15 XP for SRS review
       let xpResult = null;
       try {
-        xpResult = gamificationService.addXp(15, `Ôn tập thẻ SM-2: ${item.word || item.name || ''}`);
+        xpResult = gamificationService.addXp(userId, 15, `Ôn tập thẻ SM-2: ${item.word || item.name || ''}`);
       } catch (e) {}
 
       res.json({
@@ -141,12 +148,13 @@ export const srsController = {
     }
   },
 
-  // 3. Get Overview Stats & Daily Streak
+  // 3. Get Overview Stats & Daily Streak for specific account
   getStats: (req, res) => {
     try {
+      const userId = req.user?.id || 'admin_master_user_id';
       const today = new Date().toISOString().split('T')[0];
 
-      // Total words & status count
+      // Total words & status count for specific user
       const wordsCountStmt = db.prepare(`
         SELECT 
           COUNT(*) as total,
@@ -156,26 +164,35 @@ export const srsController = {
           SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
           SUM(CASE WHEN due_date <= ? THEN 1 ELSE 0 END) as due_today
         FROM words
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
       `);
-      const wordStats = wordsCountStmt.get(today);
+      const wordStats = wordsCountStmt.get(today, userId, userId, userId) || {};
 
-      // Patterns stats
+      // Patterns stats for specific user
       const patternsCountStmt = db.prepare(`
         SELECT 
           COUNT(*) as total,
           SUM(CASE WHEN status = 'mastered' THEN 1 ELSE 0 END) as mastered,
           SUM(CASE WHEN due_date <= ? THEN 1 ELSE 0 END) as due_today
         FROM patterns
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
       `);
-      const patternStats = patternsCountStmt.get(today);
+      const patternStats = patternsCountStmt.get(today, userId, userId, userId) || {};
 
-      // Notes count
-      const notesCountStmt = db.prepare('SELECT COUNT(*) as total FROM notes');
-      const noteStats = notesCountStmt.get();
+      // Notes count for specific user
+      const notesCountStmt = db.prepare(`
+        SELECT COUNT(*) as total FROM notes
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+      `);
+      const noteStats = notesCountStmt.get(userId, userId, userId) || {};
 
-      // Calculate Daily Streak from study_logs
-      const logsStmt = db.prepare('SELECT date, reviews_count FROM study_logs ORDER BY date DESC LIMIT 30');
-      const logs = logsStmt.all();
+      // Calculate Daily Streak from study_logs for specific user
+      const logsStmt = db.prepare(`
+        SELECT date, reviews_count FROM study_logs 
+        WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+        ORDER BY date DESC LIMIT 30
+      `);
+      const logs = logsStmt.all(userId, userId, userId);
 
       let streak = 0;
       let checkDate = new Date();

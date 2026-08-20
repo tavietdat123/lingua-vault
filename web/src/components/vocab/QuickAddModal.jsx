@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Volume2, Plus, Trash2, Loader2, Check, Eye } from 'lucide-react';
+import { X, Sparkles, Volume2, Plus, Trash2, Loader2, Check, Eye, RotateCw } from 'lucide-react';
 import { api } from '../../services/api';
 import { playAudio } from '../../services/audioService';
 
-export default function QuickAddModal({ initialData = null, onClose, onSaved }) {
+export default function QuickAddModal({ initialData = null, topics = [], onClose, onSaved }) {
   const [word, setWord] = useState('');
   const [phonetic, setPhonetic] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
   const [partOfSpeech, setPartOfSpeech] = useState('noun');
+  const [topicId, setTopicId] = useState('daily');
   const [meaningVi, setMeaningVi] = useState('');
   const [meaningEn, setMeaningEn] = useState('');
   const [collocations, setCollocations] = useState(['']);
   const [examples, setExamples] = useState(['']);
-  const [tags, setTags] = useState('Daily, Work');
   const [level, setLevel] = useState('B2');
   
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -27,11 +27,11 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
       setPhonetic(initialData.phonetic || '');
       setAudioUrl(initialData.audio_url || '');
       setPartOfSpeech(initialData.part_of_speech || 'noun');
+      setTopicId(initialData.topic_id || 'daily');
       setMeaningVi(initialData.meaning_vi || '');
       setMeaningEn(initialData.meaning_en || '');
       setCollocations(initialData.collocations?.length > 0 ? initialData.collocations : ['']);
       setExamples(initialData.examples?.length > 0 ? initialData.examples : ['']);
-      setTags(Array.isArray(initialData.tags) ? initialData.tags.join(', ') : 'Daily');
       setLevel(initialData.level || 'B2');
 
       if (initialData.word && !initialData.id && !initialData.meaning_vi) {
@@ -59,6 +59,7 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
         if (d.phonetic) setPhonetic(d.phonetic);
         if (d.audio_url) setAudioUrl(d.audio_url);
         if (d.part_of_speech) setPartOfSpeech(d.part_of_speech);
+        if (d.topic_id) setTopicId(d.topic_id);
         if (d.meaning_vi) setMeaningVi(d.meaning_vi);
         if (d.meaning_en) setMeaningEn(d.meaning_en);
         if (d.level) setLevel(d.level);
@@ -110,8 +111,8 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
       meaning_en: meaningEn.trim(),
       collocations: collocations.filter(c => c.trim() !== ''),
       examples: examples.filter(ex => ex.trim() !== ''),
-      tags: tags.split(',').map(t => t.trim()).filter(t => t.length > 0),
-      level
+      level,
+      topic_id: topicId || 'daily'
     };
 
     try {
@@ -258,8 +259,8 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
               </div>
             </div>
 
-            {/* 2. Phonetic, Part of Speech, Level */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '0.65rem' }}>
+            {/* 2. Phonetic, Part of Speech, Level, Topic */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.3fr', gap: '0.65rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
                   Phiên âm (IPA)
@@ -321,6 +322,33 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
                   <option value="B2">B2 (Khá)</option>
                   <option value="C1">C1 (Nâng cao)</option>
                   <option value="C2">C2 (Bản ngữ)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                  Chủ đề (Topic)
+                </label>
+                <select
+                  className="input-control"
+                  value={topicId}
+                  onChange={(e) => setTopicId(e.target.value)}
+                  style={{ fontSize: '0.85rem', fontWeight: 600 }}
+                >
+                  {topics.length > 0 ? (
+                    topics.map(t => (
+                      <option key={t.id} value={t.id}>{t.emoji || '📁'} {t.name}</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="work">💼 Công việc & Sự nghiệp</option>
+                      <option value="tech">💻 Công nghệ & Kỹ thuật</option>
+                      <option value="ielts">🎓 Học thuật & IELTS</option>
+                      <option value="daily">☕ Giao tiếp Hàng ngày</option>
+                      <option value="travel">✈️ Du lịch & Văn hóa</option>
+                      <option value="mindset">🧠 Tâm lý & Tư duy</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
@@ -435,21 +463,6 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
               ))}
             </div>
 
-            {/* 6. Tags */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
-                Thẻ phân loại (Tags)
-              </label>
-              <input
-                type="text"
-                className="input-control"
-                placeholder="Work, IELTS, Tech, Daily, Email..."
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                style={{ fontSize: '0.85rem' }}
-              />
-            </div>
-
             {/* Form Actions */}
             <div style={{
               display: 'flex',
@@ -554,8 +567,9 @@ export default function QuickAddModal({ initialData = null, onClose, onSaved }) 
                 </div>
               )}
 
-              <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                💡 Thẻ sẽ xuất hiện như thế này khi bạn ôn tập SRS
+              <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                <RotateCw size={12} />
+                <span>Thẻ sẽ xuất hiện như thế này khi bạn ôn tập SRS</span>
               </div>
             </div>
           </div>

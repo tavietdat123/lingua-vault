@@ -80,11 +80,10 @@ export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
   const targetLang = lang || globalAudioAccent;
   const isUK = targetLang === 'en-GB';
 
-  // If direct MP3 audio URL exists
+  // 1. If direct MP3 audio URL exists
   if (audioUrl && audioUrl.trim()) {
     let matchedAudioUrl = audioUrl;
 
-    // If user prefers UK and URL is US, try UK MP3 counterpart
     if (isUK && audioUrl.includes('-us.mp3')) {
       matchedAudioUrl = audioUrl.replace('-us.mp3', '-uk.mp3');
     } else if (!isUK && audioUrl.includes('-uk.mp3')) {
@@ -95,7 +94,6 @@ export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
       const audio = new Audio(matchedAudioUrl);
       audio.playbackRate = targetRate;
       audio.play().catch(() => {
-        // Fallback to synthesis voice if custom accent MP3 does not exist
         speakText(text, targetLang, targetRate);
       });
       return;
@@ -104,7 +102,23 @@ export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
     }
   }
 
-  // Web Speech Synthesis API
+  // 2. High-Definition Studio Audio Stream
+  if (text && text.trim()) {
+    try {
+      const ttsUrl = `/api/audio/tts?text=${encodeURIComponent(text.substring(0, 350).trim())}&lang=${encodeURIComponent(targetLang)}`;
+      const audio = new Audio(ttsUrl);
+      audio.playbackRate = targetRate;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          speakText(text, targetLang, targetRate);
+        });
+      }
+      return;
+    } catch (e) {}
+  }
+
+  // 3. Fallback Web Speech Synthesis API
   speakText(text, targetLang, targetRate);
 };
 
@@ -133,11 +147,142 @@ export const speakText = (text, lang = null, rate = null) => {
   window.speechSynthesis.speak(utterance);
 };
 
+// ==========================================
+// 🎮 Web Audio Synthesizer Sound Effects (Game & Quiz)
+// ==========================================
+let sfxAudioCtx = null;
+
+const getSfxAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  if (!sfxAudioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      sfxAudioCtx = new AudioContext();
+    }
+  }
+  if (sfxAudioCtx && sfxAudioCtx.state === 'suspended') {
+    sfxAudioCtx.resume();
+  }
+  return sfxAudioCtx;
+};
+
+export const playTapSound = () => {
+  try {
+    const ctx = getSfxAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
+  } catch (e) {}
+};
+
+export const playCorrectSound = () => {
+  try {
+    const ctx = getSfxAudioContext();
+    if (!ctx) return;
+    const notes = [523.25, 783.99, 1046.50]; // C5 -> G5 -> C6
+    notes.forEach((freq, idx) => {
+      setTimeout(() => {
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.28, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        } catch (e) {}
+      }, idx * 65);
+    });
+  } catch (e) {}
+};
+
+export const playWrongSound = () => {
+  try {
+    const ctx = getSfxAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (e) {}
+};
+
+export const playStreakSound = (combo = 3) => {
+  try {
+    const ctx = getSfxAudioContext();
+    if (!ctx) return;
+    const baseNotes = [440, 554.37, 659.25, 880]; // A major arpeggio
+    baseNotes.forEach((freq, idx) => {
+      setTimeout(() => {
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.32, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.28);
+        } catch (e) {}
+      }, idx * 60);
+    });
+  } catch (e) {}
+};
+
+export const playVictorySound = () => {
+  try {
+    const ctx = getSfxAudioContext();
+    if (!ctx) return;
+    const fanfare = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    fanfare.forEach((freq, idx) => {
+      setTimeout(() => {
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.35, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        } catch (e) {}
+      }, idx * 100);
+    });
+  } catch (e) {}
+};
+
 export const audioService = {
   play: (text, audioUrl, lang, rate) => playAudio(text, audioUrl, lang, rate),
   speak: (text, lang, rate) => playAudio(text, null, lang, rate),
   playAudio,
   speakText,
+  playTapSound,
+  playCorrectSound,
+  playWrongSound,
+  playStreakSound,
+  playVictorySound,
   setSpeed: setGlobalAudioSpeed,
   getSpeed: getGlobalAudioSpeed,
   setAccent: setGlobalAudioAccent,

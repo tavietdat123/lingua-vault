@@ -6,6 +6,9 @@ export const telegramController = {
   getSettings: (req, res) => {
     try {
       const db = getDb();
+      const userId = req.user?.id || 'admin_master_user_id';
+
+      const userSettings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId);
       const rows = db.prepare(`
         SELECT key, value FROM settings 
         WHERE key IN ('telegram_bot_token', 'telegram_chat_id', 'telegram_enabled', 'daily_word_goal', 'telegram_reminder_time', 'discipline_mode', 'telegram_morning_time')
@@ -31,6 +34,24 @@ export const telegramController = {
         }
       });
 
+      if (userSettings) {
+        if (userSettings.telegram_bot_token !== undefined && userSettings.telegram_bot_token !== null) {
+          settings.telegram_bot_token = userSettings.telegram_bot_token;
+        }
+        if (userSettings.telegram_chat_id !== undefined && userSettings.telegram_chat_id !== null) {
+          settings.telegram_chat_id = userSettings.telegram_chat_id;
+        }
+        if (userSettings.telegram_enabled !== undefined && userSettings.telegram_enabled !== null) {
+          settings.telegram_enabled = Boolean(userSettings.telegram_enabled);
+        }
+        if (userSettings.daily_goal) {
+          settings.daily_word_goal = userSettings.daily_goal;
+        }
+        if (userSettings.alarm_time) {
+          settings.telegram_reminder_time = userSettings.alarm_time;
+        }
+      }
+
       res.json({ success: true, data: settings });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -41,6 +62,7 @@ export const telegramController = {
   saveSettings: (req, res) => {
     try {
       const db = getDb();
+      const userId = req.user?.id || 'admin_master_user_id';
       const { 
         telegram_bot_token, 
         telegram_chat_id, 
@@ -50,7 +72,45 @@ export const telegramController = {
         telegram_morning_time,
         discipline_mode
       } = req.body;
+      const now = new Date().toISOString();
 
+      // Upsert into user_settings
+      const existing = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId);
+      if (existing) {
+        db.prepare(`
+          UPDATE user_settings 
+          SET telegram_bot_token = COALESCE(?, telegram_bot_token),
+              telegram_chat_id = COALESCE(?, telegram_chat_id),
+              telegram_enabled = COALESCE(?, telegram_enabled),
+              daily_goal = COALESCE(?, daily_goal),
+              alarm_time = COALESCE(?, alarm_time),
+              updated_at = ?
+          WHERE user_id = ?
+        `).run(
+          telegram_bot_token !== undefined ? String(telegram_bot_token).trim() : null,
+          telegram_chat_id !== undefined ? String(telegram_chat_id).trim() : null,
+          telegram_enabled !== undefined ? (telegram_enabled ? 1 : 0) : null,
+          daily_word_goal !== undefined ? parseInt(daily_word_goal, 10) : null,
+          telegram_reminder_time !== undefined ? String(telegram_reminder_time).trim() : null,
+          now,
+          userId
+        );
+      } else {
+        db.prepare(`
+          INSERT INTO user_settings (user_id, telegram_bot_token, telegram_chat_id, telegram_enabled, daily_goal, alarm_time, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          userId,
+          telegram_bot_token ? String(telegram_bot_token).trim() : '',
+          telegram_chat_id ? String(telegram_chat_id).trim() : '',
+          telegram_enabled ? 1 : 0,
+          daily_word_goal ? parseInt(daily_word_goal, 10) : 10,
+          telegram_reminder_time || '20:00',
+          now
+        );
+      }
+
+      // Also maintain global settings for server background daemons
       const upsert = db.prepare(`
         INSERT INTO settings (key, value) 
         VALUES (?, ?)
@@ -116,6 +176,46 @@ export const telegramController = {
   triggerDueReminder: async (req, res) => {
     try {
       const result = await telegramService.sendDueReviewReminder(true);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+
+  // POST /api/telegram/trigger-streak-saver
+  triggerStreakSaver: async (req, res) => {
+    try {
+      const result = await telegramService.sendStreakSaverWarning(true);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+
+  // POST /api/telegram/trigger-word-of-day
+  triggerWordOfDay: async (req, res) => {
+    try {
+      const result = await telegramService.sendWordOfTheDay(true);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+
+  // POST /api/telegram/trigger-weekly-digest
+  triggerWeeklyDigest: async (req, res) => {
+    try {
+      const result = await telegramService.sendWeeklyDigest(true);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+
+  // POST /api/telegram/trigger-leech-alert
+  triggerLeechAlert: async (req, res) => {
+    try {
+      const result = await telegramService.sendLeechWordsAlert(true);
       res.json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, error: err.message });

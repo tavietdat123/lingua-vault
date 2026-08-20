@@ -56,18 +56,18 @@ export default function LevelPill({ profile, onOpenReport }) {
 
         {/* Title & XP Progress */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {title}
             </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 800 }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 800, whiteSpace: 'nowrap' }}>
               {totalXp} XP
             </span>
           </div>
 
           {/* Glowing XP Progress Bar */}
           <div style={{
-            width: '100px',
+            width: '65px',
             height: '4px',
             backgroundColor: 'var(--bg-tertiary)',
             borderRadius: '2px',

@@ -6,6 +6,11 @@ build/
 .DS_Store
 mobile/ios/
 desktop/dist/
+server/.env
+.env
+scratch/
+server/src/db/linguavault.db
+server/src/db/*.db
 server/data/linguavault.db
 *.tar.gz
 *.ipa

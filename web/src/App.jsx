@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -18,6 +18,9 @@ import SettingsModal from './components/settings/SettingsModal';
 import AlarmModal from './components/alarm/AlarmModal';
 import LevelUpModal from './components/gamification/LevelUpModal';
 import AIMasteryReportModal from './components/gamification/AIMasteryReportModal';
+import TopicManagerModal from './components/topics/TopicManagerModal';
+import AuthPage from './components/auth/AuthPage';
+import ProfileEditModal from './components/auth/ProfileEditModal';
 import { api } from './services/api';
 import { audioService } from './services/audioService';
 
@@ -32,10 +35,16 @@ export default function App() {
   const [isDark, setIsDark] = useState(false);
   const [audioSpeed, setAudioSpeed] = useState(audioService.getSpeed());
 
+  // User Auth State
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+
   // Data States
   const [words, setWords] = useState([]);
   const [patterns, setPatterns] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [topics, setTopics] = useState([]);
   const [stats, setStats] = useState(null);
   const [dueItems, setDueItems] = useState([]);
 
@@ -48,6 +57,7 @@ export default function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
+  const [isTopicManagerOpen, setIsTopicManagerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAIMasteryReportOpen, setIsAIMasteryReportOpen] = useState(false);
   const [levelUpData, setLevelUpData] = useState(null);
@@ -101,19 +111,21 @@ export default function App() {
   // Load All App Data
   const refreshAllData = async () => {
     try {
-      const [wordsRes, patternsRes, notesRes, statsRes, dueRes, gamificationRes] = await Promise.all([
+      const [wordsRes, patternsRes, notesRes, statsRes, dueRes, gamificationRes, topicsRes] = await Promise.all([
         api.getWords(),
         api.getPatterns(),
         api.getNotes(),
         api.getStats(),
         api.getDueItems(),
-        api.getGamificationProfile()
+        api.getGamificationProfile(),
+        api.getTopics()
       ]);
 
       if (wordsRes.success) setWords(wordsRes.data || []);
       if (patternsRes.success) setPatterns(patternsRes.data || []);
       if (notesRes.success) setNotes(notesRes.data || []);
       if (statsRes.success) setStats(statsRes.data || null);
+      if (topicsRes && topicsRes.success) setTopics(topicsRes.data || []);
       if (dueRes.success) {
         const combinedDue = [
           ...(dueRes.data?.words || []),
@@ -138,32 +150,90 @@ export default function App() {
     }
   };
 
+  // Load Current Authenticated User on Mount
+  const loadCurrentUser = async () => {
+    setAuthChecking(true);
+    try {
+      const res = await api.auth.getMe();
+      if (res.success && res.data && res.data.role !== 'guest') {
+        setCurrentUser(res.data);
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (e) {
+      setCurrentUser(null);
+    } finally {
+      setAuthChecking(false);
+    }
+  };
+
   useEffect(() => {
-    refreshAllData();
+    loadCurrentUser();
   }, []);
 
-  // ⏰ AUTOMATIC ALARM WATCHER (Checks every 10s and automatically fires alarm)
   useEffect(() => {
-    let lastTriggeredMinute = '';
+    if (currentUser) {
+      refreshAllData();
+    }
+  }, [currentUser]);
 
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+    addToast(`Chào mừng trở lại, ${user.full_name || user.username}! 👋`, 'success');
+  };
+
+  const handleLogout = async () => {
+    await api.auth.logout();
+    setCurrentUser(null);
+    navigate('/login', { replace: true });
+    addToast('Đã đăng xuất tài khoản', 'info');
+  };
+
+  const handleProfileUpdated = (updatedUser) => {
+    setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+    addToast('Đã cập nhật hồ sơ cá nhân thành công!', 'success');
+  };
+
+  // ⏰ AUTOMATIC ALARM WATCHER (Checks every 15s and fires alarm only once at designated time)
+  const isAlarmModalOpenRef = useRef(false);
+  const lastAlarmDateKeyRef = useRef('');
+
+  useEffect(() => {
+    isAlarmModalOpenRef.current = isAlarmModalOpen;
+  }, [isAlarmModalOpen]);
+
+  useEffect(() => {
     const checkAutoAlarm = () => {
       try {
+        if (isAlarmModalOpenRef.current) return;
+
         const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
         const currentHH = String(now.getHours()).padStart(2, '0');
         const currentMM = String(now.getMinutes()).padStart(2, '0');
         const currentTimeStr = `${currentHH}:${currentMM}`;
+        const currentDateMinuteKey = `${yyyy}-${mm}-${dd}-${currentTimeStr}`;
 
-        const isAlarmEnabled = localStorage.getItem('linguavault_auto_alarm_enabled') !== 'false';
+        const isAlarmEnabled = localStorage.getItem('linguavault_auto_alarm_enabled') === 'true';
         const targetAlarmTime = localStorage.getItem('linguavault_alarm_time') || '20:00';
+        const savedLastTrigger = localStorage.getItem('linguavault_last_alarm_date') || '';
 
-        if (isAlarmEnabled && currentTimeStr === targetAlarmTime && lastTriggeredMinute !== currentTimeStr) {
-          lastTriggeredMinute = currentTimeStr;
+        if (
+          isAlarmEnabled &&
+          currentTimeStr === targetAlarmTime &&
+          lastAlarmDateKeyRef.current !== currentDateMinuteKey &&
+          savedLastTrigger !== currentDateMinuteKey
+        ) {
+          lastAlarmDateKeyRef.current = currentDateMinuteKey;
+          localStorage.setItem('linguavault_last_alarm_date', currentDateMinuteKey);
           setIsAlarmModalOpen(true);
         }
       } catch (e) {}
     };
 
-    const interval = setInterval(checkAutoAlarm, 10000);
+    const interval = setInterval(checkAutoAlarm, 15000);
     checkAutoAlarm();
 
     return () => clearInterval(interval);
@@ -240,9 +310,22 @@ export default function App() {
     }
   };
 
-  // Smart Reader Highlight -> Quick Add
-  const handleSaveWordFromSelection = (text) => {
-    setEditingWord({ word: text });
+  // Smart Reader Highlight -> Quick Add with Context
+  const handleSaveWordFromSelection = (text, contextTranslation = null) => {
+    if (contextTranslation) {
+      setEditingWord({
+        word: text,
+        phonetic: contextTranslation.phonetic || '',
+        meaning_vi: contextTranslation.contextualMeaningVi || '',
+        meaning_en: contextTranslation.contextExplanation || '',
+        part_of_speech: contextTranslation.partOfSpeech || 'noun',
+        examples: contextTranslation.overallSentenceVi ? [contextTranslation.overallSentenceVi] : [],
+        collocations: contextTranslation.collocations || [],
+        level: contextTranslation.level || 'B2'
+      });
+    } else {
+      setEditingWord({ word: text });
+    }
     setIsQuickAddOpen(true);
   };
 
@@ -281,6 +364,41 @@ export default function App() {
     }
   };
 
+  // 1. Loading screen while verifying token
+  if (authChecking) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner" style={{ width: '42px', height: '42px', margin: '0 auto 1.25rem', border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', fontWeight: 700 }}>Đang khởi tạo LinguaVault...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Full-Screen Standalone Auth Page at route /login (Unauthorized users cannot access any other screens)
+  if (!currentUser) {
+    return (
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <AuthPage
+              onAuthSuccess={(user) => {
+                handleAuthSuccess(user);
+                navigate('/dashboard', { replace: true });
+              }}
+              isDark={isDark}
+              toggleTheme={toggleTheme}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // 3. Authenticated App Workspace Shell
   return (
     <div className="app-container">
       {/* 1. Sidebar Navigation */}
@@ -305,10 +423,15 @@ export default function App() {
           onAudioSpeedChange={handleAudioSpeedChange}
           gamificationProfile={gamificationProfile}
           onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
+          currentUser={currentUser}
+          onOpenProfileEdit={() => setIsProfileEditOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onLogout={handleLogout}
         />
 
         <div className="app-content">
           <Routes>
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
             <Route 
               path="/" 
               element={
@@ -342,9 +465,11 @@ export default function App() {
               element={
                 <VocabVault
                   words={words}
+                  topics={topics}
                   onAddWord={handleAddWord}
                   onEditWord={handleEditWord}
                   onDeleteWord={handleDeleteWord}
+                  onOpenTopicManager={() => setIsTopicManagerOpen(true)}
                 />
               } 
             />
@@ -437,6 +562,7 @@ export default function App() {
       {isQuickAddOpen && (
         <QuickAddModal
           initialData={editingWord}
+          topics={topics}
           onClose={() => setIsQuickAddOpen(false)}
           onSaved={() => {
             refreshAllData();
@@ -444,6 +570,17 @@ export default function App() {
           }}
         />
       )}
+
+      {/* 4a. Topic Management Modal */}
+      <TopicManagerModal
+        isOpen={isTopicManagerOpen}
+        topics={topics}
+        onClose={() => setIsTopicManagerOpen(false)}
+        onTopicChange={() => {
+          refreshAllData();
+          addToast('Đã cập nhật danh sách chủ đề');
+        }}
+      />
 
       {isPatternModalOpen && (
         <PatternModal
@@ -469,9 +606,20 @@ export default function App() {
       {/* 4b. Urgent Ringing Alarm Clock Modal (Solve Quiz Questions to Silence) */}
       <AlarmModal
         isOpen={isAlarmModalOpen}
-        onClose={() => setIsAlarmModalOpen(false)}
+        onClose={() => {
+          setIsAlarmModalOpen(false);
+          const now = new Date();
+          const key = `${now.toISOString().split('T')[0]}-${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          lastAlarmDateKeyRef.current = key;
+          localStorage.setItem('linguavault_last_alarm_date', key);
+        }}
         words={words}
         onChallengeCompleted={async () => {
+          setIsAlarmModalOpen(false);
+          const now = new Date();
+          const key = `${now.toISOString().split('T')[0]}-${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          lastAlarmDateKeyRef.current = key;
+          localStorage.setItem('linguavault_last_alarm_date', key);
           try {
             await api.addXp(30, 'Giải mã Báo Thức Kỷ Luật Thép');
           } catch (e) {}
@@ -491,6 +639,14 @@ export default function App() {
         isOpen={!!levelUpData}
         onClose={() => setLevelUpData(null)}
         levelData={levelUpData}
+      />
+
+      {/* 4e. User Profile & Password Edit Modal */}
+      <ProfileEditModal
+        isOpen={isProfileEditOpen}
+        onClose={() => setIsProfileEditOpen(false)}
+        user={currentUser}
+        onProfileUpdated={handleProfileUpdated}
       />
 
       {/* 5. Toast Notifications */}

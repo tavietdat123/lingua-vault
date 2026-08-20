@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Sliders, Play, Check, ChevronDown, Sparkles } from 'lucide-react';
+import { Volume2, Sliders, Play, Check, ChevronDown, Sparkles, Zap, Search, Target, FastForward } from 'lucide-react';
 import { audioService } from '../../services/audioService';
 
 export default function AudioSpeedPopover({ audioSpeed, onSpeedChange }) {
@@ -50,14 +50,16 @@ export default function AudioSpeedPopover({ audioSpeed, onSpeedChange }) {
   };
 
   // Speed description tag
-  let speedTag = { label: 'Tự nhiên (Bản xứ)', color: 'var(--accent-primary)', emoji: '⚡' };
+  let speedTag = { label: 'Tự nhiên (Bản xứ)', color: 'var(--accent-primary)', icon: Zap };
   if (audioSpeed <= 0.65) {
-    speedTag = { label: 'Rất chậm (Soi IPA)', color: 'var(--accent-warning)', emoji: '🐢' };
+    speedTag = { label: 'Rất chậm (Soi IPA)', color: 'var(--accent-warning)', icon: Search };
   } else if (audioSpeed <= 0.85) {
-    speedTag = { label: 'Chậm (Luyện Shadowing)', color: 'var(--accent-success)', emoji: '🎯' };
+    speedTag = { label: 'Chậm (Luyện Shadowing)', color: 'var(--accent-success)', icon: Target };
   } else if (audioSpeed >= 1.15) {
-    speedTag = { label: 'Nhanh (Thử thách)', color: 'var(--accent-purple)', emoji: '🚀' };
+    speedTag = { label: 'Nhanh (Thử thách)', color: 'var(--accent-purple)', icon: FastForward };
   }
+
+  const TagIcon = speedTag.icon;
 
   const presets = [0.6, 0.75, 0.85, 1.0, 1.25];
 
@@ -116,9 +118,13 @@ export default function AudioSpeedPopover({ audioSpeed, onSpeedChange }) {
               padding: '0.2rem 0.55rem',
               borderRadius: 'var(--radius-full)',
               background: 'var(--bg-tertiary)',
-              color: speedTag.color
+              color: speedTag.color,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
             }}>
-              {speedTag.emoji} {speedTag.label}
+              <TagIcon size={12} color={speedTag.color} />
+              <span>{speedTag.label}</span>
             </span>
           </div>
 
