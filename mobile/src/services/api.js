@@ -50,8 +50,8 @@ export const setMobileAuthToken = (token) => {
   }
 };
 
-// Safe Fast Fetch with Timeout (Default 15 seconds)
-export const safeFetch = async (url, options = {}, timeoutMs = 15000) => {
+// Safe Fast Fetch with Timeout (Default 5 seconds)
+export const safeFetch = async (url, options = {}, timeoutMs = 5000) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -65,14 +65,14 @@ export const safeFetch = async (url, options = {}, timeoutMs = 15000) => {
 };
 
 // Auto-healing API requester
-export const requestApi = async (endpoint, options = {}, timeoutMs = 35000) => {
+export const requestApi = async (endpoint, options = {}, timeoutMs = 6000) => {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
   const mergedOptions = { ...options, headers };
 
-  // 1. Try with current configured server
+  // 1. Try with current configured server first
   try {
     const res = await safeFetch(`${currentServerUrl}${endpoint}`, mergedOptions, timeoutMs);
     const data = await res.json().catch(() => null);
@@ -83,23 +83,27 @@ export const requestApi = async (endpoint, options = {}, timeoutMs = 35000) => {
       return { success: true };
     }
   } catch (err) {
-    // Current server failed, scan candidate servers
+    // Current server unreachable, try candidates
   }
 
-  // 2. Scan candidate servers rapidly
-  for (const candidate of CANDIDATE_SERVERS) {
-    if (candidate === currentServerUrl) continue;
-    try {
-      const res = await safeFetch(`${candidate}${endpoint}`, mergedOptions, Math.min(timeoutMs, 4000));
+  // 2. Scan all candidate servers rapidly in parallel
+  const scanPromises = CANDIDATE_SERVERS
+    .filter(c => c !== currentServerUrl)
+    .map(async (candidate) => {
+      const res = await safeFetch(`${candidate}${endpoint}`, mergedOptions, 3000);
       const data = await res.json().catch(() => null);
       if (data) {
         setServerUrl(candidate);
         return data;
       }
-    } catch (e) {}
-  }
+      throw new Error('Not available');
+    });
 
-  throw new Error('Không thể kết nối đến máy chủ LinguaVault');
+  try {
+    return await Promise.any(scanPromises);
+  } catch (e) {
+    throw new Error('Không thể kết nối đến máy chủ LinguaVault. Hãy đảm bảo điện thoại và máy tính cùng kết nối 1 mạng Wi-Fi.');
+  }
 };
 
 export const mobileApi = {

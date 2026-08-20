@@ -285,10 +285,8 @@ export default function App() {
   
   // Auth State
   const [currentUser, setCurrentUser] = useState(null);
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [authUsername, setAuthUsername] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authFullName, setAuthFullName] = useState('');
+  const [authUsername, setAuthUsername] = useState('admin');
+  const [authPassword, setAuthPassword] = useState('123456');
   const [authShowPassword, setAuthShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -978,20 +976,17 @@ export default function App() {
 
     setAuthLoading(true);
     try {
-      const res = authMode === 'register' 
-        ? await mobileApi.auth.register({ username: authUsername.trim(), password: authPassword.trim(), full_name: authFullName.trim() || authUsername.trim() })
-        : await mobileApi.auth.login(authUsername.trim(), authPassword.trim());
+      const res = await mobileApi.auth.login(authUsername.trim(), authPassword.trim());
 
       if (res && res.success && (res.data?.user || res.data)) {
         const user = res.data.user || res.data;
         setCurrentUser(user);
         setAuthUsername('');
         setAuthPassword('');
-        setAuthFullName('');
-        Alert.alert('Thành công 🎉', `Chào mừng ${user.full_name || user.username}!`);
+        setLoading(true);
         loadData();
       } else {
-        setAuthError(res?.error || (authMode === 'register' ? 'Đăng ký không thành công' : 'Đăng nhập không thành công'));
+        setAuthError(res?.error || 'Tên đăng nhập hoặc mật khẩu không chính xác');
       }
     } catch (err) {
       setAuthError(err.message || 'Lỗi kết nối máy chủ');
@@ -2768,37 +2763,14 @@ export default function App() {
 
             {/* Card Container */}
             <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 1, borderColor: theme.cardBorder, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 4 }}>
-              {/* Tab Switcher: Login / Register */}
-              <View style={{ flexDirection: 'row', backgroundColor: theme.drawerCardBg, borderRadius: 14, padding: 4, marginBottom: 18 }}>
-                <TouchableOpacity
-                  onPress={() => { setAuthMode('login'); setAuthError(''); }}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    backgroundColor: authMode === 'login' ? theme.btnPrimaryBg : 'transparent'
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: authMode === 'login' ? '#ffffff' : theme.textMuted }}>
-                    Đăng Nhập
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => { setAuthMode('register'); setAuthError(''); }}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    backgroundColor: authMode === 'register' ? theme.btnPrimaryBg : 'transparent'
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: authMode === 'register' ? '#ffffff' : theme.textMuted }}>
-                    Đăng Ký
-                  </Text>
-                </TouchableOpacity>
+              {/* Card Header Title */}
+              <View style={{ alignItems: 'center', marginBottom: 18 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: theme.textPrimary }}>
+                  Đăng Nhập Hệ Thống
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
+                  Vui lòng đăng nhập hoặc vào trải nghiệm nhanh
+                </Text>
               </View>
 
               {/* Error Box */}
@@ -2807,30 +2779,6 @@ export default function App() {
                   <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '700' }}>⚠️ {authError}</Text>
                 </View>
               ) : null}
-
-              {/* Full Name Input (Register only) */}
-              {authMode === 'register' && (
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginBottom: 6 }}>
-                    HỌ VÀ TÊN
-                  </Text>
-                  <TextInput
-                    style={{
-                      backgroundColor: theme.inputBg,
-                      color: theme.textPrimary,
-                      borderWidth: 1,
-                      borderColor: theme.cardBorder,
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 14
-                    }}
-                    placeholder="Ví dụ: Nguyễn Văn A..."
-                    placeholderTextColor={theme.textMuted}
-                    value={authFullName}
-                    onChangeText={setAuthFullName}
-                  />
-                </View>
-              )}
 
               {/* Username Input */}
               <View style={{ marginBottom: 14 }}>
@@ -2910,7 +2858,7 @@ export default function App() {
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <Text style={{ fontSize: 15, fontWeight: '800', color: '#ffffff' }}>
-                    {authMode === 'register' ? 'Tạo Tài Khoản Mới' : 'Đăng Nhập Vào Hệ Thống'}
+                    Đăng Nhập Vào Hệ Thống
                   </Text>
                 )}
               </TouchableOpacity>
@@ -2929,7 +2877,7 @@ export default function App() {
                 }}
               >
                 <Text style={{ fontSize: 13, fontWeight: '800', color: theme.accent }}>
-                  🚀 Vào Thử Nghiệm Ngay (Khách / Demo)
+                  🚀 Vào Thử Nghiệm Nhanh (Khách / 1-Chạm)
                 </Text>
               </TouchableOpacity>
             </View>
