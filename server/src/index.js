@@ -61,16 +61,27 @@ if (fs.existsSync(webDistPath)) {
   app.use(express.static(webDistPath));
 }
 
-// Serve Static Mobile App Build & Expo Assets
+// Serve Static Mobile App Build & Expo Assets with No-Cache Headers for Instant Live Updates
 if (fs.existsSync(mobileDistPath)) {
-  app.get('/mobile', (req, res) => {
+  const sendFreshMobileIndex = (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(mobileDistPath, 'index.html'));
-  });
-  app.use('/mobile', express.static(mobileDistPath));
-  app.use('/_expo', express.static(path.join(mobileDistPath, '_expo')));
-  app.get('/mobile/*', (req, res) => {
-    res.sendFile(path.join(mobileDistPath, 'index.html'));
-  });
+  };
+
+  app.get('/mobile', sendFreshMobileIndex);
+  app.use('/mobile', express.static(mobileDistPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html') || filePath.endsWith('.json')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
+  app.use('/_expo', express.static(path.join(mobileDistPath, '_expo'), {
+    maxAge: '1h'
+  }));
+  app.get('/mobile/*', sendFreshMobileIndex);
 }
 
 // 3. API Routes
