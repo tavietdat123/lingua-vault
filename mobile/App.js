@@ -273,7 +273,7 @@ const DEFAULT_PATTERN_CATEGORIES = [
 class MobileErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null, showDetails: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -281,35 +281,103 @@ class MobileErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
     console.error('Mobile App Error Caught by Boundary:', error, errorInfo);
+
+    // Auto-send error report to backend server for live debugging
+    try {
+      const serverBase = typeof getServerUrl === 'function' ? getServerUrl() : 'http://192.168.110.47:5001';
+      fetch(`${serverBase}/api/logs/client-error`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: error?.message || String(error),
+          stack: error?.stack || '',
+          componentStack: errorInfo?.componentStack || '',
+          platform: Platform.OS,
+          timestamp: new Date().toISOString()
+        })
+      }).catch(() => {});
+    } catch (e) {}
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#090d16', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <View style={{ backgroundColor: '#111827', padding: 24, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', width: '100%', maxWidth: 440, alignItems: 'center' }}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>⚠️</Text>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: '#ffffff', marginBottom: 8, textAlign: 'center' }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#090d16', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#111827', padding: 22, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(239,68,68,0.35)', width: '100%', maxWidth: 440, alignItems: 'center' }}>
+            <Text style={{ fontSize: 36, marginBottom: 10 }}>⚠️</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: '#ffffff', marginBottom: 6, textAlign: 'center' }}>
               Ứng Dụng Đã Khôi Phục An Toàn
             </Text>
-            <Text style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 16 }}>
+            <Text style={{ fontSize: 13, color: '#f87171', fontWeight: '700', textAlign: 'center', marginBottom: 12 }}>
               {this.state.error?.message || 'Đã xảy ra sự cố hiển thị nhỏ'}
             </Text>
+
+            {/* Error Details Collapsible View */}
+            {Boolean(this.state.errorInfo?.componentStack || this.state.error?.stack) && (
+              <View style={{ width: '100%', marginBottom: 14 }}>
+                <TouchableOpacity
+                  onPress={() => this.setState({ showDetails: !this.state.showDetails })}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', marginBottom: 8 }}
+                >
+                  <Text style={{ color: '#38bdf8', fontSize: 12, fontWeight: '700' }}>
+                    {this.state.showDetails ? '▲ Ẩn Chi Tiết Debug' : '▼ 🔍 Xem Chi Tiết Vị Trí Lỗi (Debug)'}
+                  </Text>
+                </TouchableOpacity>
+
+                {this.state.showDetails ? (
+                  <ScrollView style={{ maxHeight: 220, backgroundColor: '#030712', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                    <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', lineHeight: 14 }}>
+                      <Text style={{ color: '#38bdf8', fontWeight: 'bold' }}>Component Stack:{"\n"}</Text>
+                      {this.state.errorInfo?.componentStack || 'Chưa có thông tin stack component'}
+                      {"\n\n"}
+                      <Text style={{ color: '#fbbf24', fontWeight: 'bold' }}>Error Stack:{"\n"}</Text>
+                      {this.state.error?.stack || ''}
+                    </Text>
+                  </ScrollView>
+                ) : null}
+              </View>
+            )}
+
             <TouchableOpacity
               onPress={() => {
-                this.setState({ hasError: false, error: null });
+                this.setState({ hasError: false, error: null, errorInfo: null });
                 if (typeof window !== 'undefined' && window.location) window.location.reload();
               }}
-              style={{ backgroundColor: '#0284c7', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, width: '100%', alignItems: 'center' }}>
-              
+              style={{ backgroundColor: '#0284c7', paddingVertical: 13, paddingHorizontal: 24, borderRadius: 14, width: '100%', alignItems: 'center', marginBottom: 10 }}
+            >
               <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>
                 🔄 Tải Lại Ứng Dụng
               </Text>
             </TouchableOpacity>
-          </View>
-        </SafeAreaView>);
 
+            <TouchableOpacity
+              onPress={() => {
+                try {
+                  const serverBase = typeof getServerUrl === 'function' ? getServerUrl() : 'http://192.168.110.47:5001';
+                  fetch(`${serverBase}/api/logs/client-error`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      error: this.state.error?.message,
+                      stack: this.state.error?.stack,
+                      componentStack: this.state.errorInfo?.componentStack,
+                      platform: Platform.OS,
+                      manual: true
+                    })
+                  }).then(() => Alert.alert('Đã Gửi Báo Cáo ✅', 'Thông tin lỗi đã được chuyển đến máy chủ để kỹ sư kiểm tra!'));
+                } catch (e) {}
+              }}
+              style={{ paddingVertical: 8, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#64748b', fontSize: 11, fontWeight: '600' }}>
+                📤 Gửi nhật ký lỗi về máy tính kỹ sư
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      );
     }
     return this.props.children;
   }

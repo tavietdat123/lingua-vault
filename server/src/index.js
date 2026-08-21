@@ -245,6 +245,19 @@ app.post('/api/alarm/stop', (req, res) => {
 app.get('/api/alarm/status', (req, res) => {
   res.json({ success: true, data: systemAlarmService.getStatus() });
 });
+// Client Error Logging Endpoint for Real-time Mobile Debugging
+app.post('/api/logs/client-error', (req, res) => {
+  const { error, stack, componentStack, platform, userAgent, timestamp } = req.body || {};
+  console.log('\n========================================================');
+  console.log('🚨 [MOBILE CLIENT ERROR REPORTED]');
+  console.log('⏰ Time:', timestamp || new Date().toISOString());
+  console.log('📱 Platform:', platform || 'unknown');
+  console.log('❌ Error:', error);
+  if (stack) console.log('📜 Stack Trace:\n', stack);
+  if (componentStack) console.log('🧩 Component Hierarchy Stack:\n', componentStack);
+  console.log('========================================================\n');
+  res.json({ success: true, message: 'Logged successfully' });
+});
 
 // SPA Web Client Fallback Route
 if (fs.existsSync(webDistPath)) {
