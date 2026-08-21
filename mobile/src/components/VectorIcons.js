@@ -310,20 +310,20 @@ export const IconClock = ({ size = 20, color = '#ffffff' }) => (
   </Svg>
 );
 
-export const IconPlay = ({ size = 20, color = '#ffffff', fill = 'currentColor' }) => (
+export const IconPlay = ({ size = 20, color = '#ffffff', fill = '#ffffff' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Polygon points="5 3 19 12 5 21 5 3" />
   </Svg>
 );
 
-export const IconPause = ({ size = 20, color = '#ffffff', fill = 'currentColor' }) => (
+export const IconPause = ({ size = 20, color = '#ffffff', fill = '#ffffff' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Rect x="6" y="4" width="4" height="16" />
     <Rect x="14" y="4" width="4" height="16" />
   </Svg>
 );
 
-export const IconSquare = ({ size = 20, color = '#ffffff', fill = 'currentColor' }) => (
+export const IconSquare = ({ size = 20, color = '#ffffff', fill = '#ffffff' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
   </Svg>

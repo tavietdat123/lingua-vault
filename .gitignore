@@ -11,7 +11,11 @@ server/.env
 scratch/
 server/src/db/linguavault.db
 server/src/db/*.db
-server/data/linguavault.db
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
+certbot/
 *.tar.gz
 *.ipa
 Payload/
+

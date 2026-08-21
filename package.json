@@ -1,6 +1,7 @@
 {
   "name": "lingua-vault-monorepo",
   "version": "1.0.0",
+  "type": "module",
   "description": "LinguaVault - Personal English & Spaced Repetition Hub (Web, Mobile, Desktop, Server)",
   "scripts": {
     "dev": "node run-dev.js",

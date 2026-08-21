@@ -92,7 +92,21 @@ export const gamificationService = {
   },
 
   // 2. Add XP for specific account with reason and check for Level-Up event
-  addXp: (userId = 'admin_master_user_id', amount = 10, reason = 'Hoạt động học tập') => {
+  addXp: (arg1 = 'admin_master_user_id', arg2 = 10, arg3 = 'Hoạt động học tập') => {
+    let userId = 'admin_master_user_id';
+    let amount = 10;
+    let reason = 'Hoạt động học tập';
+
+    if (typeof arg1 === 'number') {
+      amount = arg1;
+      reason = typeof arg2 === 'string' ? arg2 : reason;
+      userId = typeof arg3 === 'string' && arg3 !== 'Hoạt động học tập' ? arg3 : 'admin_master_user_id';
+    } else {
+      userId = typeof arg1 === 'string' && arg1 ? arg1 : 'admin_master_user_id';
+      amount = typeof arg2 === 'number' ? arg2 : (parseInt(arg2, 10) || 10);
+      reason = typeof arg3 === 'string' ? arg3 : 'Hoạt động học tập';
+    }
+
     const db = getDb();
     const currentProfile = gamificationService.getProfile(userId);
     const oldLevel = currentProfile.level;

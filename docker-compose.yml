@@ -1,0 +1,52 @@
+services:
+  # 1. Ứng Dụng Chính: LinguaVault Backend API & Phục vụ Web SPA
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linguavault_app
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+    volumes:
+      # ⭐ Persistent Volume: Lưu giữ cơ sở dữ liệu SQLite vĩnh viễn
+      - ./server/data:/app/server/data
+    networks:
+      - linguavault_net
+
+  # 2. Máy Chủ Web Nginx: Reverse Proxy, Cổng 80/443 & HTTPS SSL
+  nginx:
+    image: nginx:alpine
+    container_name: linguavault_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - app
+    networks:
+      - linguavault_net
+
+  # 3. Certbot: Tự động gia hạn chứng chỉ SSL Let's Encrypt (Chạy ngầm định kỳ)
+  certbot:
+    image: certbot/certbot
+    container_name: linguavault_certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - linguavault_net
+
+networks:
+  linguavault_net:
+    driver: bridge
