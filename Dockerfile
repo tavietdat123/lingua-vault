@@ -1,7 +1,7 @@
 # =========================================================================
 # STAGE 1: Build Frontend Web SPA (React 19 + Vite + Tailwind CSS)
 # =========================================================================
-FROM node:20-alpine AS web-builder
+FROM node:22-alpine AS web-builder
 
 WORKDIR /app/web
 
@@ -14,9 +14,9 @@ COPY web/ ./
 RUN npm run build
 
 # =========================================================================
-# STAGE 2: Production Server (Node.js 20 Express + SQLite + Gemini AI)
+# STAGE 2: Production Server (Node.js 22 Express + Native SQLite + Gemini AI)
 # =========================================================================
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 # Cài đặt timezone data
 RUN apk add --no-cache tzdata
