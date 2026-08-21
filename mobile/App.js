@@ -315,19 +315,19 @@ class MobileErrorBoundary extends React.Component {
             </Text>
 
             {/* Error Details Collapsible View */}
-            {Boolean(this.state.errorInfo?.componentStack || this.state.error?.stack) && (
-              <View style={{ width: '100%', marginBottom: 14 }}>
+            {Boolean(this.state.errorInfo?.componentStack || this.state.error?.stack) ?
+            <View style={{ width: '100%', marginBottom: 14 }}>
                 <TouchableOpacity
-                  onPress={() => this.setState({ showDetails: !this.state.showDetails })}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', marginBottom: 8 }}
-                >
+                onPress={() => this.setState({ showDetails: !this.state.showDetails })}
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', marginBottom: 8 }}>
+                
                   <Text style={{ color: '#38bdf8', fontSize: 12, fontWeight: '700' }}>
                     {this.state.showDetails ? '▲ Ẩn Chi Tiết Debug' : '▼ 🔍 Xem Chi Tiết Vị Trí Lỗi (Debug)'}
                   </Text>
                 </TouchableOpacity>
 
-                {this.state.showDetails ? (
-                  <ScrollView style={{ maxHeight: 220, backgroundColor: '#030712', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                {this.state.showDetails ?
+              <ScrollView style={{ maxHeight: 220, backgroundColor: '#030712', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
                     <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', lineHeight: 14 }}>
                       <Text style={{ color: '#38bdf8', fontWeight: 'bold' }}>Component Stack:{"\n"}</Text>
                       {this.state.errorInfo?.componentStack || 'Chưa có thông tin stack component'}
@@ -335,18 +335,18 @@ class MobileErrorBoundary extends React.Component {
                       <Text style={{ color: '#fbbf24', fontWeight: 'bold' }}>Error Stack:{"\n"}</Text>
                       {this.state.error?.stack || ''}
                     </Text>
-                  </ScrollView>
-                ) : null}
-              </View>
-            )}
+                  </ScrollView> :
+              null}
+              </View> : null
+            }
 
             <TouchableOpacity
               onPress={() => {
                 this.setState({ hasError: false, error: null, errorInfo: null });
                 if (typeof window !== 'undefined' && window.location) window.location.reload();
               }}
-              style={{ backgroundColor: '#0284c7', paddingVertical: 13, paddingHorizontal: 24, borderRadius: 14, width: '100%', alignItems: 'center', marginBottom: 10 }}
-            >
+              style={{ backgroundColor: '#0284c7', paddingVertical: 13, paddingHorizontal: 24, borderRadius: 14, width: '100%', alignItems: 'center', marginBottom: 10 }}>
+              
               <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>
                 🔄 Tải Lại Ứng Dụng
               </Text>
@@ -369,15 +369,15 @@ class MobileErrorBoundary extends React.Component {
                   }).then(() => Alert.alert('Đã Gửi Báo Cáo ✅', 'Thông tin lỗi đã được chuyển đến máy chủ để kỹ sư kiểm tra!'));
                 } catch (e) {}
               }}
-              style={{ paddingVertical: 8, alignItems: 'center' }}
-            >
+              style={{ paddingVertical: 8, alignItems: 'center' }}>
+              
               <Text style={{ color: '#64748b', fontSize: 11, fontWeight: '600' }}>
                 📤 Gửi nhật ký lỗi về máy tính kỹ sư
               </Text>
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
-      );
+        </SafeAreaView>);
+
     }
     return this.props.children;
   }
@@ -1961,9 +1961,9 @@ function MainApp() {
       }
     } catch (e) {
 
+
       // Keep existing IPA if present
     }};
-
   // Smart Reader: Translate In Context using Gemini AI (Instant 0ms Cache + Optimistic Preview)
   const handleTranslateInContext = async (rawWord) => {
     const cleanWord = (rawWord || readerSelectedWord || '').replace(/^[^\w]+|[^\w]+$/g, '').trim();
@@ -3112,7 +3112,7 @@ function MainApp() {
       </View>
 
       {/* FLOATING XP TOAST NOTIFICATION */}
-      {Boolean(floatingXp) &&
+      {Boolean(floatingXp) ?
       <Animated.View
         pointerEvents="none"
         style={{
@@ -3156,7 +3156,7 @@ function MainApp() {
           <Text style={{ color: '#ffffff', fontWeight: '900', fontSize: 13 }}>
             +{floatingXp.amount} XP • {floatingXp.label}
           </Text>
-        </Animated.View>
+        </Animated.View> : null
       }
 
       {/* 2. MAIN CONTENT BODY WITH SWIPE GESTURES */}
@@ -3169,7 +3169,7 @@ function MainApp() {
 
         <Animated.View style={{ flex: 1, opacity: tabFadeAnim, transform: [{ translateY: tabSlideAnim }] }}>
             {/* TAB 1: DASHBOARD / HOME */}
-            {currentTab === 'home' &&
+            {currentTab === 'home' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -3535,11 +3535,11 @@ function MainApp() {
                     </View>
                   </View>
             )}
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB 2: SRS FLASHCARD REVIEW PRO MAX */}
-            {currentTab === 'review' && (() => {
+            {currentTab === 'review' ? (() => {
             const activeDeck = reviewScope === 'words' ?
             dueItems.filter((i) => (i.type || 'word') === 'word') :
             reviewScope === 'patterns' ?
@@ -3816,13 +3816,13 @@ function MainApp() {
                       
                             <Text style={styles.primaryActionBtnText}>Xem Tất Cả ({dueItems.length} thẻ)</Text>
                           </TouchableOpacity>
-                          {reviewScope !== 'words' && wordsDueCount > 0 &&
+                          {reviewScope !== 'words' && wordsDueCount > 0 ?
                     <TouchableOpacity
                       style={{ paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center' }}
                       onPress={() => {resetCardState();setReviewScope('words');setReviewIndex(0);}}>
                       
                               <Text style={{ color: theme.textPrimary, fontWeight: '700' }}>Ôn Từ Vựng ({wordsDueCount})</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity> : null
                     }
                         </View> :
 
@@ -3970,12 +3970,12 @@ function MainApp() {
                               </View>
 
                               {/* MODE 1: FLASHCARD FRONT - TRUE VERTICAL & HORIZONTAL CENTER */}
-                              {reviewMode === 'flashcard' &&
+                              {reviewMode === 'flashcard' ?
                         <View style={styles.cardCenterBody}>
                                   <Text style={[styles.cardWordMain, { color: theme.textPrimary }]}>
                                     {curItem?.word || curItem?.name}
                                   </Text>
-                                  {Boolean(curItem?.phonetic) &&
+                                  {Boolean(curItem?.phonetic) ?
                           <View style={{
                             backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : 'rgba(2, 132, 199, 0.08)',
                             paddingHorizontal: 12,
@@ -3986,9 +3986,9 @@ function MainApp() {
                                       <Text style={[styles.cardPhonetic, { color: theme.accent }]}>
                                         {curItem?.phonetic}
                                       </Text>
-                                    </View>
+                                    </View> : null
                           }
-                                  {Boolean(curItem?.formula) &&
+                                  {Boolean(curItem?.formula) ?
                           <View style={{
                             backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : 'rgba(236, 72, 153, 0.08)',
                             paddingHorizontal: 12,
@@ -3999,13 +3999,13 @@ function MainApp() {
                                       <Text style={{ color: '#ec4899', fontSize: 13, fontWeight: '700' }}>
                                         {curItem.formula}
                                       </Text>
-                                    </View>
+                                    </View> : null
                           }
-                                </View>
+                                </View> : null
                         }
 
                               {/* MODE 2: CLOZE FRONT */}
-                              {reviewMode === 'cloze' &&
+                              {reviewMode === 'cloze' ?
                         <View style={{ width: '100%', flex: 1, justifyContent: 'center', paddingVertical: 12, gap: 12 }}>
                                   <View style={[styles.exampleBox, { backgroundColor: theme.exampleBg, borderLeftColor: theme.accent, marginTop: 0 }]}>
                                     <Text style={{ fontSize: 14, fontStyle: 'italic', color: theme.textPrimary, lineHeight: 22 }}>
@@ -4020,10 +4020,10 @@ function MainApp() {
                                     </Text>
                                   </View>
 
-                                  {Boolean(clozeHintShown) &&
+                                  {Boolean(clozeHintShown) ?
                           <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: '700' }}>
                                       Gợi ý: {targetWord.slice(0, 2)}... ({targetWord.length} chữ cái)
-                                    </Text>
+                                    </Text> : null
                           }
 
                                   <TextInput
@@ -4072,7 +4072,7 @@ function MainApp() {
                                       </Text>
                                     </TouchableOpacity>
 
-                                    {Boolean(!clozeHintShown) &&
+                                    {Boolean(!clozeHintShown) ?
                             <TouchableOpacity
                               style={{
                                 flexDirection: 'row',
@@ -4092,14 +4092,14 @@ function MainApp() {
                                         <Text style={{ color: '#f59e0b', fontWeight: '800', fontSize: 11 }}>
                                           Gợi Ý
                                         </Text>
-                                      </TouchableOpacity>
+                                      </TouchableOpacity> : null
                             }
                                   </View>
-                                </View>
+                                </View> : null
                         }
 
                               {/* MODE 3: AUDIO BLIND FRONT */}
-                              {reviewMode === 'audio' &&
+                              {reviewMode === 'audio' ?
                         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 12 }}>
                                   <TouchableOpacity
                             onPress={() => playMobileAudio(targetWord, mobileSpeed, mobileAccent)}
@@ -4128,7 +4128,7 @@ function MainApp() {
                                   <Text style={{ fontSize: 11, color: theme.textSecondary, textAlign: 'center', maxWidth: 260 }}>
                                     Nghe kỹ âm thanh và tự nhớ lại từ vựng + nghĩa trước khi lật đáp án.
                                   </Text>
-                                </View>
+                                </View> : null
                         }
 
                               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 6, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', marginTop: 'auto' }}>
@@ -4190,7 +4190,7 @@ function MainApp() {
                                   </View>
                                 </View>
 
-                                {reviewMode === 'cloze' &&
+                                {reviewMode === 'cloze' ?
                           <View style={{
                             flexDirection: 'row',
                             alignItems: 'center',
@@ -4210,7 +4210,7 @@ function MainApp() {
                               'Chính xác! Bạn đã điền đúng từ này.' :
                               `Câu trả lời: "${clozeInput || '(trống)'}" • Đáp án: "${targetWord}"`}
                                     </Text>
-                                  </View>
+                                  </View> : null
                           }
 
                                 <View style={styles.backSectionBox}>
@@ -4220,16 +4220,16 @@ function MainApp() {
                                   </Text>
                                 </View>
 
-                                {Boolean(curItem?.meaning_en) &&
+                                {Boolean(curItem?.meaning_en) ?
                           <View style={styles.backSectionBox}>
                                     <Text style={[styles.backSectionLabel, { color: theme.textSecondary }]}>Định nghĩa tiếng Anh:</Text>
                                     <Text style={[styles.backMeaningEn, { color: theme.textSecondary }]}>
                                       {curItem?.meaning_en}
                                     </Text>
-                                  </View>
+                                  </View> : null
                           }
 
-                                {curItem?.collocations && curItem?.collocations.length > 0 &&
+                                {curItem?.collocations && curItem?.collocations.length > 0 ?
                           <View style={[styles.backSectionBox, { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.1)' : 'rgba(168, 85, 247, 0.08)', borderColor: 'rgba(168, 85, 247, 0.2)', padding: 10, borderRadius: 12 }]}>
                                     <Text style={[styles.backSectionLabel, { color: '#a855f7' }]}>Collocations:</Text>
                                     {curItem.collocations.map((c, i) =>
@@ -4237,10 +4237,10 @@ function MainApp() {
                                         • {typeof c === 'string' ? c : c.phrase}
                                       </Text>
                             )}
-                                  </View>
+                                  </View> : null
                           }
 
-                                {curItem?.examples && curItem?.examples.length > 0 &&
+                                {curItem?.examples && curItem?.examples.length > 0 ?
                           <View style={[styles.exampleBox, { backgroundColor: theme.exampleBg, borderLeftColor: theme.exampleBorder }]}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                       <Text style={[styles.exampleText, { color: theme.exampleText, flex: 1, marginRight: 8 }]}>
@@ -4250,7 +4250,7 @@ function MainApp() {
                                         <IconVolume2 size={16} color={theme.accent} />
                                       </TouchableOpacity>
                                     </View>
-                                  </View>
+                                  </View> : null
                           }
                               </ScrollView>
                             </View>)
@@ -4323,10 +4323,10 @@ function MainApp() {
                 }
                 </View>);
 
-          })()}
+          })() : null}
 
             {/* TAB 3: VOCABULARY VAULT */}
-            {currentTab === 'vocab' &&
+            {currentTab === 'vocab' ?
           <View style={styles.tabContainer}>
                 {/* 1. TOP HEADER: Search Bar & View Switcher in 1 Row */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -4339,10 +4339,10 @@ function MainApp() {
                   value={vocabSearch}
                   onChangeText={setVocabSearch} />
                 
-                    {vocabSearch.length > 0 &&
+                    {vocabSearch.length > 0 ?
                 <TouchableOpacity onPress={() => setVocabSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                         <IconX size={16} color={theme.textSecondary} />
-                      </TouchableOpacity>
+                      </TouchableOpacity> : null
                 }
                   </View>
 
@@ -4601,7 +4601,7 @@ function MainApp() {
                           </TouchableOpacity>
 
                           {/* Words in Topic */}
-                          {Boolean(!isCollapsed) &&
+                          {Boolean(!isCollapsed) ?
                     <View style={{ padding: 12, gap: 10 }}>
                               {topicWords.length === 0 ?
                       <Text style={{ fontSize: 12, color: theme.textMuted, fontStyle: 'italic', paddingVertical: 4 }}>
@@ -4645,16 +4645,16 @@ function MainApp() {
                                       </Text>
 
                                       {/* Example */}
-                                      {item.examples && item.examples.length > 0 &&
+                                      {item.examples && item.examples.length > 0 ?
                           <Text style={[styles.vocabExampleSub, { color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }]} numberOfLines={2}>
                                           "{item.examples[0]}"
-                                        </Text>
+                                        </Text> : null
                           }
                                     </View>
                                   </TouchableOpacity>
                       )
                       }
-                            </View>
+                            </View> : null
                     }
                         </View>);
 
@@ -4749,11 +4749,11 @@ function MainApp() {
               }))
               }
                 </ScrollView>
-              </View>
+              </View> : null
           }
 
             {/* TAB 4: PATTERNS HUB */}
-            {currentTab === 'patterns' &&
+            {currentTab === 'patterns' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -4913,7 +4913,7 @@ function MainApp() {
                 </ScrollView>
 
                 {/* ADD / EDIT PATTERN FORM (SYNCED 100% WITH WEB) */}
-                {Boolean(isAddingPattern) &&
+                {Boolean(isAddingPattern) ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.accent, borderWidth: 1.5, marginBottom: 16 }]}>
                     <Text style={[styles.formTitle, { color: theme.accent }]}>
                       {editingPattern ? '✏️ Chỉnh Sửa Mẫu Câu' : '✨ Thêm Mẫu Câu Mới'}
@@ -5020,7 +5020,7 @@ function MainApp() {
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </View> : null
             }
 
                 {/* PATTERN CARDS LIST */}
@@ -5100,7 +5100,7 @@ function MainApp() {
                   null}
 
                         {/* Examples with Audio Pronunciation */}
-                        {p.examples && p.examples.length > 0 &&
+                        {p.examples && p.examples.length > 0 ?
                   <View style={[styles.exampleBox, { backgroundColor: theme.exampleBg, borderLeftColor: catMeta.color || theme.accent, marginTop: 4, padding: 8, borderRadius: 8 }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                               <Text style={[styles.exampleText, { color: theme.exampleText, fontStyle: 'italic', flex: 1, marginRight: 8, fontSize: 13 }]}>
@@ -5110,16 +5110,16 @@ function MainApp() {
                                 <IconVolume2 size={16} color={theme.accent} />
                               </TouchableOpacity>
                             </View>
-                          </View>
+                          </View> : null
                   }
                       </View>);
 
             })}
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB: INTERACTIVE QUIZ HUB */}
-            {currentTab === 'quiz' &&
+            {currentTab === 'quiz' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -5246,13 +5246,13 @@ function MainApp() {
                           </View>
 
                           {/* Row 3: Correct Answer (if wrong) */}
-                          {Boolean(!item.isCorrect) &&
+                          {Boolean(!item.isCorrect) ?
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
                               <Text style={{ fontSize: 13, color: theme.textSecondary }}>Đáp án đúng: </Text>
                               <Text style={{ fontSize: 13, fontWeight: '800', color: '#10b981', flex: 1 }}>
                                 {item.correctAnswer}
                               </Text>
-                            </View>
+                            </View> : null
                   }
                         </View>
                 )}
@@ -5373,8 +5373,8 @@ function MainApp() {
                                   <Text style={{ fontSize: 15, fontWeight: '600', color: textColor, flex: 1 }}>
                                     {option}
                                   </Text>
-                                  {Boolean(quizIsAnswered && isCorrect) &&
-                            <Text style={{ fontSize: 16, fontWeight: '800', color: '#10b981' }}>✓</Text>
+                                  {Boolean(quizIsAnswered && isCorrect) ?
+                            <Text style={{ fontSize: 16, fontWeight: '800', color: '#10b981' }}>✓</Text> : null
                             }
                                 </TouchableOpacity>);
 
@@ -5384,15 +5384,15 @@ function MainApp() {
                           {/* Explanation / Translation box if answered */}
                           {quizIsAnswered && (currentQ.explanation || currentQ.translation) &&
                     <View style={{ backgroundColor: theme.innerCard, borderColor: theme.accent, borderLeftWidth: 3, padding: 10, borderRadius: 8, marginTop: 12 }}>
-                              {Boolean(currentQ.explanation) &&
+                              {Boolean(currentQ.explanation) ?
                       <Text style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 18 }}>
                                   📖 <Text style={{ fontWeight: '700', color: theme.textPrimary }}>Giải thích:</Text> {currentQ.explanation}
-                                </Text>
+                                </Text> : null
                       }
-                              {Boolean(currentQ.translation) &&
+                              {Boolean(currentQ.translation) ?
                       <Text style={{ fontSize: 12, fontStyle: 'italic', color: theme.textMuted, marginTop: 4 }}>
                                   🌐 <Text style={{ fontWeight: '700' }}>Dịch câu:</Text> "{currentQ.translation}"
-                                </Text>
+                                </Text> : null
                       }
                             </View>
                     }
@@ -5454,12 +5454,12 @@ function MainApp() {
                         <Text style={{ fontWeight: '800', color: quizTab === 'history' ? '#ffffff' : theme.textSecondary, fontSize: 13 }}>
                           📜 Lịch Sử Đề
                         </Text>
-                        {quizHistory.length > 0 &&
+                        {quizHistory.length > 0 ?
                   <View style={{ backgroundColor: quizTab === 'history' ? '#ffffff' : '#8b5cf6', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
                             <Text style={{ color: quizTab === 'history' ? '#8b5cf6' : '#ffffff', fontSize: 10, fontWeight: '800' }}>
                               {quizHistory.length}
                             </Text>
-                          </View>
+                          </View> : null
                   }
                       </TouchableOpacity>
                     </View>
@@ -5882,11 +5882,11 @@ function MainApp() {
               }
                   </View>)
             }
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB: AI SPEAKING & PRONUNCIATION LAB */}
-            {currentTab === 'speaking' &&
+            {currentTab === 'speaking' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -5984,10 +5984,10 @@ function MainApp() {
                     {speakingActiveMode === 'read-aloud' ? selectedSpeakingPrompt?.targetText : selectedSpeakingPrompt?.question}
                   </Text>
 
-                  {selectedSpeakingPrompt?.tips && speakingActiveMode === 'read-aloud' &&
+                  {selectedSpeakingPrompt?.tips && speakingActiveMode === 'read-aloud' ?
               <View style={{ backgroundColor: theme.innerCard, padding: 8, borderRadius: 8, marginTop: 10 }}>
                       <Text style={{ fontSize: 12, color: theme.textSecondary }}>💡 {selectedSpeakingPrompt.tips}</Text>
-                    </View>
+                    </View> : null
               }
                 </View>
 
@@ -6052,7 +6052,7 @@ function MainApp() {
                   </Text>
 
                   {/* Playback & Reset Controls (When audio is recorded) */}
-                  {Boolean(userSpeakingAudioBase64 && !isSpeakingRecording) &&
+                  {Boolean(userSpeakingAudioBase64 && !isSpeakingRecording) ?
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14, width: '100%' }}>
                       <TouchableOpacity
                   onPress={playUserSpeakingAudio}
@@ -6101,7 +6101,7 @@ function MainApp() {
                           Thu Lại
                         </Text>
                       </TouchableOpacity>
-                    </View>
+                    </View> : null
               }
 
                   {/* Realtime Transcribed Subtitles */}
@@ -6145,7 +6145,7 @@ function MainApp() {
                 </View>
 
                 {/* Results View: Read-Aloud */}
-                {speakingReadResult && speakingActiveMode === 'read-aloud' &&
+                {speakingReadResult && speakingActiveMode === 'read-aloud' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, marginTop: 14 }]}>
                     <View style={{ alignItems: 'center', marginBottom: 12 }}>
                       <Text style={{ fontSize: 12, color: theme.textMuted, fontWeight: '700' }}>TỔNG ĐIỂM PHÁT ÂM</Text>
@@ -6204,11 +6204,11 @@ function MainApp() {
                         ✓ {tip}
                       </Text>
               )}
-                  </View>
+                  </View> : null
             }
 
                 {/* Results View: Q&A Assessment */}
-                {speakingQAResult && speakingActiveMode === 'qa' &&
+                {speakingQAResult && speakingActiveMode === 'qa' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, marginTop: 14 }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: theme.textPrimary }}>Kết Quả Phỏng Vấn</Text>
@@ -6231,7 +6231,7 @@ function MainApp() {
                     </View>
 
                     {/* Band 8.5 Model Answer */}
-                    {Boolean(speakingQAResult.modelAnswerBand85) &&
+                    {Boolean(speakingQAResult.modelAnswerBand85) ?
               <View style={{ backgroundColor: theme.innerCard, padding: 12, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: theme.accent }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <Text style={{ fontWeight: '800', color: theme.accent, fontSize: 13 }}>Câu Trả Lời Mẫu Band 8.5+:</Text>
@@ -6242,15 +6242,15 @@ function MainApp() {
                         <Text style={{ fontSize: 13, color: theme.textPrimary, fontStyle: 'italic', lineHeight: 18 }}>
                           "{speakingQAResult.modelAnswerBand85}"
                         </Text>
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB 5: SMART READER (FULL TÍNH NĂNG TƯƠNG ĐƯƠNG WEB) */}
-            {currentTab === 'reader' &&
+            {currentTab === 'reader' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
@@ -6269,19 +6269,19 @@ function MainApp() {
                     <IconFileText size={20} color={theme.accent} />
                     <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Smart Reader & Bài Đọc</Text>
                   </View>
-                  {Boolean(!isAddingNote) &&
+                  {Boolean(!isAddingNote) ?
               <TouchableOpacity
                 onPress={handleStartAddNote}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.accentPill, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 }}>
                 
                       <IconPlus size={14} color={theme.accent} />
                       <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 12 }}>Bài Mới</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> : null
               }
                 </View>
 
                 {/* Add / Edit Article Form */}
-                {Boolean(isAddingNote) &&
+                {Boolean(isAddingNote) ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.accent, borderWidth: 1.5, marginBottom: 14 }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <Text style={[styles.formTitle, { color: theme.textPrimary }]}>
@@ -6336,7 +6336,7 @@ function MainApp() {
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </View> : null
             }
 
                 {/* ACTIVE READER VIEW (SELECTED NOTE) */}
@@ -6483,7 +6483,7 @@ function MainApp() {
                             </View>
 
                             {/* Trigger Translate Button (When NOT yet translated) */}
-                            {Boolean(!readerContextTranslation && !isTranslatingContext) &&
+                            {Boolean(!readerContextTranslation && !isTranslatingContext) ?
                         <TouchableOpacity
                           onPress={() => handleTranslateInContext(cleanSelectedWord)}
                           style={{
@@ -6503,7 +6503,7 @@ function MainApp() {
                                 <Text style={{ fontSize: 12.5, fontWeight: '800', color: theme.accent }}>
                                   🌐 Bấm để dịch nghĩa theo ngữ cảnh bài đọc
                                 </Text>
-                              </TouchableOpacity>
+                              </TouchableOpacity> : null
                         }
 
                             {/* Contextual Translation Body */}
@@ -6733,7 +6733,7 @@ function MainApp() {
 
               })}
 
-                    {notes.length === 0 &&
+                    {notes.length === 0 ?
               <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, alignItems: 'center', paddingVertical: 32 }]}>
                         <IconBookOpen size={40} color={theme.textMuted} />
                         <Text style={[styles.heroTitle, { color: theme.textPrimary, marginTop: 10, fontSize: 16 }]}>
@@ -6748,15 +6748,15 @@ function MainApp() {
                   
                           <Text style={styles.primaryActionBtnText}>+ Tạo Bài Đầu Tiên</Text>
                         </TouchableOpacity>
-                      </View>
+                      </View> : null
               }
                   </View>)
             }
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB 6: AI ENGLISH LAB (NÂNG CẤP TOÀN DIỆN TƯƠNG ĐƯƠNG BẢN WEB) */}
-            {currentTab === 'ai-lab' &&
+            {currentTab === 'ai-lab' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 }]}
@@ -6811,7 +6811,7 @@ function MainApp() {
                 </View>
 
                 {/* SUBTAB 1: BÓC TÁCH CÂU */}
-                {aiSubTab === 'parse' &&
+                {aiSubTab === 'parse' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     <Text style={[styles.formTitle, { color: theme.textPrimary }]}>AI Bóc Tách Câu & Trích Xuất Từ Vựng</Text>
                     <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Dán câu tiếng Anh để AI phân tích cấu trúc, dịch tự nhiên và trích xuất từ vựng hay.</Text>
@@ -6857,7 +6857,7 @@ function MainApp() {
                 }
                     </TouchableOpacity>
 
-                    {Boolean(aiParseResult) &&
+                    {Boolean(aiParseResult) ?
               <View style={{ marginTop: 16, gap: 10 }}>
                         {/* 1. Natural Translation */}
                         <View style={{ padding: 12, borderRadius: 12, backgroundColor: theme.drawerCardBg, borderLeftWidth: 4, borderLeftColor: theme.accent }}>
@@ -6870,15 +6870,15 @@ function MainApp() {
                           <Text style={[styles.backMeaningVi, { color: theme.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 4 }]}>
                             {aiParseResult.translation || aiParseResult.translation_vi}
                           </Text>
-                          {Boolean(aiParseResult.grammar_notes) &&
+                          {Boolean(aiParseResult.grammar_notes) ?
                   <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 6, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: theme.cardBorder, paddingTop: 6 }}>
                               💡 {aiParseResult.grammar_notes}
-                            </Text>
+                            </Text> : null
                   }
                         </View>
 
                         {/* 2. Sentence Syntax & Structure Breakdown */}
-                        {Boolean(aiParseResult.sentence_structure) &&
+                        {Boolean(aiParseResult.sentence_structure) ?
                 <View style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff', borderWidth: 1, borderColor: isDark ? 'rgba(59, 130, 246, 0.35)' : '#bfdbfe', borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
                             <Text style={{ fontSize: 11, fontWeight: '800', color: '#3b82f6', textTransform: 'uppercase' }}>
                               📐 Bóc Tách Cấu Trúc Ngữ Pháp (Syntax Breakdown):
@@ -6886,11 +6886,11 @@ function MainApp() {
                             <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textPrimary, marginTop: 5, lineHeight: 18 }}>
                               {aiParseResult.sentence_structure}
                             </Text>
-                          </View>
+                          </View> : null
                 }
 
                         {/* 3. Core Sentence Patterns */}
-                        {aiParseResult.patterns?.length > 0 &&
+                        {aiParseResult.patterns?.length > 0 ?
                 <View>
                             <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginBottom: 6 }]}>
                               Mẫu Câu & Cấu Trúc Trọng Tâm:
@@ -6911,23 +6911,23 @@ function MainApp() {
                                     </Text>
                                   </TouchableOpacity>
                                 </View>
-                                {Boolean(p.formula) &&
+                                {Boolean(p.formula) ?
                     <View style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
                                     <Text style={{ fontSize: 11, fontFamily: 'monospace', color: theme.accent, fontWeight: '700' }}>
                                       {p.formula}
                                     </Text>
-                                  </View>
+                                  </View> : null
                     }
                                 <Text style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 16 }}>
                                   {p.explanation}
                                 </Text>
                               </View>
                   )}
-                          </View>
+                          </View> : null
                 }
 
                         {/* 4. Extracted Vocabulary */}
-                        {aiParseResult.extracted_words?.length > 0 &&
+                        {aiParseResult.extracted_words?.length > 0 ?
                 <View>
                             <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginBottom: 6 }]}>Từ vựng trích xuất:</Text>
                             {aiParseResult.extracted_words.map((w, idx) =>
@@ -6940,10 +6940,10 @@ function MainApp() {
                                     </TouchableOpacity>
                                   </View>
                                   <Text style={[styles.vocabMeaningText, { color: theme.accent, fontSize: 13, marginTop: 2 }]}>{w.meaning_vi}</Text>
-                                  {Boolean(w.context_usage) &&
+                                  {Boolean(w.context_usage) ?
                       <Text style={[styles.vocabExampleSub, { color: theme.textSecondary, fontSize: 11, marginTop: 2 }]} numberOfLines={2}>
                                       {w.context_usage}
-                                    </Text>
+                                    </Text> : null
                       }
                                 </View>
                                 <TouchableOpacity
@@ -6958,15 +6958,15 @@ function MainApp() {
                                 </TouchableOpacity>
                               </View>
                   )}
-                          </View>
+                          </View> : null
                 }
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
 
                 {/* SUBTAB 2: NÂNG CẤP VĂN PHONG (PARAPHRASER) */}
-                {aiSubTab === 'paraphrase' &&
+                {aiSubTab === 'paraphrase' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     <Text style={[styles.formTitle, { color: theme.textPrimary }]}>AI Nâng Cấp Văn Phong & Viết Lại</Text>
                     <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Chuyển đổi câu tiếng Anh theo phong cách Business, Academic hoặc Natural Native.</Text>
@@ -7048,7 +7048,7 @@ function MainApp() {
                 }
                     </TouchableOpacity>
 
-                    {Boolean(aiParaphraseResult) &&
+                    {Boolean(aiParaphraseResult) ?
               <View style={{ marginTop: 16, gap: 10 }}>
                         <Text style={[styles.cardSectionLabel, { color: theme.textSecondary }]}>Các phiên bản viết lại xuất sắc:</Text>
                         {aiParaphraseResult.paraphrases?.map((p, idx) =>
@@ -7066,13 +7066,13 @@ function MainApp() {
                             </Text>
                           </View>
                 )}
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
 
                 {/* SUBTAB 3: CHẤM & SỬA CÂU */}
-                {aiSubTab === 'check' &&
+                {aiSubTab === 'check' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     <Text style={[styles.formTitle, { color: theme.textPrimary }]}>AI Chấm & Sửa Câu Tự Đặt</Text>
                     <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Viết câu với từ vựng để AI nhận xét ngữ pháp và gợi ý câu chuẩn bản xứ.</Text>
@@ -7128,7 +7128,7 @@ function MainApp() {
                 }
                     </TouchableOpacity>
 
-                    {Boolean(aiCheckResult) &&
+                    {Boolean(aiCheckResult) ?
               <View style={{ marginTop: 16, gap: 8 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={[styles.statBoxNum, { color: aiCheckResult.score >= 80 ? '#10b981' : '#f59e0b' }]}>
@@ -7141,7 +7141,7 @@ function MainApp() {
                         <Text style={[styles.backMeaningEn, { color: theme.textSecondary, fontSize: 13 }]}>
                           {aiCheckResult.feedback || aiCheckResult.feedback_vi}
                         </Text>
-                        {aiCheckResult.native_alternatives?.length > 0 &&
+                        {aiCheckResult.native_alternatives?.length > 0 ?
                 <View style={{ marginTop: 4 }}>
                             <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginBottom: 6 }]}>Cách diễn đạt bản xứ (Native):</Text>
                             {aiCheckResult.native_alternatives.map((alt, idx) =>
@@ -7152,15 +7152,15 @@ function MainApp() {
                                 </TouchableOpacity>
                               </View>
                   )}
-                          </View>
+                          </View> : null
                 }
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
 
                 {/* SUBTAB 4: CỤM TỪ & IDIOMS (COLLOCATIONS) */}
-                {aiSubTab === 'collocations' &&
+                {aiSubTab === 'collocations' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Đào Sâu Cụm Từ & Thành Ngữ</Text>
                     <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>Khám phá các cụm từ kết hợp tự nhiên (Collocations) và cảnh báo lỗi sai thường gặp.</Text>
@@ -7202,7 +7202,7 @@ function MainApp() {
                 }
                     </TouchableOpacity>
 
-                    {Boolean(aiCollocationResult) &&
+                    {Boolean(aiCollocationResult) ?
               <View style={{ marginTop: 16, gap: 10 }}>
                         <View style={{ padding: 12, borderRadius: 12, backgroundColor: theme.drawerCardBg, borderLeftWidth: 4, borderLeftColor: theme.accent }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -7215,7 +7215,7 @@ function MainApp() {
                           <Text style={{ fontSize: 13, fontWeight: '700', color: theme.accent, marginTop: 2 }}>{aiCollocationResult.core_meaning_vi}</Text>
                         </View>
 
-                        {aiCollocationResult.collocations?.length > 0 &&
+                        {aiCollocationResult.collocations?.length > 0 ?
                 <View>
                             <Text style={[styles.cardSectionLabel, { color: theme.textSecondary, marginBottom: 6 }]}>Cụm từ tự nhiên hay đi cùng (Collocations):</Text>
                             {aiCollocationResult.collocations.map((c, idx) =>
@@ -7230,15 +7230,15 @@ function MainApp() {
                                 <Text style={{ fontSize: 11, fontStyle: 'italic', color: theme.textSecondary }}>"{c.example_en}"</Text>
                               </View>
                   )}
-                          </View>
+                          </View> : null
                 }
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
 
                 {/* SUBTAB 5: HỘI THOẠI TÌNH HUỐNG (DIALOGUE) */}
-                {aiSubTab === 'dialogue' &&
+                {aiSubTab === 'dialogue' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Hội Thoại Tình Huống Giao Tiếp</Text>
                     <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>AI tạo cuộc đối thoại thực chiến lồng ghép từ vựng trong kho của bạn.</Text>
@@ -7293,7 +7293,7 @@ function MainApp() {
                 }
                     </TouchableOpacity>
 
-                    {Boolean(aiDialogueResult) &&
+                    {Boolean(aiDialogueResult) ?
               <View style={{ marginTop: 16, gap: 8 }}>
                         <Text style={{ fontSize: 14, fontWeight: '800', color: theme.accent }}>🎭 {aiDialogueResult.scenario_title}</Text>
                         <Text style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4 }}>{aiDialogueResult.scenario_desc_vi}</Text>
@@ -7325,13 +7325,13 @@ function MainApp() {
                             </View>);
 
                 })}
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
 
                 {/* SUBTAB 6: SÁNG TÁC TRUYỆN (STORY WEAVER) */}
-                {aiSubTab === 'story' &&
+                {aiSubTab === 'story' ?
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     <Text style={[styles.formTitle, { color: theme.textPrimary }]}>Sáng Tác Truyện Ngắn Chống Quên</Text>
                     <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>AI tạo truyện 1 phút từ các từ bạn cần ôn hôm nay.</Text>
@@ -7350,7 +7350,7 @@ function MainApp() {
                 }
                     </TouchableOpacity>
 
-                    {Boolean(aiStoryResult) &&
+                    {Boolean(aiStoryResult) ?
               <View style={{ marginTop: 16, gap: 8 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={[styles.heroTitle, { color: theme.textPrimary, fontSize: 16 }]}>{aiStoryResult.title}</Text>
@@ -7365,15 +7365,15 @@ function MainApp() {
                         <Text style={[styles.backMeaningVi, { color: theme.accent, fontSize: 13, fontWeight: '500' }]}>
                           {aiStoryResult.story_vi}
                         </Text>
-                      </View>
+                      </View> : null
               }
-                  </View>
+                  </View> : null
             }
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB 7: SETTINGS */}
-            {currentTab === 'settings' &&
+            {currentTab === 'settings' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -7498,7 +7498,7 @@ function MainApp() {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                      {Boolean(telegramEnabled) && <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '900' }}>✓</Text>}
+                      {Boolean(telegramEnabled) ? <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '900' }}>✓</Text> : null}
                     </View>
                     <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 14 }}>
                       Bật thông báo tự động qua Telegram
@@ -7747,8 +7747,8 @@ function MainApp() {
                             <Text style={{ fontSize: 12, fontWeight: isSelected ? '800' : '700', color: isSelected ? theme.accent : theme.textPrimary }}>
                               {m.name}
                             </Text>
-                            {Boolean(isSelected) &&
-                        <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '900' }}>✓</Text>
+                            {Boolean(isSelected) ?
+                        <Text style={{ color: theme.accent, fontSize: 12, fontWeight: '900' }}>✓</Text> : null
                         }
                           </View>
                           <Text style={{ fontSize: 10, color: isSelected ? theme.accent : theme.textMuted, marginTop: 2 }} numberOfLines={1}>
@@ -7803,11 +7803,11 @@ function MainApp() {
                     • AI Assistant: Google Gemini 2.0 Free Tier (0đ)
                   </Text>
                 </View>
-              </ScrollView>
+              </ScrollView> : null
           }
 
             {/* TAB 8: QUICK ADD WORD (SYNCED 100% WITH WEB QUICK ADD MODAL) */}
-            {currentTab === 'add' &&
+            {currentTab === 'add' ?
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -7891,7 +7891,7 @@ function MainApp() {
                         if (quickAddSuccessMsg) setQuickAddSuccessMsg('');
                       }} />
                     
-                        {newWord.trim().length > 0 &&
+                        {newWord.trim().length > 0 ?
                     <TouchableOpacity
                       onPress={() => playMobileAudio(newWord)}
                       style={{ padding: 4 }}
@@ -7899,7 +7899,7 @@ function MainApp() {
                       title="Nghe phát âm chuẩn">
                       
                             <IconVolume2 size={18} color={theme.accent} />
-                          </TouchableOpacity>
+                          </TouchableOpacity> : null
                     }
                       </View>
 
@@ -7978,14 +7978,14 @@ function MainApp() {
                     value={newPhonetic}
                     onChangeText={setNewPhonetic} />
                   
-                      {newWord.trim().length > 0 &&
+                      {newWord.trim().length > 0 ?
                   <TouchableOpacity
                     onPress={() => playMobileAudio(newWord)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
                     
                           <IconVolume2 size={16} color={theme.accent} />
                           <Text style={{ fontSize: 11.5, fontWeight: '700', color: theme.accent }}>Nghe Thử</Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> : null
                   }
                     </View>
                   </View>
@@ -8150,13 +8150,13 @@ function MainApp() {
                       setNewCollocations(updated);
                     }} />
                   
-                        {newCollocations.length > 1 &&
+                        {newCollocations.length > 1 ?
                   <TouchableOpacity
                     onPress={() => setNewCollocations(newCollocations.filter((_, i) => i !== idx))}
                     style={{ padding: 6 }}>
                     
                             <IconTrash size={15} color="#ef4444" />
-                          </TouchableOpacity>
+                          </TouchableOpacity> : null
                   }
                       </View>
                 )}
@@ -8190,22 +8190,22 @@ function MainApp() {
                     }}
                     multiline />
                   
-                        {ex.trim().length > 0 &&
+                        {ex.trim().length > 0 ?
                   <TouchableOpacity
                     onPress={() => playMobileAudio(ex)}
                     style={{ padding: 6 }}
                     title="Nghe câu ví dụ">
                     
                             <IconVolume2 size={15} color={theme.accent} />
-                          </TouchableOpacity>
+                          </TouchableOpacity> : null
                   }
-                        {newExamples.length > 1 &&
+                        {newExamples.length > 1 ?
                   <TouchableOpacity
                     onPress={() => setNewExamples(newExamples.filter((_, i) => i !== idx))}
                     style={{ padding: 6 }}>
                     
                             <IconTrash size={15} color="#ef4444" />
-                          </TouchableOpacity>
+                          </TouchableOpacity> : null
                   }
                       </View>
                 )}
@@ -8328,7 +8328,7 @@ function MainApp() {
                 }
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
+              </ScrollView> : null
           }
           </Animated.View>
         }
@@ -8358,10 +8358,10 @@ function MainApp() {
           
           <View style={{ position: 'relative' }}>
             <IconZap size={20} color={currentTab === 'review' ? theme.accent : theme.textMuted} />
-            {totalDue > 0 &&
+            {totalDue > 0 ?
             <View style={styles.tabBadge}>
                 <Text style={styles.tabBadgeText}>{totalDue}</Text>
-              </View>
+              </View> : null
             }
           </View>
           <Text style={[styles.tabLabel, { color: currentTab === 'review' ? theme.accent : theme.textMuted }]}>Ôn Tập</Text>
@@ -8592,10 +8592,10 @@ function MainApp() {
                     <Text style={[styles.drawerItemTitle, { color: currentTab === 'review' ? theme.accent : theme.textPrimary }]}>
                       Ôn Tập SRS
                     </Text>
-                    {totalDue > 0 &&
+                    {totalDue > 0 ?
                     <View style={[styles.levelPill, { backgroundColor: '#ef4444' }]}>
                         <Text style={[styles.levelPillText, { color: '#ffffff' }]}>{totalDue}</Text>
-                      </View>
+                      </View> : null
                     }
                   </View>
                   <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Flashcard chống quên (SM-2)</Text>
@@ -9281,7 +9281,7 @@ function MainApp() {
                 </View>
 
                 {/* 4. Strengths & Action Plan */}
-                {Boolean(aiMasteryReport?.aiAssessment?.actionPlan) &&
+                {Boolean(aiMasteryReport?.aiAssessment?.actionPlan) ?
               <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.08)' : 'rgba(2, 132, 199, 0.05)', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', gap: 6 }}>
                     <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent }}>
                       🚀 LỘ TRÌNH 3 BƯỚC TIẾP THEO:
@@ -9292,7 +9292,7 @@ function MainApp() {
                         {step}
                       </Text>
                 )}
-                  </View>
+                  </View> : null
               }
 
                 <TouchableOpacity
@@ -9424,7 +9424,7 @@ function MainApp() {
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
-            {Boolean(selectedWordDetail) &&
+            {Boolean(selectedWordDetail) ?
             <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
@@ -9483,10 +9483,10 @@ function MainApp() {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                  {Boolean(selectedWordDetail.phonetic) &&
+                  {Boolean(selectedWordDetail.phonetic) ?
                 <Text style={{ fontSize: 14, color: theme.textMuted, fontStyle: 'italic' }}>
                       {selectedWordDetail.phonetic} {selectedWordDetail.part_of_speech ? `• (${selectedWordDetail.part_of_speech})` : ''}
-                    </Text>
+                    </Text> : null
                 }
 
                   <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.1)' : 'rgba(2, 132, 199, 0.08)', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.25)' : 'rgba(2, 132, 199, 0.15)' }}>
@@ -9502,7 +9502,7 @@ function MainApp() {
                   </View>
 
                   {/* Collocations */}
-                  {selectedWordDetail.collocations && selectedWordDetail.collocations.length > 0 &&
+                  {selectedWordDetail.collocations && selectedWordDetail.collocations.length > 0 ?
                 <View style={{ backgroundColor: theme.drawerCardBg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.cardBorder }}>
                       <Text style={{ fontSize: 11, fontWeight: '800', color: '#a855f7', textTransform: 'uppercase', marginBottom: 6 }}>
                         ✨ CỤM TỪ ĐI KÈM (COLLOCATIONS)
@@ -9512,11 +9512,11 @@ function MainApp() {
                           • <Text style={{ fontWeight: '700' }}>{typeof col === 'string' ? col : col.phrase}</Text> {typeof col === 'object' && col.meaning ? `— ${col.meaning}` : ''}
                         </Text>
                   )}
-                    </View>
+                    </View> : null
                 }
 
                   {/* Examples */}
-                  {selectedWordDetail.examples && selectedWordDetail.examples.length > 0 &&
+                  {selectedWordDetail.examples && selectedWordDetail.examples.length > 0 ?
                 <View style={{ backgroundColor: theme.drawerCardBg, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.cardBorder }}>
                       <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent, textTransform: 'uppercase', marginBottom: 6 }}>
                         💬 CÂU VÍ DỤ THỰC TẾ
@@ -9531,7 +9531,7 @@ function MainApp() {
                           </Text>
                         </View>
                   )}
-                    </View>
+                    </View> : null
                 }
 
                   {/* SM-2 Retention Metrics */}
@@ -9575,7 +9575,7 @@ function MainApp() {
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
-              </>
+              </> : null
             }
           </View>
         </View>
@@ -9590,7 +9590,7 @@ function MainApp() {
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
-            {Boolean(editingWordData) &&
+            {Boolean(editingWordData) ?
             <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
                   <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary }}>
@@ -9790,7 +9790,7 @@ function MainApp() {
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
-              </>
+              </> : null
             }
           </View>
         </View>
@@ -9822,7 +9822,7 @@ function MainApp() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {/* Quick Actions Shortcuts */}
-              {Boolean(!commandSearchQuery) &&
+              {Boolean(!commandSearchQuery) ?
               <View style={{ gap: 4, marginBottom: 8 }}>
                   <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>PHÍM TẮT ĐIỀU HƯỚNG</Text>
                   <TouchableOpacity
@@ -9856,7 +9856,7 @@ function MainApp() {
                     <IconAward size={16} color="#f59e0b" />
                     <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Xem Báo Cáo Đánh Giá Năng Lực AI</Text>
                   </TouchableOpacity>
-                </View>
+                </View> : null
               }
 
               {/* Matched Words */}
@@ -10168,7 +10168,7 @@ function MainApp() {
                         justifyContent: 'center'
                       }}>
                       
-                        {topicColorInput === c && <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '900' }}>✓</Text>}
+                        {topicColorInput === c ? <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '900' }}>✓</Text> : null}
                       </TouchableOpacity>
                     )}
                   </View>
@@ -10188,13 +10188,13 @@ function MainApp() {
 
                 {/* Form Buttons */}
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-                  {Boolean(editingTopicData) &&
+                  {Boolean(editingTopicData) ?
                   <TouchableOpacity
                     onPress={handleStartCreateTopic}
                     style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.cardBorder }}>
                     
                       <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary }}>Hủy</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> : null
                   }
                   <TouchableOpacity
                     onPress={handleSaveTopic}
@@ -10394,13 +10394,13 @@ function MainApp() {
 
                 {/* Form Buttons */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                  {Boolean(editingPatternCatData) &&
+                  {Boolean(editingPatternCatData) ?
                   <TouchableOpacity
                     style={[styles.secondaryActionBtn, { flex: 1, paddingVertical: 8 }]}
                     onPress={handleStartCreatePatternCategory}>
                     
                       <Text style={[styles.secondaryActionBtnText, { fontSize: 12 }]}>Hủy sửa</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> : null
                   }
                   <TouchableOpacity
                     style={[styles.primaryActionBtn, { flex: 2, backgroundColor: patternCatColorInput || theme.accent, paddingVertical: 8 }]}
