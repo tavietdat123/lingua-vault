@@ -2882,7 +2882,7 @@ function MainApp() {
                   Đăng Nhập Hệ Thống
                 </Text>
                 <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
-                  Vui lòng đăng nhập hoặc vào trải nghiệm nhanh
+                  Vui lòng đăng nhập tài khoản của bạn
                 </Text>
               </View>
 
@@ -2963,8 +2963,7 @@ function MainApp() {
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
-                  elevation: 4,
-                  marginBottom: 12
+                  elevation: 4
                 }}>
                 
                 {authLoading ?
@@ -2974,24 +2973,6 @@ function MainApp() {
                     Đăng Nhập Vào Hệ Thống
                   </Text>
                 }
-              </TouchableOpacity>
-
-              {/* Guest Login 1-Click Button */}
-              <TouchableOpacity
-                onPress={handleGuestLogin}
-                disabled={authLoading}
-                style={{
-                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)',
-                  borderWidth: 1,
-                  borderColor: theme.accent,
-                  paddingVertical: 12,
-                  borderRadius: 14,
-                  alignItems: 'center'
-                }}>
-                
-                <Text style={{ fontSize: 13, fontWeight: '800', color: theme.accent }}>
-                  🚀 Vào Thử Nghiệm Nhanh (Khách / 1-Chạm)
-                </Text>
               </TouchableOpacity>
             </View>
 
