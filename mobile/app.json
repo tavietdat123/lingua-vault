@@ -2,7 +2,7 @@
   "expo": {
     "name": "LinguaVault",
     "slug": "lingua-vault",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.linguavault.app",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -26,6 +26,7 @@
     },
     "android": {
       "package": "com.linguavault.app",
+      "versionCode": 2,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
