@@ -1962,9 +1962,9 @@ function MainApp() {
     } catch (e) {
 
 
+
       // Keep existing IPA if present
-    }};
-  // Smart Reader: Translate In Context using Gemini AI (Instant 0ms Cache + Optimistic Preview)
+    }}; // Smart Reader: Translate In Context using Gemini AI (Instant 0ms Cache + Optimistic Preview)
   const handleTranslateInContext = async (rawWord) => {
     const cleanWord = (rawWord || readerSelectedWord || '').replace(/^[^\w]+|[^\w]+$/g, '').trim();
     if (!cleanWord) return;
@@ -2993,7 +2993,7 @@ function MainApp() {
           visible={showServerModal}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowServerModal(false)}>
+          onRequestClose={() => setShowServerModal(false)}>{showServerModal ? <>
           
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
             <View style={{ width: '100%', maxWidth: 440, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 1, borderColor: theme.cardBorder }}>
@@ -3004,38 +3004,38 @@ function MainApp() {
                 </TouchableOpacity>
               </View>
               <TextInput
-                style={{
-                  backgroundColor: theme.inputBg,
-                  color: theme.textPrimary,
-                  borderWidth: 1,
-                  borderColor: theme.cardBorder,
-                  borderRadius: 12,
-                  padding: 12,
-                  fontSize: 14,
-                  fontWeight: '600',
-                  marginBottom: 12
-                }}
-                value={serverUrlState}
-                onChangeText={setServerUrlState}
-                autoCapitalize="none" />
+                  style={{
+                    backgroundColor: theme.inputBg,
+                    color: theme.textPrimary,
+                    borderWidth: 1,
+                    borderColor: theme.cardBorder,
+                    borderRadius: 12,
+                    padding: 12,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    marginBottom: 12
+                  }}
+                  value={serverUrlState}
+                  onChangeText={setServerUrlState}
+                  autoCapitalize="none" />
               
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
-                  onPress={() => setShowServerModal(false)}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder }}>
+                    onPress={() => setShowServerModal(false)}
+                    style={{ flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder }}>
                   
                   <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textSecondary }}>Đóng</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={handleSaveServerUrl}
-                  style={{ flex: 2, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: theme.accent }}>
+                    onPress={handleSaveServerUrl}
+                    style={{ flex: 2, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: theme.accent }}>
                   
                   <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Lưu & Kết Nối</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
-        </Modal>
+        </> : null}</Modal>
       </SafeAreaView>);
 
   }
@@ -8389,20 +8389,20 @@ function MainApp() {
         visible={isNavDrawerOpen}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setIsNavDrawerOpen(false)}>
+        onRequestClose={() => setIsNavDrawerOpen(false)}>{isNavDrawerOpen ? <>
         
         <TouchableOpacity
-          style={styles.drawerBackdrop}
-          activeOpacity={1}
-          onPress={() => setIsNavDrawerOpen(false)}>
+            style={styles.drawerBackdrop}
+            activeOpacity={1}
+            onPress={() => setIsNavDrawerOpen(false)}>
           
           <View style={[styles.drawerSidebar, { backgroundColor: theme.drawerBg, borderRightColor: theme.cardBorder }]} onStartShouldSetResponder={() => true}>
             {/* Drawer Header with User Rank Banner */}
             <View style={[styles.drawerHeaderBox, { borderBottomColor: theme.cardBorder }]}>
               <TouchableOpacity
-                style={styles.drawerUserInfo}
-                onPress={handleOpenProfileEdit}
-                activeOpacity={0.7}>
+                  style={styles.drawerUserInfo}
+                  onPress={handleOpenProfileEdit}
+                  activeOpacity={0.7}>
                 
                 <View style={[styles.drawerAvatar, { backgroundColor: theme.accentPill, borderColor: theme.accent, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }]}>
                   <Text style={{ fontSize: 20 }}>{currentUser?.avatar_url || '🧑‍🎓'}</Text>
@@ -8418,8 +8418,8 @@ function MainApp() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => setIsNavDrawerOpen(false)}
-                style={[styles.drawerCloseCircle, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}>
+                  onPress={() => setIsNavDrawerOpen(false)}
+                  style={[styles.drawerCloseCircle, { backgroundColor: theme.drawerCardBg, borderColor: theme.cardBorder }]}>
                 
                 <IconX size={16} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -8428,26 +8428,26 @@ function MainApp() {
             {/* Quick Add Action Button (Matching Web Sidebar CTA) */}
             <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
               <TouchableOpacity
-                style={{
-                  backgroundColor: theme.accent,
-                  borderRadius: 12,
-                  paddingVertical: 11,
-                  paddingHorizontal: 14,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  shadowColor: theme.accent,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
-                  elevation: 3
-                }}
-                onPress={() => {
-                  setIsNavDrawerOpen(false);
-                  navigateTo('add');
-                }}
-                activeOpacity={0.85}>
+                  style={{
+                    backgroundColor: theme.accent,
+                    borderRadius: 12,
+                    paddingVertical: 11,
+                    paddingHorizontal: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    shadowColor: theme.accent,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 3
+                  }}
+                  onPress={() => {
+                    setIsNavDrawerOpen(false);
+                    navigateTo('add');
+                  }}
+                  activeOpacity={0.85}>
                 
                 <IconPlus size={18} color="#ffffff" />
                 <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13.5 }}>Thêm Nhanh (1-Click)</Text>
@@ -8460,8 +8460,8 @@ function MainApp() {
 
               {/* 1. Dashboard */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'home' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('home')}>
+                  style={[styles.drawerItem, currentTab === 'home' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('home')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'home' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconHome size={18} color={currentTab === 'home' ? theme.accent : theme.textSecondary} />
@@ -8476,8 +8476,8 @@ function MainApp() {
 
               {/* 2. Kho Từ Vựng */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'vocab' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('vocab')}>
+                  style={[styles.drawerItem, currentTab === 'vocab' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('vocab')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'vocab' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconBookOpen size={18} color={currentTab === 'vocab' ? theme.accent : theme.textSecondary} />
@@ -8497,8 +8497,8 @@ function MainApp() {
 
               {/* 3. Mẫu Câu & Cấu Trúc */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'patterns' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('patterns')}>
+                  style={[styles.drawerItem, currentTab === 'patterns' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('patterns')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'patterns' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconLayers size={18} color={currentTab === 'patterns' ? theme.accent : theme.textSecondary} />
@@ -8518,8 +8518,8 @@ function MainApp() {
 
               {/* 4. Quiz Theo Topic */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'quiz' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('quiz')}>
+                  style={[styles.drawerItem, currentTab === 'quiz' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('quiz')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'quiz' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconTarget size={18} color={currentTab === 'quiz' ? theme.accent : theme.textSecondary} />
@@ -8539,8 +8539,8 @@ function MainApp() {
 
               {/* 5. AI Speaking Lab */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'speaking' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('speaking')}>
+                  style={[styles.drawerItem, currentTab === 'speaking' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('speaking')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'speaking' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconMic size={18} color={currentTab === 'speaking' ? theme.accent : theme.textSecondary} />
@@ -8560,8 +8560,8 @@ function MainApp() {
 
               {/* 6. Ghi Chú & Bài Đọc */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'reader' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('reader')}>
+                  style={[styles.drawerItem, currentTab === 'reader' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('reader')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'reader' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconFileText size={18} color={currentTab === 'reader' ? theme.accent : theme.textSecondary} />
@@ -8581,8 +8581,8 @@ function MainApp() {
 
               {/* 7. Ôn Tập SRS */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'review' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('review')}>
+                  style={[styles.drawerItem, currentTab === 'review' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('review')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'review' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconZap size={18} color={currentTab === 'review' ? theme.accent : theme.textSecondary} />
@@ -8593,10 +8593,10 @@ function MainApp() {
                       Ôn Tập SRS
                     </Text>
                     {totalDue > 0 ?
-                    <View style={[styles.levelPill, { backgroundColor: '#ef4444' }]}>
+                      <View style={[styles.levelPill, { backgroundColor: '#ef4444' }]}>
                         <Text style={[styles.levelPillText, { color: '#ffffff' }]}>{totalDue}</Text>
                       </View> : null
-                    }
+                      }
                   </View>
                   <Text style={[styles.drawerItemDesc, { color: theme.textMuted }]}>Flashcard chống quên (SM-2)</Text>
                 </View>
@@ -8604,8 +8604,8 @@ function MainApp() {
 
               {/* 8. AI English Lab */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'ai-lab' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
-                onPress={() => navigateTo('ai-lab')}>
+                  style={[styles.drawerItem, currentTab === 'ai-lab' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }]}
+                  onPress={() => navigateTo('ai-lab')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'ai-lab' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconSparkles size={18} color={currentTab === 'ai-lab' ? theme.accent : '#a855f7'} />
@@ -8625,8 +8625,8 @@ function MainApp() {
 
               {/* Settings Nav Item */}
               <TouchableOpacity
-                style={[styles.drawerItem, currentTab === 'settings' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }, { marginTop: 4 }]}
-                onPress={() => navigateTo('settings')}>
+                  style={[styles.drawerItem, currentTab === 'settings' && { backgroundColor: theme.accentPill, borderWidth: 1, borderColor: theme.accentPillBorder }, { marginTop: 4 }]}
+                  onPress={() => navigateTo('settings')}>
                 
                 <View style={[styles.drawerItemIconBox, { backgroundColor: currentTab === 'settings' ? theme.accentPill : theme.drawerCardBg }]}>
                   <IconSettings size={18} color={currentTab === 'settings' ? theme.accent : theme.textSecondary} />
@@ -8644,16 +8644,16 @@ function MainApp() {
             <View style={{ borderTopWidth: 1, borderTopColor: theme.cardBorder, padding: 14, gap: 10 }}>
               {/* Daily Streak Pill */}
               <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                backgroundColor: theme.drawerCardBg,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.cardBorder
-              }}>
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: theme.drawerCardBg,
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder
+                }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <IconFlame size={16} color="#f59e0b" />
                   <Text style={{ fontSize: 13, fontWeight: '700', color: theme.textPrimary }}>Daily Streak</Text>
@@ -8665,19 +8665,19 @@ function MainApp() {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {/* Theme Toggle */}
                 <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    backgroundColor: theme.drawerCardBg,
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: theme.cardBorder
-                  }}
-                  onPress={toggleTheme}>
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: theme.drawerCardBg,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: theme.cardBorder
+                    }}
+                    onPress={toggleTheme}>
                   
                   {isDark ? <IconSun size={14} color="#f59e0b" /> : <IconMoon size={14} color="#0284c7" />}
                   <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary }}>
@@ -8687,22 +8687,22 @@ function MainApp() {
 
                 {/* Audio Speed */}
                 <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    backgroundColor: theme.drawerCardBg,
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: theme.cardBorder
-                  }}
-                  onPress={() => {
-                    setIsNavDrawerOpen(false);
-                    setShowAudioSpeedModal(true);
-                  }}>
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: theme.drawerCardBg,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: theme.cardBorder
+                    }}
+                    onPress={() => {
+                      setIsNavDrawerOpen(false);
+                      setShowAudioSpeedModal(true);
+                    }}>
                   
                   <IconVolume2 size={14} color={theme.accent} />
                   <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary }}>
@@ -8712,19 +8712,19 @@ function MainApp() {
 
                 {/* Logout */}
                 <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: 'rgba(239, 68, 68, 0.25)'
-                  }}
-                  onPress={handleMobileLogout}>
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: 'rgba(239, 68, 68, 0.25)'
+                    }}
+                    onPress={handleMobileLogout}>
                   
                   <Text style={{ fontSize: 12, fontWeight: '800', color: '#ef4444' }}>Đăng xuất</Text>
                 </TouchableOpacity>
@@ -8732,14 +8732,14 @@ function MainApp() {
             </View>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </> : null}</Modal>
 
       {/* SERVER URL CONFIGURATION MODAL */}
       <Modal
         visible={showServerModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowServerModal(false)}>
+        onRequestClose={() => setShowServerModal(false)}>{showServerModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <View style={{ width: '100%', maxWidth: 440, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 1, borderColor: theme.cardBorder }}>
@@ -8758,23 +8758,23 @@ function MainApp() {
               ĐỊA CHỈ SERVER (PORT 5001):
             </Text>
             <TextInput
-              style={{
-                backgroundColor: theme.inputBg,
-                color: theme.textPrimary,
-                borderWidth: 1,
-                borderColor: theme.cardBorder,
-                borderRadius: 12,
-                padding: 12,
-                fontSize: 14,
-                fontWeight: '600',
-                marginBottom: 12
-              }}
-              placeholder="http://192.168.1.x:5001"
-              placeholderTextColor={theme.textMuted}
-              value={serverUrlState}
-              onChangeText={setServerUrlState}
-              autoCapitalize="none"
-              autoCorrect={false} />
+                style={{
+                  backgroundColor: theme.inputBg,
+                  color: theme.textPrimary,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  marginBottom: 12
+                }}
+                placeholder="http://192.168.1.x:5001"
+                placeholderTextColor={theme.textMuted}
+                value={serverUrlState}
+                onChangeText={setServerUrlState}
+                autoCapitalize="none"
+                autoCorrect={false} />
             
 
             {/* Quick Suggestion IP Chips */}
@@ -8783,61 +8783,61 @@ function MainApp() {
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {['http://192.168.110.47:5001', 'http://localhost:5001', 'http://127.0.0.1:5001'].map((ip) =>
-              <TouchableOpacity
-                key={ip}
-                onPress={() => setServerUrlState(ip)}
-                style={{
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  backgroundColor: theme.drawerCardBg,
-                  borderWidth: 1,
-                  borderColor: serverUrlState === ip ? theme.accent : theme.cardBorder
-                }}>
+                <TouchableOpacity
+                  key={ip}
+                  onPress={() => setServerUrlState(ip)}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    backgroundColor: theme.drawerCardBg,
+                    borderWidth: 1,
+                    borderColor: serverUrlState === ip ? theme.accent : theme.cardBorder
+                  }}>
                 
                   <Text style={{ fontSize: 11, color: serverUrlState === ip ? theme.accent : theme.textSecondary, fontWeight: '600' }}>
                     {ip}
                   </Text>
                 </TouchableOpacity>
-              )}
+                )}
             </View>
 
             {/* Buttons */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TouchableOpacity
-                onPress={() => setShowServerModal(false)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  alignItems: 'center',
-                  backgroundColor: theme.drawerCardBg,
-                  borderWidth: 1,
-                  borderColor: theme.cardBorder
-                }}>
+                  onPress={() => setShowServerModal(false)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    backgroundColor: theme.drawerCardBg,
+                    borderWidth: 1,
+                    borderColor: theme.cardBorder
+                  }}>
                 
                 <Text style={{ fontSize: 14, fontWeight: '700', color: theme.textSecondary }}>Đóng</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={handleSaveServerUrl}
-                disabled={isTestingServer}
-                style={{
-                  flex: 2,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  alignItems: 'center',
-                  backgroundColor: theme.accent,
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  gap: 6
-                }}>
+                  onPress={handleSaveServerUrl}
+                  disabled={isTestingServer}
+                  style={{
+                    flex: 2,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    backgroundColor: theme.accent,
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}>
                 
                 {isTestingServer ?
-                <ActivityIndicator size="small" color="#ffffff" /> :
+                  <ActivityIndicator size="small" color="#ffffff" /> :
 
-                <IconCheck size={16} color="#ffffff" />
-                }
+                  <IconCheck size={16} color="#ffffff" />
+                  }
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>
                   {isTestingServer ? 'Đang Kiểm Tra...' : 'Lưu & Kết Nối'}
                 </Text>
@@ -8845,12 +8845,12 @@ function MainApp() {
             </View>
           </View>
         </View>
-      </Modal>      {/* MOBILE PROFILE EDIT MODAL */}
+      </> : null}</Modal>      {/* MOBILE PROFILE EDIT MODAL */}
       <Modal
         visible={isProfileEditModalOpen}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setIsProfileEditModalOpen(false)}>
+        onRequestClose={() => setIsProfileEditModalOpen(false)}>{isProfileEditModalOpen ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(5, 10, 20, 0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 1, borderColor: theme.cardBorder }}>
@@ -8862,10 +8862,10 @@ function MainApp() {
             </View>
 
             {editError ?
-            <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', marginBottom: 12 }}>
+              <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', marginBottom: 12 }}>
                 <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '600' }}>⚠️ {editError}</Text>
               </View> :
-            null}
+              null}
 
             {/* Avatar Selection */}
             <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textSecondary, marginBottom: 4 }}>
@@ -8873,20 +8873,20 @@ function MainApp() {
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, backgroundColor: theme.inputBg, padding: 8, borderRadius: 12, borderWidth: 1, borderColor: theme.cardBorder, marginBottom: 10 }}>
               {['🧑‍🎓', '👑', '🚀', '⚡', '💡', '🦁', '🦊', '🦉', '🌟', '🎯', '💻', '🎨'].map((emoji) =>
-              <TouchableOpacity
-                key={emoji}
-                onPress={() => setEditAvatar(emoji)}
-                style={{
-                  padding: 6,
-                  borderRadius: 8,
-                  backgroundColor: editAvatar === emoji ? theme.accentPill : 'transparent',
-                  borderWidth: 1,
-                  borderColor: editAvatar === emoji ? theme.accent : 'transparent'
-                }}>
+                <TouchableOpacity
+                  key={emoji}
+                  onPress={() => setEditAvatar(emoji)}
+                  style={{
+                    padding: 6,
+                    borderRadius: 8,
+                    backgroundColor: editAvatar === emoji ? theme.accentPill : 'transparent',
+                    borderWidth: 1,
+                    borderColor: editAvatar === emoji ? theme.accent : 'transparent'
+                  }}>
                 
                   <Text style={{ fontSize: 18 }}>{emoji}</Text>
                 </TouchableOpacity>
-              )}
+                )}
             </View>
 
             {/* Full Name Input */}
@@ -8894,18 +8894,18 @@ function MainApp() {
               HỌ VÀ TÊN
             </Text>
             <TextInput
-              style={{
-                backgroundColor: theme.inputBg,
-                color: theme.textPrimary,
-                borderWidth: 1,
-                borderColor: theme.cardBorder,
-                borderRadius: 12,
-                padding: 10,
-                fontSize: 14,
-                marginBottom: 10
-              }}
-              value={editFullName}
-              onChangeText={setEditFullName} />
+                style={{
+                  backgroundColor: theme.inputBg,
+                  color: theme.textPrimary,
+                  borderWidth: 1,
+                  borderColor: theme.cardBorder,
+                  borderRadius: 12,
+                  padding: 10,
+                  fontSize: 14,
+                  marginBottom: 10
+                }}
+                value={editFullName}
+                onChangeText={setEditFullName} />
             
 
             {/* Password Change Inputs */}
@@ -8914,86 +8914,86 @@ function MainApp() {
                 🔑 ĐỔI MẬT KHẨU (TÙY CHỌN)
               </Text>
               <TextInput
-                style={{
-                  backgroundColor: theme.card,
-                  color: theme.textPrimary,
-                  borderWidth: 1,
-                  borderColor: theme.cardBorder,
-                  borderRadius: 8,
-                  padding: 8,
-                  fontSize: 13,
-                  marginBottom: 6
-                }}
-                placeholder="Mật khẩu hiện tại..."
-                placeholderTextColor={theme.textMuted}
-                value={editCurrentPassword}
-                onChangeText={setEditCurrentPassword}
-                secureTextEntry={true} />
+                  style={{
+                    backgroundColor: theme.card,
+                    color: theme.textPrimary,
+                    borderWidth: 1,
+                    borderColor: theme.cardBorder,
+                    borderRadius: 8,
+                    padding: 8,
+                    fontSize: 13,
+                    marginBottom: 6
+                  }}
+                  placeholder="Mật khẩu hiện tại..."
+                  placeholderTextColor={theme.textMuted}
+                  value={editCurrentPassword}
+                  onChangeText={setEditCurrentPassword}
+                  secureTextEntry={true} />
               
               <TextInput
-                style={{
-                  backgroundColor: theme.card,
-                  color: theme.textPrimary,
-                  borderWidth: 1,
-                  borderColor: theme.cardBorder,
-                  borderRadius: 8,
-                  padding: 8,
-                  fontSize: 13
-                }}
-                placeholder="Mật khẩu mới (tối thiểu 4 ký tự)..."
-                placeholderTextColor={theme.textMuted}
-                value={editNewPassword}
-                onChangeText={setEditNewPassword}
-                secureTextEntry={true} />
+                  style={{
+                    backgroundColor: theme.card,
+                    color: theme.textPrimary,
+                    borderWidth: 1,
+                    borderColor: theme.cardBorder,
+                    borderRadius: 8,
+                    padding: 8,
+                    fontSize: 13
+                  }}
+                  placeholder="Mật khẩu mới (tối thiểu 4 ký tự)..."
+                  placeholderTextColor={theme.textMuted}
+                  value={editNewPassword}
+                  onChangeText={setEditNewPassword}
+                  secureTextEntry={true} />
               
             </View>
 
             {/* Save Button */}
             <TouchableOpacity
-              onPress={handleSaveProfile}
-              disabled={editLoading}
-              style={{
-                backgroundColor: theme.btnPrimaryBg,
-                paddingVertical: 12,
-                borderRadius: 12,
-                alignItems: 'center'
-              }}>
+                onPress={handleSaveProfile}
+                disabled={editLoading}
+                style={{
+                  backgroundColor: theme.btnPrimaryBg,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center'
+                }}>
               
               {editLoading ?
-              <ActivityIndicator size="small" color="#ffffff" /> :
+                <ActivityIndicator size="small" color="#ffffff" /> :
 
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Lưu Thay Đổi</Text>
-              }
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Lưu Thay Đổi</Text>
+                }
             </TouchableOpacity>
 
             {/* Direct Logout Button */}
             <TouchableOpacity
-              onPress={() => {
-                setIsProfileEditModalOpen(false);
-                handleMobileLogout();
-              }}
-              style={{
-                marginTop: 8,
-                paddingVertical: 10,
-                borderRadius: 12,
-                alignItems: 'center',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                borderWidth: 1,
-                borderColor: 'rgba(239, 68, 68, 0.3)'
-              }}>
+                onPress={() => {
+                  setIsProfileEditModalOpen(false);
+                  handleMobileLogout();
+                }}
+                style={{
+                  marginTop: 8,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(239, 68, 68, 0.3)'
+                }}>
               
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#ef4444' }}>🚪 Đăng Xuất Tài Khoản</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* HARDCORE ALARM CHALLENGE MODAL ON MOBILE */}
       <Modal
         visible={showAlarmModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => {}}>
+        onRequestClose={() => {}}>{showAlarmModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 2, borderColor: '#ef4444' }}>
@@ -9011,20 +9011,20 @@ function MainApp() {
 
               {/* Strict No-Snooze Badge */}
               <View style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: '#ef4444'
-              }}>
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: '#ef4444'
+                }}>
                 <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#fef08a' }}>🔒 CẤM HOÃN</Text>
               </View>
             </View>
 
             {!alarmCompleted ?
-            alarmQuestions.length > 0 && alarmQuestions[alarmIndex] ?
-            <View style={{ gap: 12 }}>
+              alarmQuestions.length > 0 && alarmQuestions[alarmIndex] ?
+              <View style={{ gap: 12 }}>
                   {/* Progress Indicator */}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: '#ef4444' }}>
@@ -9032,16 +9032,16 @@ function MainApp() {
                     </Text>
                     <View style={{ flexDirection: 'row', gap: 4 }}>
                       {alarmQuestions.map((_, i) =>
-                  <View
-                    key={i}
-                    style={{
-                      width: 24,
-                      height: 5,
-                      borderRadius: 3,
-                      backgroundColor: i < alarmIndex ? '#10b981' : i === alarmIndex ? '#ef4444' : theme.cardBorder
-                    }} />
+                    <View
+                      key={i}
+                      style={{
+                        width: 24,
+                        height: 5,
+                        borderRadius: 3,
+                        backgroundColor: i < alarmIndex ? '#10b981' : i === alarmIndex ? '#ef4444' : theme.cardBorder
+                      }} />
 
-                  )}
+                    )}
                     </View>
                   </View>
 
@@ -9056,78 +9056,78 @@ function MainApp() {
                   {/* Options */}
                   <View style={{ gap: 8 }}>
                     {alarmQuestions[alarmIndex].options.map((opt, idx) => {
-                  const isSelected = alarmSelectedOpt === opt;
-                  const isWrong = alarmWrongOpts.includes(opt);
-                  const isRight = isSelected && opt === alarmQuestions[alarmIndex].correct;
+                    const isSelected = alarmSelectedOpt === opt;
+                    const isWrong = alarmWrongOpts.includes(opt);
+                    const isRight = isSelected && opt === alarmQuestions[alarmIndex].correct;
 
-                  let bg = theme.drawerCardBg;
-                  let border = theme.cardBorder;
-                  let textColor = theme.textPrimary;
+                    let bg = theme.drawerCardBg;
+                    let border = theme.cardBorder;
+                    let textColor = theme.textPrimary;
 
-                  if (isRight) {
-                    bg = 'rgba(16, 185, 129, 0.2)';
-                    border = '#10b981';
-                    textColor = '#10b981';
-                  } else if (isWrong) {
-                    bg = 'rgba(239, 68, 68, 0.15)';
-                    border = '#ef4444';
-                    textColor = '#ef4444';
-                  }
+                    if (isRight) {
+                      bg = 'rgba(16, 185, 129, 0.2)';
+                      border = '#10b981';
+                      textColor = '#10b981';
+                    } else if (isWrong) {
+                      bg = 'rgba(239, 68, 68, 0.15)';
+                      border = '#ef4444';
+                      textColor = '#ef4444';
+                    }
 
-                  return (
-                    <TouchableOpacity
-                      key={idx}
-                      disabled={alarmAnswered || isWrong}
-                      onPress={() => {
-                        if (alarmAnswered || isWrong) return;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        disabled={alarmAnswered || isWrong}
+                        onPress={() => {
+                          if (alarmAnswered || isWrong) return;
 
-                        const isCorrect = opt.trim().toLowerCase() === alarmQuestions[alarmIndex].correct.trim().toLowerCase();
+                          const isCorrect = opt.trim().toLowerCase() === alarmQuestions[alarmIndex].correct.trim().toLowerCase();
 
-                        if (isCorrect) {
-                          setAlarmSelectedOpt(opt);
-                          setAlarmAnswered(true);
-                          playSingleAlarmBeep(1046.5, 0.15, 'sine');
-                          setTimeout(() => {
-                            if (alarmIndex + 1 < alarmQuestions.length) {
-                              setAlarmIndex((prev) => prev + 1);
-                              setAlarmAnswered(false);
+                          if (isCorrect) {
+                            setAlarmSelectedOpt(opt);
+                            setAlarmAnswered(true);
+                            playSingleAlarmBeep(1046.5, 0.15, 'sine');
+                            setTimeout(() => {
+                              if (alarmIndex + 1 < alarmQuestions.length) {
+                                setAlarmIndex((prev) => prev + 1);
+                                setAlarmAnswered(false);
+                                setAlarmSelectedOpt(null);
+                                setAlarmWrongOpts([]);
+                              } else {
+                                playCelebratoryVictory();
+                                setAlarmCompleted(true);
+                              }
+                            }, 500);
+                          } else {
+                            playSingleAlarmBeep(220, 0.25, 'sawtooth');
+                            setAlarmWrongOpts((prev) => [...prev, opt]);
+                            setAlarmSelectedOpt(opt);
+                            setAlarmAnswered(true);
+                            setTimeout(() => {
                               setAlarmSelectedOpt(null);
-                              setAlarmWrongOpts([]);
-                            } else {
-                              playCelebratoryVictory();
-                              setAlarmCompleted(true);
-                            }
-                          }, 500);
-                        } else {
-                          playSingleAlarmBeep(220, 0.25, 'sawtooth');
-                          setAlarmWrongOpts((prev) => [...prev, opt]);
-                          setAlarmSelectedOpt(opt);
-                          setAlarmAnswered(true);
-                          setTimeout(() => {
-                            setAlarmSelectedOpt(null);
-                            setAlarmAnswered(false);
-                          }, 500);
-                        }
-                      }}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        backgroundColor: bg,
-                        borderWidth: 1.5,
-                        borderColor: border,
-                        opacity: isWrong ? 0.6 : 1
-                      }}>
+                              setAlarmAnswered(false);
+                            }, 500);
+                          }
+                        }}
+                        style={{
+                          padding: 12,
+                          borderRadius: 12,
+                          backgroundColor: bg,
+                          borderWidth: 1.5,
+                          borderColor: border,
+                          opacity: isWrong ? 0.6 : 1
+                        }}>
                       
                           <Text style={{ fontSize: 13, fontWeight: '600', color: textColor }}>{opt}</Text>
                         </TouchableOpacity>);
 
-                })}
+                  })}
                   </View>
                 </View> :
-            null : (
+              null : (
 
-            /* Success Screen */
-            <View style={{ alignItems: 'center', paddingVertical: 10, gap: 12 }}>
+              /* Success Screen */
+              <View style={{ alignItems: 'center', paddingVertical: 10, gap: 12 }}>
                 <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(16, 185, 129, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
                   <IconCheck size={32} color="#10b981" />
                 </View>
@@ -9138,30 +9138,30 @@ function MainApp() {
                   Chuông báo thức đã được tắt. Chuỗi Streak 🔥 của bạn đã an toàn!
                 </Text>
                 <TouchableOpacity
-                onPress={handleCompleteAlarm}
-                style={{
-                  width: '100%',
-                  paddingVertical: 14,
-                  borderRadius: 14,
-                  backgroundColor: '#10b981',
-                  alignItems: 'center',
-                  marginTop: 6
-                }}>
+                  onPress={handleCompleteAlarm}
+                  style={{
+                    width: '100%',
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: '#10b981',
+                    alignItems: 'center',
+                    marginTop: 6
+                  }}>
                 
                   <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>✅ Tắt Báo Thức & Hoàn Thành (+30 XP)</Text>
                 </TouchableOpacity>
               </View>)
-            }
+              }
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* 9. AI VOCABULARY MASTERY ASSESSMENT REPORT MODAL */}
       <Modal
         visible={showAIMasteryModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowAIMasteryModal(false)}>
+        onRequestClose={() => setShowAIMasteryModal(false)}>{showAIMasteryModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
@@ -9179,15 +9179,15 @@ function MainApp() {
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <TouchableOpacity
-                  onPress={fetchMobileAIMasteryReport}
-                  disabled={isLoadingAIMastery}
-                  style={{ padding: 6 }}>
+                    onPress={fetchMobileAIMasteryReport}
+                    disabled={isLoadingAIMastery}
+                    style={{ padding: 6 }}>
                   
                   <IconRefresh size={16} color={theme.accent} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setShowAIMasteryModal(false)}
-                  style={{ padding: 6 }}>
+                    onPress={() => setShowAIMasteryModal(false)}
+                    style={{ padding: 6 }}>
                   
                   <IconClose size={20} color={theme.textMuted} />
                 </TouchableOpacity>
@@ -9195,25 +9195,25 @@ function MainApp() {
             </View>
 
             {isLoadingAIMastery ?
-            <View style={{ paddingVertical: 40, alignItems: 'center', gap: 12 }}>
+              <View style={{ paddingVertical: 40, alignItems: 'center', gap: 12 }}>
                 <ActivityIndicator size="large" color={theme.accent} />
                 <Text style={{ fontSize: 13, color: theme.textSecondary, textAlign: 'center' }}>
                   Giám khảo AI đang phân tích toàn bộ kho từ vựng và chu kỳ trí nhớ của bạn...
                 </Text>
               </View> :
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                 {/* 1. Score & Estimated CEFR Level */}
                 <View style={{
-                backgroundColor: isDark ? 'rgba(2, 132, 199, 0.12)' : 'rgba(2, 132, 199, 0.08)',
-                borderRadius: 18,
-                padding: 14,
-                borderWidth: 1.5,
-                borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : 'rgba(2, 132, 199, 0.2)',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
+                  backgroundColor: isDark ? 'rgba(2, 132, 199, 0.12)' : 'rgba(2, 132, 199, 0.08)',
+                  borderRadius: 18,
+                  padding: 14,
+                  borderWidth: 1.5,
+                  borderColor: isDark ? 'rgba(2, 132, 199, 0.3)' : 'rgba(2, 132, 199, 0.2)',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>
                       TRÌNH ĐỘ CEFR ƯỚC TÍNH
@@ -9227,15 +9227,15 @@ function MainApp() {
                   </View>
 
                   <View style={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: 29,
-                  backgroundColor: theme.card,
-                  borderWidth: 2.5,
-                  borderColor: theme.accent,
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+                    width: 58,
+                    height: 58,
+                    borderRadius: 29,
+                    backgroundColor: theme.card,
+                    borderWidth: 2.5,
+                    borderColor: theme.accent,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
                     <Text style={{ fontSize: 18, fontWeight: '800', color: theme.accent }}>
                       {aiMasteryReport?.aiAssessment?.overallScore || 80}
                     </Text>
@@ -9282,37 +9282,37 @@ function MainApp() {
 
                 {/* 4. Strengths & Action Plan */}
                 {Boolean(aiMasteryReport?.aiAssessment?.actionPlan) ?
-              <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.08)' : 'rgba(2, 132, 199, 0.05)', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', gap: 6 }}>
+                <View style={{ backgroundColor: isDark ? 'rgba(2, 132, 199, 0.08)' : 'rgba(2, 132, 199, 0.05)', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)', gap: 6 }}>
                     <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent }}>
                       🚀 LỘ TRÌNH 3 BƯỚC TIẾP THEO:
                     </Text>
                     {aiMasteryReport.aiAssessment.actionPlan.map((step, idx) =>
-                <Text key={idx} style={{ fontSize: 11, color: theme.textSecondary, lineHeight: 16 }}>
+                  <Text key={idx} style={{ fontSize: 11, color: theme.textSecondary, lineHeight: 16 }}>
                         <Text style={{ fontWeight: '700', color: theme.textPrimary }}>{idx + 1}. </Text>
                         {step}
                       </Text>
-                )}
+                  )}
                   </View> : null
-              }
+                }
 
                 <TouchableOpacity
-                onPress={() => setShowAIMasteryModal(false)}
-                style={{ backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 4 }}>
+                  onPress={() => setShowAIMasteryModal(false)}
+                  style={{ backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center', marginTop: 4 }}>
                 
                   <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Đóng Báo Cáo</Text>
                 </TouchableOpacity>
               </ScrollView>
-            }
+              }
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* 10. LEVEL PROGRESSION LADDER MODAL */}
       <Modal
         visible={showLevelLadderModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowLevelLadderModal(false)}>
+        onRequestClose={() => setShowLevelLadderModal(false)}>{showLevelLadderModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '85%' }}>
@@ -9329,8 +9329,8 @@ function MainApp() {
               </View>
 
               <TouchableOpacity
-                onPress={() => setShowLevelLadderModal(false)}
-                style={{ padding: 6 }}>
+                  onPress={() => setShowLevelLadderModal(false)}
+                  style={{ padding: 6 }}>
                 
                 <IconClose size={20} color={theme.textMuted} />
               </TouchableOpacity>
@@ -9350,23 +9350,23 @@ function MainApp() {
             {/* Ladder list */}
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {MOBILE_LEVEL_LADDER.map((item) => {
-                const isCurrent = item.level === (gamificationProfile?.level || 1);
-                const isUnlocked = (gamificationProfile?.totalXp || 0) >= item.minXp;
+                  const isCurrent = item.level === (gamificationProfile?.level || 1);
+                  const isUnlocked = (gamificationProfile?.totalXp || 0) >= item.minXp;
 
-                return (
-                  <View
-                    key={item.level}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 10,
-                      borderRadius: 12,
-                      backgroundColor: isCurrent ? isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)' : theme.drawerCardBg,
-                      borderWidth: isCurrent ? 1.5 : 1,
-                      borderColor: isCurrent ? theme.accent : theme.cardBorder,
-                      opacity: isUnlocked ? 1 : 0.6
-                    }}>
+                  return (
+                    <View
+                      key={item.level}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: 10,
+                        borderRadius: 12,
+                        backgroundColor: isCurrent ? isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.15)' : theme.drawerCardBg,
+                        borderWidth: isCurrent ? 1.5 : 1,
+                        borderColor: isCurrent ? theme.accent : theme.cardBorder,
+                        opacity: isUnlocked ? 1 : 0.6
+                      }}>
                     
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                       <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: isCurrent ? theme.accent : isUnlocked ? theme.inputBg : theme.drawerCardBg, alignItems: 'center', justifyContent: 'center' }}>
@@ -9389,23 +9389,23 @@ function MainApp() {
                     </Text>
                   </View>);
 
-              })}
+                })}
 
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 <TouchableOpacity
-                  onPress={() => {
-                    setShowLevelLadderModal(false);
-                    fetchMobileAIMasteryReport();
-                    setShowAIMasteryModal(true);
-                  }}
-                  style={{ flex: 1, backgroundColor: 'rgba(99, 102, 241, 0.12)', borderWidth: 1, borderColor: '#6366f1', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}>
+                    onPress={() => {
+                      setShowLevelLadderModal(false);
+                      fetchMobileAIMasteryReport();
+                      setShowAIMasteryModal(true);
+                    }}
+                    style={{ flex: 1, backgroundColor: 'rgba(99, 102, 241, 0.12)', borderWidth: 1, borderColor: '#6366f1', paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}>
                   
                   <Text style={{ color: '#6366f1', fontWeight: '800', fontSize: 13 }}>📊 Báo Cáo AI ↗</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => setShowLevelLadderModal(false)}
-                  style={{ flex: 1, backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}>
+                    onPress={() => setShowLevelLadderModal(false)}
+                    style={{ flex: 1, backgroundColor: theme.accent, paddingVertical: 12, borderRadius: 14, alignItems: 'center' }}>
                   
                   <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>Đóng</Text>
                 </TouchableOpacity>
@@ -9413,19 +9413,18 @@ function MainApp() {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* 11. WORD DETAILS MODAL */}
       <Modal
         visible={!!selectedWordDetail}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setSelectedWordDetail(null)}>
+        onRequestClose={() => setSelectedWordDetail(null)}>{!!selectedWordDetail ? <>
         
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+        {selectedWordDetail ?
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
-            {Boolean(selectedWordDetail) ?
-            <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                     <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>
@@ -9575,23 +9574,21 @@ function MainApp() {
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
-              </> : null
-            }
           </View>
-        </View>
-      </Modal>
+        </View> :
+          null}
+      </> : null}</Modal>
 
       {/* 12. EDIT WORD MODAL */}
       <Modal
         visible={!!editingWordData}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setEditingWordData(null)}>
+        onRequestClose={() => setEditingWordData(null)}>{!!editingWordData ? <>
         
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
+        {editingWordData ?
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '88%' }}>
-            {Boolean(editingWordData) ?
-            <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10 }}>
                   <Text style={{ fontSize: 16, fontWeight: '800', color: theme.textPrimary }}>
                     ✏️ Chỉnh Sửa: {editingWordData.word}
@@ -9790,30 +9787,29 @@ function MainApp() {
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
-              </> : null
-            }
           </View>
-        </View>
-      </Modal>
+        </View> :
+          null}
+      </> : null}</Modal>
 
       {/* 13. COMMAND PALETTE & GLOBAL SEARCH MODAL */}
       <Modal
         visible={showCommandPaletteModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowCommandPaletteModal(false)}>
+        onRequestClose={() => setShowCommandPaletteModal(false)}>{showCommandPaletteModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 16 }}>
           <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 18, borderWidth: 1, borderColor: theme.cardBorder, maxHeight: '80%' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, paddingBottom: 10, marginBottom: 12 }}>
               <IconSearch size={18} color={theme.accent} />
               <TextInput
-                style={{ flex: 1, fontSize: 15, color: theme.textPrimary, fontWeight: '600' }}
-                placeholder="Tra cứu từ, cấu trúc, bài đọc, phím tắt..."
-                placeholderTextColor={theme.textMuted}
-                value={commandSearchQuery}
-                onChangeText={setCommandSearchQuery}
-                autoFocus />
+                  style={{ flex: 1, fontSize: 15, color: theme.textPrimary, fontWeight: '600' }}
+                  placeholder="Tra cứu từ, cấu trúc, bài đọc, phím tắt..."
+                  placeholderTextColor={theme.textMuted}
+                  value={commandSearchQuery}
+                  onChangeText={setCommandSearchQuery}
+                  autoFocus />
               
               <TouchableOpacity onPress={() => setShowCommandPaletteModal(false)} style={{ padding: 4 }}>
                 <IconClose size={20} color={theme.textMuted} />
@@ -9823,57 +9819,57 @@ function MainApp() {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
               {/* Quick Actions Shortcuts */}
               {Boolean(!commandSearchQuery) ?
-              <View style={{ gap: 4, marginBottom: 8 }}>
+                <View style={{ gap: 4, marginBottom: 8 }}>
                   <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>PHÍM TẮT ĐIỀU HƯỚNG</Text>
                   <TouchableOpacity
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                  onPress={() => {setShowCommandPaletteModal(false);navigateTo('review');}}>
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => {setShowCommandPaletteModal(false);navigateTo('review');}}>
                   
                     <IconZap size={16} color={theme.accent} />
                     <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Ôn tập Thẻ Spaced Repetition (SM-2)</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                  onPress={() => {setShowCommandPaletteModal(false);navigateTo('quiz');}}>
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => {setShowCommandPaletteModal(false);navigateTo('quiz');}}>
                   
                     <IconTarget size={16} color="#10b981" />
                     <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Làm Bài Quiz Trắc Nghiệm</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                  onPress={() => {setShowCommandPaletteModal(false);navigateTo('speaking');}}>
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => {setShowCommandPaletteModal(false);navigateTo('speaking');}}>
                   
                     <IconSparkles size={16} color="#a855f7" />
                     <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Luyện AI Speaking & Pronunciation</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                  onPress={() => {setShowCommandPaletteModal(false);fetchMobileAIMasteryReport();setShowAIMasteryModal(true);}}>
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => {setShowCommandPaletteModal(false);fetchMobileAIMasteryReport();setShowAIMasteryModal(true);}}>
                   
                     <IconAward size={16} color="#f59e0b" />
                     <Text style={{ color: theme.textPrimary, fontWeight: '600', fontSize: 13 }}>Xem Báo Cáo Đánh Giá Năng Lực AI</Text>
                   </TouchableOpacity>
                 </View> : null
-              }
+                }
 
               {/* Matched Words */}
               {commandSearchQuery.trim() ?
-              <>
+                <>
                   <Text style={{ fontSize: 10, fontWeight: '800', color: theme.accent, textTransform: 'uppercase' }}>KHO TỪ VỰNG</Text>
                   {words.
-                filter((w) => w.word.toLowerCase().includes(commandSearchQuery.toLowerCase()) || w.meaning_vi && w.meaning_vi.toLowerCase().includes(commandSearchQuery.toLowerCase())).
-                slice(0, 5).
-                map((w) =>
-                <TouchableOpacity
-                  key={w.id}
-                  onPress={() => {
-                    setShowCommandPaletteModal(false);
-                    setSelectedWordDetail(w);
-                  }}
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  filter((w) => w.word.toLowerCase().includes(commandSearchQuery.toLowerCase()) || w.meaning_vi && w.meaning_vi.toLowerCase().includes(commandSearchQuery.toLowerCase())).
+                  slice(0, 5).
+                  map((w) =>
+                  <TouchableOpacity
+                    key={w.id}
+                    onPress={() => {
+                      setShowCommandPaletteModal(false);
+                      setSelectedWordDetail(w);
+                    }}
+                    style={{ padding: 10, borderRadius: 10, backgroundColor: theme.drawerCardBg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   
                         <View>
                           <Text style={{ fontWeight: '700', color: theme.textPrimary, fontSize: 14 }}>{w.word}</Text>
@@ -9883,20 +9879,20 @@ function MainApp() {
                           <Text style={[styles.levelPillText, { color: theme.accent, fontSize: 10 }]}>{w.level || 'B2'}</Text>
                         </View>
                       </TouchableOpacity>
-                )}
+                  )}
                 </> :
-              null}
+                null}
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* 13. AUDIO SPEED & ACCENT MODAL (UI/UX PRO MAX) */}
       <Modal
         visible={showAudioSpeedModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowAudioSpeedModal(false)}>
+        onRequestClose={() => setShowAudioSpeedModal(false)}>{showAudioSpeedModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
           <View style={{ width: '100%', maxWidth: 440, backgroundColor: theme.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.cardBorder }}>
@@ -9921,8 +9917,8 @@ function MainApp() {
               <Text style={{ fontSize: 11, fontWeight: '800', color: theme.textMuted, letterSpacing: 0.5 }}>TỐC ĐỘ PHÁT HIỆN TẠI</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 6, marginBottom: 4 }}>
                 <TouchableOpacity
-                  onPress={() => handleUpdateMobileSpeed(Math.max(0.4, mobileSpeed - 0.05))}
-                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
+                    onPress={() => handleUpdateMobileSpeed(Math.max(0.4, mobileSpeed - 0.05))}
+                    style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
                   
                   <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>−</Text>
                 </TouchableOpacity>
@@ -9932,19 +9928,19 @@ function MainApp() {
                 </Text>
 
                 <TouchableOpacity
-                  onPress={() => handleUpdateMobileSpeed(Math.min(2.0, mobileSpeed + 0.05))}
-                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
+                    onPress={() => handleUpdateMobileSpeed(Math.min(2.0, mobileSpeed + 0.05))}
+                    style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.inputBg, borderWidth: 1, borderColor: theme.cardBorder, alignItems: 'center', justifyContent: 'center' }}>
                   
                   <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary }}>+</Text>
                 </TouchableOpacity>
               </View>
               <Text style={{ fontSize: 12, color: theme.accent, fontWeight: '700' }}>
                 {mobileSpeed <= 0.65 ? '🐢 Rất chậm (Chi tiết từng âm vị)' :
-                mobileSpeed <= 0.8 ? '🚶 Chậm (Tập làm quen ngữ âm)' :
-                mobileSpeed <= 0.9 ? '🎯 Tối ưu Shadowing (Khuyên dùng)' :
-                mobileSpeed <= 1.1 ? '⚡ Chuẩn bản xứ (Tự nhiên)' :
-                mobileSpeed <= 1.35 ? '🚀 Nhanh (Luyện phản xạ nghe)' :
-                '🔥 Thử thách tốc độ cao'}
+                  mobileSpeed <= 0.8 ? '🚶 Chậm (Tập làm quen ngữ âm)' :
+                  mobileSpeed <= 0.9 ? '🎯 Tối ưu Shadowing (Khuyên dùng)' :
+                  mobileSpeed <= 1.1 ? '⚡ Chuẩn bản xứ (Tự nhiên)' :
+                  mobileSpeed <= 1.35 ? '🚀 Nhanh (Luyện phản xạ nghe)' :
+                  '🔥 Thử thách tốc độ cao'}
               </Text>
             </View>
 
@@ -9954,36 +9950,36 @@ function MainApp() {
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               {[
-              { val: 0.5, label: '0.5x Rất chậm' },
-              { val: 0.75, label: '0.75x Chậm' },
-              { val: 0.85, label: '0.85x Shadowing' },
-              { val: 1.0, label: '1.0x Tự nhiên' },
-              { val: 1.25, label: '1.25x Nhanh' },
-              { val: 1.5, label: '1.5x Thử thách' }].
-              map((preset) => {
-                const isSelected = Math.abs(mobileSpeed - preset.val) < 0.03;
-                return (
-                  <TouchableOpacity
-                    key={preset.val}
-                    onPress={() => handleUpdateMobileSpeed(preset.val)}
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 7,
-                      borderRadius: 12,
-                      backgroundColor: isSelected ? theme.accent : theme.drawerCardBg,
-                      borderWidth: 1,
-                      borderColor: isSelected ? theme.accent : theme.cardBorder,
-                      flexGrow: 1,
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
+                { val: 0.5, label: '0.5x Rất chậm' },
+                { val: 0.75, label: '0.75x Chậm' },
+                { val: 0.85, label: '0.85x Shadowing' },
+                { val: 1.0, label: '1.0x Tự nhiên' },
+                { val: 1.25, label: '1.25x Nhanh' },
+                { val: 1.5, label: '1.5x Thử thách' }].
+                map((preset) => {
+                  const isSelected = Math.abs(mobileSpeed - preset.val) < 0.03;
+                  return (
+                    <TouchableOpacity
+                      key={preset.val}
+                      onPress={() => handleUpdateMobileSpeed(preset.val)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 7,
+                        borderRadius: 12,
+                        backgroundColor: isSelected ? theme.accent : theme.drawerCardBg,
+                        borderWidth: 1,
+                        borderColor: isSelected ? theme.accent : theme.cardBorder,
+                        flexGrow: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
                     
                     <Text style={{ fontSize: 11, fontWeight: '800', color: isSelected ? '#ffffff' : theme.textPrimary }}>
                       {preset.label}
                     </Text>
                   </TouchableOpacity>);
 
-              })}
+                })}
             </View>
 
             {/* Accent Selector (US vs UK) */}
@@ -9992,17 +9988,17 @@ function MainApp() {
             </Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity
-                onPress={() => handleUpdateMobileAccent('en-US')}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: mobileAccent === 'en-US' ? isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)' : theme.drawerCardBg,
-                  borderWidth: 1,
-                  borderColor: mobileAccent === 'en-US' ? theme.accent : theme.cardBorder,
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+                  onPress={() => handleUpdateMobileAccent('en-US')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    backgroundColor: mobileAccent === 'en-US' ? isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)' : theme.drawerCardBg,
+                    borderWidth: 1,
+                    borderColor: mobileAccent === 'en-US' ? theme.accent : theme.cardBorder,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
                 
                 <Text style={{ fontSize: 13, fontWeight: '800', color: mobileAccent === 'en-US' ? theme.accent : theme.textPrimary }}>
                   🇺🇸 Giọng Mỹ (US)
@@ -10010,17 +10006,17 @@ function MainApp() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => handleUpdateMobileAccent('en-GB')}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: mobileAccent === 'en-GB' ? isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)' : theme.drawerCardBg,
-                  borderWidth: 1,
-                  borderColor: mobileAccent === 'en-GB' ? theme.accent : theme.cardBorder,
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+                  onPress={() => handleUpdateMobileAccent('en-GB')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    backgroundColor: mobileAccent === 'en-GB' ? isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)' : theme.drawerCardBg,
+                    borderWidth: 1,
+                    borderColor: mobileAccent === 'en-GB' ? theme.accent : theme.cardBorder,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
                 
                 <Text style={{ fontSize: 13, fontWeight: '800', color: mobileAccent === 'en-GB' ? theme.accent : theme.textPrimary }}>
                   🇬🇧 Giọng Anh (UK)
@@ -10030,19 +10026,19 @@ function MainApp() {
 
             {/* Live Playback Test Button */}
             <TouchableOpacity
-              onPress={() => playMobileAudio('The resilient scholar articulates every word with crystal clarity.', mobileSpeed, mobileAccent)}
-              style={{
-                marginTop: 14,
-                paddingVertical: 12,
-                borderRadius: 14,
-                backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)',
-                borderWidth: 1,
-                borderColor: theme.accent,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-                gap: 8
-              }}>
+                onPress={() => playMobileAudio('The resilient scholar articulates every word with crystal clarity.', mobileSpeed, mobileAccent)}
+                style={{
+                  marginTop: 14,
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : 'rgba(2, 132, 199, 0.12)',
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  gap: 8
+                }}>
               
               <IconVolume2 size={18} color={theme.accent} />
               <Text style={{ fontSize: 13, fontWeight: '800', color: theme.accent }}>
@@ -10052,15 +10048,15 @@ function MainApp() {
 
             {/* Done Button */}
             <TouchableOpacity
-              onPress={() => setShowAudioSpeedModal(false)}
-              style={{
-                marginTop: 8,
-                paddingVertical: 12,
-                borderRadius: 14,
-                backgroundColor: theme.btnPrimaryBg,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+                onPress={() => setShowAudioSpeedModal(false)}
+                style={{
+                  marginTop: 8,
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  backgroundColor: theme.btnPrimaryBg,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
               
               <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>
                 ✓ Xong & Áp Dụng
@@ -10068,14 +10064,14 @@ function MainApp() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* 14. TOPIC MANAGER MODAL (MOBILE APPLE UI/UX PRO MAX) */}
       <Modal
         visible={showTopicManagerModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowTopicManagerModal(false)}>
+        onRequestClose={() => setShowTopicManagerModal(false)}>{showTopicManagerModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
           <View style={{ width: '100%', maxWidth: 480, maxHeight: '85%', backgroundColor: theme.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.cardBorder }}>
@@ -10107,21 +10103,21 @@ function MainApp() {
                   <View style={{ width: 60 }}>
                     <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Icon</Text>
                     <TextInput
-                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, textAlign: 'center', fontSize: 18, paddingVertical: 6 }]}
-                      value={topicEmojiInput}
-                      onChangeText={setTopicEmojiInput}
-                      maxLength={4} />
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, textAlign: 'center', fontSize: 18, paddingVertical: 6 }]}
+                        value={topicEmojiInput}
+                        onChangeText={setTopicEmojiInput}
+                        maxLength={4} />
                     
                   </View>
 
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Tên chủ đề *</Text>
                     <TextInput
-                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 13, paddingVertical: 8 }]}
-                      placeholder="Ví dụ: Công nghệ & IT, Du lịch..."
-                      placeholderTextColor={theme.textMuted}
-                      value={topicNameInput}
-                      onChangeText={setTopicNameInput} />
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 13, paddingVertical: 8 }]}
+                        placeholder="Ví dụ: Công nghệ & IT, Du lịch..."
+                        placeholderTextColor={theme.textMuted}
+                        value={topicNameInput}
+                        onChangeText={setTopicNameInput} />
                     
                   </View>
                 </View>
@@ -10131,21 +10127,21 @@ function MainApp() {
                   <Text style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4 }}>Gợi ý icon:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                     {['💼', '💻', '🎓', '☕', '✈️', '🧠', '🏥', '🎨', '📚', '🗣️', '🌿', '🚀'].map((em) =>
-                    <TouchableOpacity
-                      key={em}
-                      onPress={() => setTopicEmojiInput(em)}
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        borderRadius: 8,
-                        backgroundColor: topicEmojiInput === em ? theme.accentPill : theme.card,
-                        borderWidth: 1,
-                        borderColor: topicEmojiInput === em ? theme.accent : theme.cardBorder
-                      }}>
+                      <TouchableOpacity
+                        key={em}
+                        onPress={() => setTopicEmojiInput(em)}
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 8,
+                          backgroundColor: topicEmojiInput === em ? theme.accentPill : theme.card,
+                          borderWidth: 1,
+                          borderColor: topicEmojiInput === em ? theme.accent : theme.cardBorder
+                        }}>
                       
                         <Text style={{ fontSize: 14 }}>{em}</Text>
                       </TouchableOpacity>
-                    )}
+                      )}
                   </ScrollView>
                 </View>
 
@@ -10154,23 +10150,23 @@ function MainApp() {
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Màu sắc đại diện</Text>
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                     {['#0284c7', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#e11d48', '#6366f1'].map((c) =>
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => setTopicColorInput(c)}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 13,
-                        backgroundColor: c,
-                        borderWidth: topicColorInput === c ? 3 : 0,
-                        borderColor: '#ffffff',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
+                      <TouchableOpacity
+                        key={c}
+                        onPress={() => setTopicColorInput(c)}
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: c,
+                          borderWidth: topicColorInput === c ? 3 : 0,
+                          borderColor: '#ffffff',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
                       
                         {topicColorInput === c ? <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '900' }}>✓</Text> : null}
                       </TouchableOpacity>
-                    )}
+                      )}
                   </View>
                 </View>
 
@@ -10178,36 +10174,36 @@ function MainApp() {
                 <View style={{ marginTop: 10 }}>
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Mô tả ngắn</Text>
                   <TextInput
-                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 12, paddingVertical: 6 }]}
-                    placeholder="Mô tả phạm vi từ vựng..."
-                    placeholderTextColor={theme.textMuted}
-                    value={topicDescInput}
-                    onChangeText={setTopicDescInput} />
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 12, paddingVertical: 6 }]}
+                      placeholder="Mô tả phạm vi từ vựng..."
+                      placeholderTextColor={theme.textMuted}
+                      value={topicDescInput}
+                      onChangeText={setTopicDescInput} />
                   
                 </View>
 
                 {/* Form Buttons */}
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                   {Boolean(editingTopicData) ?
-                  <TouchableOpacity
-                    onPress={handleStartCreateTopic}
-                    style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.cardBorder }}>
+                    <TouchableOpacity
+                      onPress={handleStartCreateTopic}
+                      style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.cardBorder }}>
                     
                       <Text style={{ fontSize: 12, fontWeight: '700', color: theme.textSecondary }}>Hủy</Text>
                     </TouchableOpacity> : null
-                  }
+                    }
                   <TouchableOpacity
-                    onPress={handleSaveTopic}
-                    disabled={isSavingTopic}
-                    style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.btnPrimaryBg }}>
+                      onPress={handleSaveTopic}
+                      disabled={isSavingTopic}
+                      style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.btnPrimaryBg }}>
                     
                     {isSavingTopic ?
-                    <ActivityIndicator size="small" color="#ffffff" /> :
+                      <ActivityIndicator size="small" color="#ffffff" /> :
 
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#ffffff' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#ffffff' }}>
                         {editingTopicData ? 'Cập Nhật' : 'Tạo Chủ Đề'}
                       </Text>
-                    }
+                      }
                   </TouchableOpacity>
                 </View>
               </View>
@@ -10219,22 +10215,22 @@ function MainApp() {
 
               {/* Topics List Items */}
               {topics.map((t) => {
-                const count = words.filter((w) => w.topic_id === t.id).length;
-                return (
-                  <View
-                    key={t.id}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 10,
-                      backgroundColor: theme.card,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: theme.cardBorder,
-                      borderLeftWidth: 4,
-                      borderLeftColor: t.color || theme.accent
-                    }}>
+                  const count = words.filter((w) => w.topic_id === t.id).length;
+                  return (
+                    <View
+                      key={t.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: 10,
+                        backgroundColor: theme.card,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: theme.cardBorder,
+                        borderLeftWidth: 4,
+                        borderLeftColor: t.color || theme.accent
+                      }}>
                     
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <Text style={{ fontSize: 20 }}>{t.emoji || '📁'}</Text>
@@ -10246,10 +10242,10 @@ function MainApp() {
                           </View>
                         </View>
                         {t.description ?
-                        <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                          <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>
                             {t.description}
                           </Text> :
-                        null}
+                          null}
                       </View>
                     </View>
 
@@ -10263,13 +10259,13 @@ function MainApp() {
                     </View>
                   </View>);
 
-              })}
+                })}
             </ScrollView>
 
             {/* Modal Footer Close Button */}
             <TouchableOpacity
-              onPress={() => setShowTopicManagerModal(false)}
-              style={{ marginTop: 10, paddingVertical: 12, borderRadius: 14, backgroundColor: theme.btnPrimaryBg, alignItems: 'center', justifyContent: 'center' }}>
+                onPress={() => setShowTopicManagerModal(false)}
+                style={{ marginTop: 10, paddingVertical: 12, borderRadius: 14, backgroundColor: theme.btnPrimaryBg, alignItems: 'center', justifyContent: 'center' }}>
               
               <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>
                 ✓ Đóng & Lưu
@@ -10277,14 +10273,14 @@ function MainApp() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
 
       {/* 15. PATTERN CATEGORY MANAGER MODAL (MOBILE UI/UX) */}
       <Modal
         visible={showPatternCategoryManagerModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowPatternCategoryManagerModal(false)}>
+        onRequestClose={() => setShowPatternCategoryManagerModal(false)}>{showPatternCategoryManagerModal ? <>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
           <View style={{ width: '100%', maxWidth: 480, maxHeight: '85%', backgroundColor: theme.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.cardBorder }}>
@@ -10316,21 +10312,21 @@ function MainApp() {
                   <View style={{ width: 60 }}>
                     <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Icon</Text>
                     <TextInput
-                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, textAlign: 'center', fontSize: 18, paddingVertical: 6 }]}
-                      value={patternCatEmojiInput}
-                      onChangeText={setPatternCatEmojiInput}
-                      maxLength={4} />
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, textAlign: 'center', fontSize: 18, paddingVertical: 6 }]}
+                        value={patternCatEmojiInput}
+                        onChangeText={setPatternCatEmojiInput}
+                        maxLength={4} />
                     
                   </View>
 
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Tên chức năng diễn đạt *</Text>
                     <TextInput
-                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 13, paddingVertical: 8 }]}
-                      placeholder="Ví dụ: So sánh, Nhấn mạnh..."
-                      placeholderTextColor={theme.textMuted}
-                      value={patternCatNameInput}
-                      onChangeText={setPatternCatNameInput} />
+                        style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 13, paddingVertical: 8 }]}
+                        placeholder="Ví dụ: So sánh, Nhấn mạnh..."
+                        placeholderTextColor={theme.textMuted}
+                        value={patternCatNameInput}
+                        onChangeText={setPatternCatNameInput} />
                     
                   </View>
                 </View>
@@ -10340,21 +10336,21 @@ function MainApp() {
                   <Text style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4 }}>Gợi ý biểu tượng:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                     {['💥', '⚖️', '🎯', '⚠️', '💬', '⏳', '⏰', '🎓', '💼', '☕', '🔥', '💡', '🧠', '📚', '🚀'].map((em) =>
-                    <TouchableOpacity
-                      key={em}
-                      onPress={() => setPatternCatEmojiInput(em)}
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        borderRadius: 8,
-                        backgroundColor: patternCatEmojiInput === em ? `${patternCatColorInput}25` : theme.card,
-                        borderWidth: 1,
-                        borderColor: patternCatEmojiInput === em ? patternCatColorInput : theme.cardBorder
-                      }}>
+                      <TouchableOpacity
+                        key={em}
+                        onPress={() => setPatternCatEmojiInput(em)}
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 8,
+                          backgroundColor: patternCatEmojiInput === em ? `${patternCatColorInput}25` : theme.card,
+                          borderWidth: 1,
+                          borderColor: patternCatEmojiInput === em ? patternCatColorInput : theme.cardBorder
+                        }}>
                       
                         <Text style={{ fontSize: 14 }}>{em}</Text>
                       </TouchableOpacity>
-                    )}
+                      )}
                   </ScrollView>
                 </View>
 
@@ -10363,19 +10359,19 @@ function MainApp() {
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Màu sắc đại diện</Text>
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                     {['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#6366f1'].map((c) =>
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => setPatternCatColorInput(c)}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 13,
-                        backgroundColor: c,
-                        borderWidth: patternCatColorInput === c ? 2 : 0,
-                        borderColor: '#ffffff'
-                      }} />
+                      <TouchableOpacity
+                        key={c}
+                        onPress={() => setPatternCatColorInput(c)}
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: c,
+                          borderWidth: patternCatColorInput === c ? 2 : 0,
+                          borderColor: '#ffffff'
+                        }} />
 
-                    )}
+                      )}
                   </View>
                 </View>
 
@@ -10383,29 +10379,29 @@ function MainApp() {
                 <View style={{ marginTop: 10 }}>
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>Mô tả mục đích sử dụng</Text>
                   <TextInput
-                    style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 12, minHeight: 45, textAlignVertical: 'top' }]}
-                    placeholder="Mô tả khi nào nên dùng cấu trúc này..."
-                    placeholderTextColor={theme.textMuted}
-                    multiline={true}
-                    value={patternCatDescInput}
-                    onChangeText={setPatternCatDescInput} />
+                      style={[styles.textInput, { backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textPrimary, fontSize: 12, minHeight: 45, textAlignVertical: 'top' }]}
+                      placeholder="Mô tả khi nào nên dùng cấu trúc này..."
+                      placeholderTextColor={theme.textMuted}
+                      multiline={true}
+                      value={patternCatDescInput}
+                      onChangeText={setPatternCatDescInput} />
                   
                 </View>
 
                 {/* Form Buttons */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                   {Boolean(editingPatternCatData) ?
-                  <TouchableOpacity
-                    style={[styles.secondaryActionBtn, { flex: 1, paddingVertical: 8 }]}
-                    onPress={handleStartCreatePatternCategory}>
+                    <TouchableOpacity
+                      style={[styles.secondaryActionBtn, { flex: 1, paddingVertical: 8 }]}
+                      onPress={handleStartCreatePatternCategory}>
                     
                       <Text style={[styles.secondaryActionBtnText, { fontSize: 12 }]}>Hủy sửa</Text>
                     </TouchableOpacity> : null
-                  }
+                    }
                   <TouchableOpacity
-                    style={[styles.primaryActionBtn, { flex: 2, backgroundColor: patternCatColorInput || theme.accent, paddingVertical: 8 }]}
-                    onPress={handleSavePatternCategory}
-                    disabled={isSavingPatternCat}>
+                      style={[styles.primaryActionBtn, { flex: 2, backgroundColor: patternCatColorInput || theme.accent, paddingVertical: 8 }]}
+                      onPress={handleSavePatternCategory}
+                      disabled={isSavingPatternCat}>
                     
                     <Text style={[styles.primaryActionBtnText, { fontSize: 12 }]}>
                       {isSavingPatternCat ? 'Đang lưu...' : editingPatternCatData ? 'Lưu Thay Đổi' : 'Tạo Chức Năng'}
@@ -10420,22 +10416,22 @@ function MainApp() {
               </Text>
 
               {patternCategories.map((cat) => {
-                const count = patterns.filter((p) => (p.category || 'emphasis') === cat.id).length;
-                return (
-                  <View
-                    key={cat.id}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      backgroundColor: theme.card,
-                      padding: 12,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderColor: theme.cardBorder,
-                      borderLeftWidth: 4,
-                      borderLeftColor: cat.color || '#8b5cf6'
-                    }}>
+                  const count = patterns.filter((p) => (p.category || 'emphasis') === cat.id).length;
+                  return (
+                    <View
+                      key={cat.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        backgroundColor: theme.card,
+                        padding: 12,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: theme.cardBorder,
+                        borderLeftWidth: 4,
+                        borderLeftColor: cat.color || '#8b5cf6'
+                      }}>
                     
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
                       <Text style={{ fontSize: 20 }}>{cat.emoji || '🧩'}</Text>
@@ -10449,36 +10445,36 @@ function MainApp() {
                           </View>
                         </View>
                         {cat.description ?
-                        <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 2 }} numberOfLines={1}>
+                          <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 2 }} numberOfLines={1}>
                             {cat.description}
                           </Text> :
-                        null}
+                          null}
                       </View>
                     </View>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <TouchableOpacity
-                        onPress={() => handleStartEditPatternCategory(cat)}
-                        style={{ padding: 6, borderRadius: 8, backgroundColor: theme.innerCard }}>
+                          onPress={() => handleStartEditPatternCategory(cat)}
+                          style={{ padding: 6, borderRadius: 8, backgroundColor: theme.innerCard }}>
                         
                         <IconEdit size={16} color={theme.textSecondary} />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => handleDeletePatternCategory(cat)}
-                        style={{ padding: 6, borderRadius: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+                          onPress={() => handleDeletePatternCategory(cat)}
+                          style={{ padding: 6, borderRadius: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
                         
                         <IconTrash size={16} color="#ef4444" />
                       </TouchableOpacity>
                     </View>
                   </View>);
 
-              })}
+                })}
             </ScrollView>
 
             {/* Modal Footer Close Button */}
             <TouchableOpacity
-              onPress={() => setShowPatternCategoryManagerModal(false)}
-              style={{ marginTop: 10, paddingVertical: 12, borderRadius: 14, backgroundColor: theme.btnPrimaryBg, alignItems: 'center', justifyContent: 'center' }}>
+                onPress={() => setShowPatternCategoryManagerModal(false)}
+                style={{ marginTop: 10, paddingVertical: 12, borderRadius: 14, backgroundColor: theme.btnPrimaryBg, alignItems: 'center', justifyContent: 'center' }}>
               
               <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>
                 ✓ Đóng & Lưu
@@ -10486,7 +10482,7 @@ function MainApp() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </> : null}</Modal>
     </SafeAreaView>);
 
 }
