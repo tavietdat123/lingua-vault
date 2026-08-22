@@ -8947,7 +8947,9 @@ function MainApp() {
             </View>
           </View>
         </View>
-      </> : null}</Modal>      {/* MOBILE PROFILE EDIT MODAL */}
+      </> : null}</Modal>
+
+      {/* MOBILE PROFILE EDIT MODAL */}
       <Modal
         visible={isProfileEditModalOpen}
         transparent={true}
