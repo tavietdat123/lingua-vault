@@ -72,6 +72,91 @@ import {
 
 const { width } = Dimensions.get('window');
 
+// =========================================================================
+// ON-DEVICE DEBUG LAYER
+// A release IPA has no redbox and no Metro connection, and React error
+// boundaries only catch errors thrown during render. A fatal error in an async
+// callback, an event handler or a native module escapes the boundary and leaves
+// a black screen. This layer captures those, shows them on the phone itself,
+// and mirrors them to the server together with a breadcrumb trail.
+// Set to false to restore stock crash behaviour.
+// =========================================================================
+const DEBUG_ON_DEVICE = true;
+
+const debugServerBase = () => {
+  try {
+    return typeof getServerUrl === 'function' ? getServerUrl() : 'http://192.168.110.47:5001';
+  } catch (e) {
+    return 'http://192.168.110.47:5001';
+  }
+};
+
+const postDebug = (route, payload) => {
+  try {
+    fetch(`${debugServerBase()}${route}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, platform: Platform.OS, timestamp: new Date().toISOString() })
+    }).catch(() => {});
+  } catch (e) {}
+};
+
+// Breadcrumb: the last step that arrives on the server tells us where execution
+// stopped, which is the only signal available when a native crash kills the JS.
+const trace = (step, detail) => {
+  if (!DEBUG_ON_DEVICE) return;
+  console.log(`[TRACE] ${step}`, detail == null ? '' : detail);
+  postDebug('/api/logs/client-trail', { step, detail: detail == null ? null : String(detail) });
+};
+
+const reportFatalToServer = (error, source, isFatal) => {
+  postDebug('/api/logs/client-error', {
+    error: error?.message || String(error),
+    stack: error?.stack || '',
+    source,
+    isFatal: !!isFatal
+  });
+};
+
+// Fatal error store — the overlay below subscribes so the error becomes readable
+// on the device instead of turning the screen black.
+let fatalListener = null;
+let pendingFatal = null;
+const publishFatal = (record) => {
+  pendingFatal = record;
+  if (fatalListener) fatalListener(record);
+};
+const subscribeFatal = (fn) => {
+  fatalListener = fn;
+  return () => {
+    fatalListener = null;
+  };
+};
+
+if (typeof ErrorUtils !== 'undefined' && ErrorUtils.setGlobalHandler) {
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    console.error('[GLOBAL JS ERROR]', isFatal ? '(FATAL)' : '', error);
+    reportFatalToServer(error, 'global-handler', isFatal);
+    // Deliberately not delegating to the default handler: in a release build it
+    // calls RCTFatal, which kills the app to a black screen before the error can
+    // be read. Showing the overlay keeps the app inspectable on the device.
+    if (DEBUG_ON_DEVICE) {
+      publishFatal({
+        message: error?.message || String(error),
+        stack: error?.stack || '',
+        isFatal: !!isFatal
+      });
+    }
+  });
+}
+
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('error', (e) => reportFatalToServer(e?.error || e?.message, 'window-onerror', true));
+  window.addEventListener('unhandledrejection', (e) => reportFatalToServer(e?.reason, 'unhandled-rejection', false));
+}
+
+trace('bundle-loaded', Platform.OS);
+
 // Themes Definition
 const themes = {
   dark: {
@@ -1006,11 +1091,13 @@ function MainApp() {
 
   // Load All App Data
   const loadData = async () => {
+    trace('loadData:start');
     try {
       const health = await mobileApi.checkHealth();
       setServerConnected(health.success);
       setServerTestResult(health.success ? 'online' : 'offline');
       if (health.url) setServerUrlState(health.url);
+      trace('loadData:health-ok', health.success);
 
       const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes, gamificationRes, realTopicsRes, patternCatsRes, quizHistoryRes] = await Promise.all([
       mobileApi.getStats(),
@@ -1074,9 +1161,11 @@ function MainApp() {
       }
     } catch (e) {
       console.warn('Load data error:', e);
+      trace('loadData:error', e?.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      trace('loadData:done');
     }
   };
 
@@ -1088,8 +1177,10 @@ function MainApp() {
     }
 
     setAuthLoading(true);
+    trace('login:submit', authUsername.trim());
     try {
       const res = await mobileApi.auth.login(authUsername.trim(), authPassword.trim());
+      trace('login:response', res?.success);
 
       if (res && res.success && (res.data?.user || res.data)) {
         const user = res.data.user || res.data;
@@ -1097,11 +1188,13 @@ function MainApp() {
         setAuthUsername('');
         setAuthPassword('');
         setLoading(true);
+        trace('login:currentUser-set');
         loadData();
       } else {
         setAuthError(res?.error || 'Tên đăng nhập hoặc mật khẩu không chính xác');
       }
     } catch (err) {
+      trace('login:exception', err?.message);
       setAuthError(err.message || 'Lỗi kết nối máy chủ');
     } finally {
       setAuthLoading(false);
@@ -1206,6 +1299,13 @@ function MainApp() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Breadcrumb: confirms the main UI actually committed after login. If the trail
+  // stops at login:currentUser-set without this step, the crash is in the first
+  // render of the authenticated tree.
+  useEffect(() => {
+    if (currentUser) trace('main-ui:mounted', currentTab);
+  }, [currentUser]);
 
   // ⏰ AUTOMATIC ALARM WATCHER ON MOBILE (Checks every 15s and fires alarm only once at designated time)
   useEffect(() => {
@@ -3854,7 +3954,7 @@ function MainApp() {
                           </Text>
                           <View style={{ flex: 1, height: 5, backgroundColor: theme.drawerCardBg, borderRadius: 3, overflow: 'hidden' }}>
                             <View style={{
-                          width: `${Math.min(100, (reviewIndex + 1) / activeDeck.length * 100)}%`,
+                          width: `${activeDeck.length > 0 ? Math.min(100, (reviewIndex + 1) / activeDeck.length * 100) : 0}%`,
                           height: '100%',
                           backgroundColor: theme.accent,
                           borderRadius: 3
@@ -5319,7 +5419,7 @@ function MainApp() {
                                 <Text style={{ fontSize: 22, fontWeight: '800', color: theme.textPrimary, textAlign: 'center', lineHeight: 30 }}>
                                   {currentQ.questionText}
                                 </Text>
-                                {currentQ.phonetic && currentQ.type !== 'reverse_en' &&
+                                {Boolean(currentQ.phonetic) && currentQ.type !== 'reverse_en' &&
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
                                     <Text style={{ color: theme.textMuted, fontSize: 14, fontFamily: 'monospace' }}>{currentQ.phonetic}</Text>
                                     <TouchableOpacity onPress={() => playMobileAudio(currentQ.word)}>
@@ -5384,7 +5484,7 @@ function MainApp() {
                           </View>
 
                           {/* Explanation / Translation box if answered */}
-                          {quizIsAnswered && (currentQ.explanation || currentQ.translation) &&
+                          {quizIsAnswered && Boolean(currentQ.explanation || currentQ.translation) &&
                     <View style={{ backgroundColor: theme.innerCard, borderColor: theme.accent, borderLeftWidth: 3, padding: 10, borderRadius: 8, marginTop: 12 }}>
                               {Boolean(currentQ.explanation) ?
                       <Text style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 18 }}>
@@ -11274,10 +11374,69 @@ const styles = StyleSheet.create({
   }
 });
 
-export default function App() {
+// Renders any fatal error that escaped the error boundary, directly on the
+// device, so a release build no longer fails silently to a black screen.
+function FatalErrorOverlay() {
+  const [fatal, setFatal] = useState(pendingFatal);
+
+  useEffect(() => subscribeFatal(setFatal), []);
+
+  if (!fatal) return null;
+
   return (
-    <MobileErrorBoundary>
-      <MainApp />
-    </MobileErrorBoundary>);
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(3,7,18,0.97)', padding: 16, justifyContent: 'center' }}>
+      <View style={{ backgroundColor: '#111827', borderRadius: 20, borderWidth: 1, borderColor: '#ef4444', padding: 16, maxHeight: '90%' }}>
+        <Text style={{ color: '#f87171', fontSize: 15, fontWeight: '800', marginBottom: 4 }}>
+          {fatal.isFatal ? '💥 LỖI FATAL (JS)' : '⚠️ LỖI JS (không fatal)'}
+        </Text>
+        <Text style={{ color: '#94a3b8', fontSize: 11, marginBottom: 10 }}>
+          Lỗi này nằm ngoài render nên ErrorBoundary không bắt được. Chụp màn hình này gửi lại là đủ để sửa.
+        </Text>
+
+        <Text selectable={true} style={{ color: '#ffffff', fontSize: 13, fontWeight: '700', marginBottom: 10 }}>
+          {fatal.message || '(không có message)'}
+        </Text>
+
+        <ScrollView style={{ maxHeight: 260, backgroundColor: '#030712', borderRadius: 12, padding: 10 }}>
+          <Text selectable={true} style={{ color: '#94a3b8', fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', lineHeight: 14 }}>
+            {fatal.stack || '(không có stack trace)'}
+          </Text>
+        </ScrollView>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+          <TouchableOpacity
+            onPress={() => {
+              reportFatalToServer({ message: fatal.message, stack: fatal.stack }, 'manual-resend', fatal.isFatal);
+              Alert.alert('Đã gửi ✅', 'Đã gửi lại báo cáo lỗi về máy chủ.');
+            }}
+            style={{ flex: 1, backgroundColor: '#0284c7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>📤 Gửi lại</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              pendingFatal = null;
+              setFatal(null);
+            }}
+            style={{ flex: 1, backgroundColor: '#1f2937', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#e2e8f0', fontWeight: '800', fontSize: 13 }}>Tiếp tục dùng app</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>);
+
+}
+
+export default function App() {
+  useEffect(() => {
+    trace('app-root-mounted');
+  }, []);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <MobileErrorBoundary>
+        <MainApp />
+      </MobileErrorBoundary>
+      <FatalErrorOverlay />
+    </View>);
 
 }

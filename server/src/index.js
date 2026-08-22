@@ -296,6 +296,52 @@ app.get('/api/logs/client-error', (req, res) => {
   }
 });
 
+// Breadcrumb Trail Endpoint: records how far the mobile app got before dying.
+// A hard native crash cannot report itself, but the last received step pinpoints
+// where execution stopped.
+const clientTrailLogPath = path.join(__dirname, '../data/client-trail.log');
+
+app.post('/api/logs/client-trail', (req, res) => {
+  const { step, detail, platform, timestamp } = req.body || {};
+  const at = timestamp || new Date().toISOString();
+  console.log(`🧭 [TRAIL] ${at} ${platform || '?'} → ${step}${detail ? ` :: ${detail}` : ''}`);
+  try {
+    fs.appendFileSync(clientTrailLogPath, JSON.stringify({ at, platform: platform || '?', step, detail }) + '\n', 'utf8');
+  } catch (e) {}
+  res.json({ success: true });
+});
+
+app.get('/api/logs/client-trail', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 500);
+  try {
+    if (!fs.existsSync(clientTrailLogPath)) {
+      return res.json({ success: true, data: [], total: 0 });
+    }
+    const lines = fs.readFileSync(clientTrailLogPath, 'utf8').split('\n').filter(Boolean);
+    const data = lines.slice(-limit).map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return { raw: line };
+      }
+    });
+    res.json({ success: true, data, total: lines.length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.delete('/api/logs/clear', (req, res) => {
+  try {
+    for (const p of [clientErrorLogPath, clientTrailLogPath]) {
+      if (fs.existsSync(p)) fs.writeFileSync(p, '', 'utf8');
+    }
+    res.json({ success: true, message: 'Đã xoá toàn bộ log debug' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // SPA Web Client Fallback Route
 if (fs.existsSync(webDistPath)) {
   app.get('*', (req, res, next) => {
