@@ -246,17 +246,54 @@ app.get('/api/alarm/status', (req, res) => {
   res.json({ success: true, data: systemAlarmService.getStatus() });
 });
 // Client Error Logging Endpoint for Real-time Mobile Debugging
+const clientErrorLogPath = path.join(__dirname, '../data/client-errors.log');
+
 app.post('/api/logs/client-error', (req, res) => {
-  const { error, stack, componentStack, platform, userAgent, timestamp } = req.body || {};
+  const { error, stack, componentStack, platform, userAgent, timestamp, source, isFatal } = req.body || {};
+  const at = timestamp || new Date().toISOString();
   console.log('\n========================================================');
   console.log('🚨 [MOBILE CLIENT ERROR REPORTED]');
-  console.log('⏰ Time:', timestamp || new Date().toISOString());
+  console.log('⏰ Time:', at);
   console.log('📱 Platform:', platform || 'unknown');
+  console.log('🎯 Source:', source || 'error-boundary', isFatal ? '(FATAL)' : '');
   console.log('❌ Error:', error);
   if (stack) console.log('📜 Stack Trace:\n', stack);
   if (componentStack) console.log('🧩 Component Hierarchy Stack:\n', componentStack);
   console.log('========================================================\n');
+
+  // Persist to disk so reports survive the terminal and can be retrieved via GET
+  try {
+    fs.appendFileSync(
+      clientErrorLogPath,
+      JSON.stringify({ at, platform: platform || 'unknown', source: source || 'error-boundary', isFatal: !!isFatal, error, stack, componentStack, userAgent }) + '\n',
+      'utf8'
+    );
+  } catch (e) {
+    console.error('Failed to persist client error log:', e.message);
+  }
+
   res.json({ success: true, message: 'Logged successfully' });
+});
+
+// Retrieve the most recent client error reports (newest first)
+app.get('/api/logs/client-error', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 200);
+  try {
+    if (!fs.existsSync(clientErrorLogPath)) {
+      return res.json({ success: true, data: [], total: 0 });
+    }
+    const lines = fs.readFileSync(clientErrorLogPath, 'utf8').split('\n').filter(Boolean);
+    const data = lines.slice(-limit).reverse().map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return { raw: line };
+      }
+    });
+    res.json({ success: true, data, total: lines.length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 // SPA Web Client Fallback Route

@@ -1914,7 +1914,9 @@ function MainApp() {
   // Smart Reader: Helper to get full sentence containing word
   const getSentenceContainingWord = (content, targetWord) => {
     if (!content || !targetWord) return targetWord || '';
-    const sentences = content.split(/(?<=[.?!])\s+/);
+    // Hermes (iOS/Android release engine) does not support regex lookbehind,
+    // so match sentence + trailing punctuation instead of splitting on it.
+    const sentences = content.match(/[^.?!]+[.?!]*\s*/g) || [content];
     const found = sentences.find((s) => s.toLowerCase().includes(targetWord.toLowerCase()));
     return found ? found.trim() : targetWord;
   };
@@ -4528,8 +4530,8 @@ function MainApp() {
                         <TouchableOpacity
                   onPress={() => {
                     setNewWord(vocabSearch.trim());
-                    setIsAddingWord(true);
-                    handleAutoLookupWord(vocabSearch.trim());
+                    navigateTo('add');
+                    handleAutoLookup(vocabSearch.trim());
                   }}
                   style={[styles.btnPrimary, { paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10 }]}>
                   
@@ -7914,7 +7916,7 @@ function MainApp() {
                       justifyContent: 'center',
                       gap: 5
                     }}
-                    onPress={() => handleAutoLookupWord()}
+                    onPress={() => handleAutoLookup()}
                     disabled={isLookingUp}>
                     
                         {isLookingUp ?
@@ -7934,7 +7936,7 @@ function MainApp() {
                       {['resilient', 'articulate', 'pragmatic', 'streamline', 'meticulous'].map((sample) =>
                   <TouchableOpacity
                     key={sample}
-                    onPress={() => handleAutoLookupWord(sample)}
+                    onPress={() => handleAutoLookup(sample)}
                     style={{
                       backgroundColor: theme.drawerCardBg,
                       borderColor: theme.cardBorder,
