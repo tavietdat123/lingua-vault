@@ -97,11 +97,11 @@ graph LR
     end
 
     subgraph ProTier ["2. GÓI CLOUD PRO (B2C SaaS)"]
-        P1["• Đồng bộ đám mây tức thì E2EE<br/>• AI Managed Server (Không cần tự lấy API Key)<br/>• Kho đề thi IELTS VIP độc quyền<br/>• 49,000đ / tháng hoặc 399,000đ / năm"]
+        P1["• Đồng bộ đám mây tức thì E2EE<br/>• AI Managed Server (Không cần tự lấy API Key)<br/>• Kho đề thi IELTS VIP độc quyền & AI Master Coach<br/>• 49,000đ / tháng hoặc 399,000đ / năm"]
     end
 
-    subgraph B2BTier ["3. GÓI DOANH NGHIỆP & TRƯỜNG HỌC (B2B Hub)"]
-        B1["• Kho từ vựng & mẫu câu chuyên ngành (IT, Banking, Medical)<br/>• Quản lý tiến độ học tập nhân viên/học sinh<br/>• Bài kiểm tra định kỳ tự động hóa qua Telegram"]
+    subgraph B2BTier ["3. GÓI DOANH NGHIỆP & TRƯỜNG HỌC (B2B Corporate Vault)"]
+        B1["• Kho từ vựng & mẫu câu chuyên ngành (IT, Banking, Medical, Logistics)<br/>• Phân quyền nhiều phòng ban / lớp học theo User Isolation<br/>• Quản lý tiến độ học tập nhân viên/học sinh qua Gamification 16 Level<br/>• Báo thức kỷ luật Hardcore Alarm & Kiểm tra định kỳ tự động"]
     end
 
     FreeTier -.->|Nâng cấp tiện lợi| ProTier
@@ -110,21 +110,38 @@ graph LR
 
 ---
 
-## 6. Chỉ Số Hiệu Suất Cốt Lõi (Key Performance Indicators - KPIs)
+## 6. Cơ Chế Gamification & Thúc Đẩy Động Lực (Retention Engine)
 
-### 6.1 Chỉ Số Trải Nghiệm Học Tập (Learning & Retention Metrics)
+LinguaVault 2.0 tích hợp hệ thống trò chơi hóa (Gamification) chuẩn khoa học hành vi (Behavioral Science) để giải quyết triệt để vấn đề bỏ cuộc của người học:
+
+### 6.1 Bậc Thang Cấp Độ 16 Level (The 16-Level Mastery Ladder)
+Hệ thống phân cấp từ người mới bắt đầu đến học giả siêu cấp:
+- **Hạng Đồng (Bronze)**: Level 1 (Novice Scholar, 0 XP) ➔ Level 4 (Grammar Apprentice, 600 XP).
+- **Hạng Bạc (Silver)**: Level 5 (Vocab Builder, 1,000 XP) ➔ Level 8 (Pattern Artisan, 2,800 XP).
+- **Hạng Vàng (Gold)**: Level 9 (Fluent Communicator, 3,600 XP) ➔ Level 12 (Lexical Master, 6,600 XP).
+- **Hạng Kim Cương & Thần Thoại (Diamond & Mythic)**: Level 13 (IELTS Virtuoso, 7,800 XP) ➔ Level 16 (Ascended Polyglot, 12,000+ XP).
+
+### 6.2 Chu Kỳ Kỷ Luật Thép (Hardcore OS Alarm & Streak Guard)
+- **Báo thức Hardcore Alarm**: Kêu liên tục trên loa hệ thống và điện thoại, chỉ tắt khi người học hoàn thành đúng 100% nhiệm vụ giải đề ngắn.
+- **Streak Shield & XP Multiplier**: Duy trì chuỗi ngày học liên tục để nhận thưởng hệ số nhân EXP x1.5 và x2.0.
+
+---
+
+## 7. Chỉ Số Hiệu Suất Cốt Lõi (Key Performance Indicators - KPIs)
+
+### 7.1 Chỉ Số Trải Nghiệm Học Tập (Learning & Retention Metrics)
 - **Retention Rate D30**: Tỷ lệ người học duy trì việc ôn thẻ SRS sau 30 ngày (Mục tiêu: > 45%, so với mức trung bình ngành 15%).
 - **Mastery Transition Rate**: Tỷ lệ từ vựng và mẫu câu chuyển dịch từ trạng thái `New` ➔ `Learning` ➔ `Mastered` (> 70% sau 60 ngày).
 - **Streak Maintenance**: Thời lượng duy trì chuỗi học liên tục trung bình của người học (> 14 ngày).
 
-### 6.2 Chỉ Số Kỹ Thuật & Hiệu Năng (Technical KPIs)
-- **AI Latency**: Tốc độ sinh đề thi và chấm điểm của AI giữ vững ở mức **< 3.8 giây/lần**.
-- **System Uptime & Stability**: Tỷ lệ bài test tự động đạt **100% (31/31 Pass)** trên mọi bản build phát hành.
-- **Data Loss Rate**: **0.00%** nhờ cơ chế ghi đĩa trực tiếp SQLite và sao lưu định dạng chuẩn JSON.
+### 7.2 Chỉ Số Kỹ Thuật & Hiệu Năng (Technical KPIs)
+- **AI Latency**: Tốc độ sinh đề thi và chấm điểm của AI giữ vững ở mức **< 3.5 giây/lần**.
+- **System Uptime & Stability**: Tỷ lệ bài test tự động đạt **100% (26/26 Pass)** trên mọi bản build phát hành.
+- **Data Loss Rate**: **0.00%** nhờ cơ chế ghi đĩa trực tiếp SQLite (WAL Mode) và sao lưu định dạng chuẩn JSON.
 
 ---
 
-## 7. Chiến Lược Tiếp Cận Thị Trường (Go-To-Market - GTM)
+## 8. Chiến Lược Tiếp Cận Thị Trường (Go-To-Market - GTM)
 
 1. **Giai đoạn 1: Thu hút Cộng đồng Kỹ Sư Công Nghệ & Power Users (Developer Community)**:
    - Chia sẻ mã nguồn và bài viết phân tích kiến trúc Local-First + SM-2 + Gemini 0đ trên GitHub, Dev.to, Viblo, diễn đàn Lập trình viên.
@@ -132,12 +149,12 @@ graph LR
 2. **Giai đoạn 2: Tiếp cận Cộng đồng Luyện Thi IELTS & Học Thuật (Academic Expansion)**:
    - Hợp tác với các giáo viên, trung tâm IELTS để phân phối các bộ dữ liệu mẫu câu Band 7.5–9.0 dựng sẵn trên LinguaVault.
    - Chiến dịch *"Nói không với Subscription $20/tháng - Làm chủ kho học tập của riêng bạn"*.
-3. **Giai đoạn 3: Viral qua Tính năng Telegram AI Copilot**:
+3. **Giai đoạn 3: Viral qua Tính năng Telegram AI Copilot & Hardcore Alarm**:
    - Khuyến khích người dùng kết nối Telegram Bot để nhận báo thức ôn bài, chia sẻ tiến độ học tập lên mạng xã hội.
 
 ---
 
-## 8. Lộ Trình Phát Triển Sản Phẩm (Product Roadmap)
+## 9. Lộ Trình Phát Triển Sản Phẩm (Product Roadmap)
 
 ```
 2026 Q1 - Q2 (HOÀN TẤT) ────────► 2026 Q3 (ĐỒNG BỘ & CHIA SẺ) ──► 2026 Q4 (ĐA NGÔN NGỮ) ──► 2027 (B2B PLATFORM)
@@ -150,4 +167,5 @@ graph LR
 ---
 
 ## 📄 Kết Luận
-**LinguaVault** sở hữu sự kết hợp hoàn hảo giữa **nền tảng khoa học vững chắc (SuperMemo SM-2)**, **công nghệ AI tối tân thế hệ mới (Gemini Flash-Lite)** và **mô hình kiến trúc Local-First an toàn tuyệt đối**. Đây là giải pháp đột phá, có khả năng định nghĩa lại cách con người tiếp thu, ghi nhớ và làm chủ một ngôn ngữ mới trong kỷ nguyên số.
+**LinguaVault** sở hữu sự kết hợp hoàn hảo giữa **nền tảng khoa học vững chắc (SuperMemo SM-2)**, **công nghệ AI tối tân thế hệ mới (Gemini Flash-Lite)**, **bộ phát âm giọng bản xứ Apple Siri Native**, và **mô hình kiến trúc Local-First an toàn tuyệt đối**. Đây là giải pháp đột phá, có khả năng định nghĩa lại cách con người tiếp thu, ghi nhớ và làm chủ một ngôn ngữ mới trong kỷ nguyên số.
+
