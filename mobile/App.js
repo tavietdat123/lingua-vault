@@ -287,6 +287,16 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
 
   // 1. Native iOS / Android: Try Native High-Definition Speech (AVSpeechSynthesizer)
   try {
+    if (Audio && Audio.setAudioModeAsync) {
+      Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        allowsRecordingIOS: false,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false
+      }).catch(() => {});
+    }
+
     if (Speech && typeof Speech.speak === 'function') {
       Speech.stop();
       Speech.speak(cleanText, {
