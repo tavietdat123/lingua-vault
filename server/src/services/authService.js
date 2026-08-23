@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
+import { config } from '../config.js';
 
-// Secret key for signing JWT tokens (fallback to persistent local key)
-const JWT_SECRET = process.env.JWT_SECRET || 'linguavault_secure_jwt_local_secret_2026_super_key';
-const TOKEN_EXPIRY_DAYS = 7;
+const JWT_SECRET = config.jwtSecret;
+const TOKEN_EXPIRY_DAYS = config.tokenExpiryDays;
 
 /**
  * Hash password securely with salt using scrypt
@@ -69,7 +69,10 @@ export function verifyToken(token) {
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64url');
 
-  if (signature !== expectedSignature) {
+  // Constant-time compare so a caller cannot narrow the signature byte by byte.
+  const given = Buffer.from(signature);
+  const expected = Buffer.from(expectedSignature);
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
     return null;
   }
 

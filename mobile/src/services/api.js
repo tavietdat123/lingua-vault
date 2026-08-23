@@ -4,6 +4,7 @@ const defaultHost = (typeof window !== 'undefined' && window.location && window.
   : 'localhost';
 
 export const CANDIDATE_SERVERS = [
+  'http://192.168.102.2:5001',
   'http://192.168.110.47:5001',
   `http://${defaultHost}:5001`,
   'http://localhost:5001',
@@ -13,7 +14,7 @@ export const CANDIDATE_SERVERS = [
 
 let currentServerUrl = typeof localStorage !== 'undefined' && localStorage.getItem('linguavault_server_url')
   ? localStorage.getItem('linguavault_server_url')
-  : (defaultHost && defaultHost !== 'localhost' ? `http://${defaultHost}:5001` : 'http://192.168.110.47:5001');
+  : (defaultHost && defaultHost !== 'localhost' ? `http://${defaultHost}:5001` : 'http://192.168.102.2:5001');
 
 export const getServerUrl = () => currentServerUrl;
 

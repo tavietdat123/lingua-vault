@@ -1,20 +1,65 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { hashPassword } from '../services/authService.js';
+import { config, ADMIN_USER_ID } from '../config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const DATA_DIR = path.join(__dirname, '../../data');
+const DB_PATH = config.dbPath;
+const DATA_DIR = path.dirname(DB_PATH);
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-const DB_PATH = path.join(DATA_DIR, 'lingua_vault.db');
 export const db = new DatabaseSync(DB_PATH);
+db.exec('PRAGMA journal_mode = WAL;');
+db.exec('PRAGMA foreign_keys = ON;');
 export const getDb = () => db;
+
+/**
+ * study_logs was created with `date TEXT UNIQUE`, which is a single-tenant
+ * assumption: the second account to review on a given day hits a UNIQUE
+ * violation. Rebuild the table with UNIQUE(user_id, date) instead.
+ *
+ * SQLite cannot drop a column constraint in place, so this copies through a
+ * new table. It is skipped once the new shape is in place.
+ */
+function migrateStudyLogsUniqueness() {
+  const ddl = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_logs'")
+    .get();
+  if (!ddl || !ddl.sql) return;
+  if (/UNIQUE\s*\(\s*user_id\s*,\s*date\s*\)/i.test(ddl.sql)) return;
+
+  console.log('🔧 Migrating study_logs to UNIQUE(user_id, date)...');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec(`
+      CREATE TABLE study_logs_migrated (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        user_id TEXT NOT NULL DEFAULT '${ADMIN_USER_ID}',
+        reviews_count INTEGER DEFAULT 0,
+        new_words_count INTEGER DEFAULT 0,
+        duration_seconds INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        UNIQUE (user_id, date)
+      );
+    `);
+    db.exec(`
+      INSERT INTO study_logs_migrated (id, date, user_id, reviews_count, new_words_count, duration_seconds, created_at)
+      SELECT id, date, COALESCE(user_id, '${ADMIN_USER_ID}'), reviews_count, new_words_count, duration_seconds, created_at
+      FROM study_logs;
+    `);
+    db.exec('DROP TABLE study_logs;');
+    db.exec('ALTER TABLE study_logs_migrated RENAME TO study_logs;');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_study_logs_user_date ON study_logs(user_id, date);');
+    db.exec('COMMIT');
+    console.log('✅ study_logs migrated');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    console.error('❌ study_logs migration failed, leaving the original table in place:', err.message);
+  }
+}
 
 export function initializeDatabase() {
   // 1. Words Table
@@ -235,6 +280,8 @@ export function initializeDatabase() {
     db.exec(`ALTER TABLE user_profile ADD COLUMN user_id TEXT;`);
   } catch (e) {}
 
+  migrateStudyLogsUniqueness();
+
   // Performance Indexes for Multi-Tenant Querying
   try {
     db.exec(`
@@ -274,10 +321,10 @@ export function initializeDatabase() {
   const usersCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
   if (!usersCount || usersCount.count === 0) {
     const now = new Date().toISOString();
-    
-    // Default Master Admin User (admin / 123456)
-    const { hash, salt } = hashPassword('123456');
-    const adminId = 'admin_master_user_id';
+
+    // Default Master Admin User (username `admin`, password from ADMIN_DEFAULT_PASSWORD)
+    const { hash, salt } = hashPassword(config.adminDefaultPassword);
+    const adminId = ADMIN_USER_ID;
     db.prepare(`
       INSERT INTO users (id, username, email, password_hash, salt, full_name, avatar_url, role, created_at, updated_at)
       VALUES (?, 'admin', 'admin@linguavault.local', ?, ?, 'Lingua Master', '👑', 'admin', ?, ?)
