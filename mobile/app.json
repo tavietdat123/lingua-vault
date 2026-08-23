@@ -38,9 +38,7 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-asset",
-      "expo-speech",
-      "expo-av"
+      "expo-asset"
     ],
     "extra": {
       "eas": {
