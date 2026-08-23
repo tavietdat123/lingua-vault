@@ -1,20 +1,33 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  API_ENDPOINT,
+  API_ENDPOINT_CONFIG_VERSION,
+  DEVELOPMENT_API_ENDPOINTS
+} from '../config';
+
+const STORAGE_KEYS = {
+  serverUrl: 'linguavault_server_url',
+  serverConfigVersion: 'linguavault_server_config_version',
+  authToken: 'linguavault_auth_token',
+  cachedUser: 'linguavault_cached_user'
+};
+
 // Dynamic Server URL for Simulator, LAN Wi-Fi & Remote Cloud Tunnel
 const defaultHost = (typeof window !== 'undefined' && window.location && window.location.hostname) 
   ? window.location.hostname 
   : 'localhost';
 
 export const CANDIDATE_SERVERS = [
-  'http://192.168.102.2:5001',
-  'http://192.168.110.47:5001',
+  API_ENDPOINT,
   `http://${defaultHost}:5001`,
-  'http://localhost:5001',
-  'http://127.0.0.1:5001',
-  'http://10.0.2.2:5001'
+  ...DEVELOPMENT_API_ENDPOINTS
 ];
 
-let currentServerUrl = typeof localStorage !== 'undefined' && localStorage.getItem('linguavault_server_url')
-  ? localStorage.getItem('linguavault_server_url')
-  : (defaultHost && defaultHost !== 'localhost' ? `http://${defaultHost}:5001` : 'http://192.168.102.2:5001');
+const webStoredEndpointIsCurrent = typeof localStorage !== 'undefined'
+  && localStorage.getItem(STORAGE_KEYS.serverConfigVersion) === API_ENDPOINT_CONFIG_VERSION;
+let currentServerUrl = webStoredEndpointIsCurrent && localStorage.getItem(STORAGE_KEYS.serverUrl)
+  ? localStorage.getItem(STORAGE_KEYS.serverUrl)
+  : API_ENDPOINT;
 
 export const getServerUrl = () => currentServerUrl;
 
@@ -28,8 +41,11 @@ export const setServerUrl = (url) => {
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem('linguavault_server_url', formatted);
+      localStorage.setItem(STORAGE_KEYS.serverConfigVersion, API_ENDPOINT_CONFIG_VERSION);
     } catch (e) {}
   }
+  AsyncStorage.setItem(STORAGE_KEYS.serverUrl, formatted).catch(() => {});
+  AsyncStorage.setItem(STORAGE_KEYS.serverConfigVersion, API_ENDPOINT_CONFIG_VERSION).catch(() => {});
   return currentServerUrl;
 };
 
@@ -49,6 +65,60 @@ export const setMobileAuthToken = (token) => {
       else localStorage.removeItem('linguavault_auth_token');
     } catch (e) {}
   }
+  const operation = token
+    ? AsyncStorage.setItem(STORAGE_KEYS.authToken, token)
+    : AsyncStorage.removeItem(STORAGE_KEYS.authToken);
+  operation.catch(() => {});
+};
+
+let nativeStorageHydrated = false;
+let nativeStorageHydrationPromise = null;
+
+export const hydrateMobileSession = async () => {
+  if (nativeStorageHydrated) return;
+  if (!nativeStorageHydrationPromise) {
+    nativeStorageHydrationPromise = (async () => {
+      try {
+        const entries = await AsyncStorage.multiGet([
+          STORAGE_KEYS.serverUrl,
+          STORAGE_KEYS.serverConfigVersion,
+          STORAGE_KEYS.authToken
+        ]);
+        const stored = Object.fromEntries(entries);
+        if (
+          stored[STORAGE_KEYS.serverConfigVersion] === API_ENDPOINT_CONFIG_VERSION
+          && stored[STORAGE_KEYS.serverUrl]
+        ) {
+          currentServerUrl = stored[STORAGE_KEYS.serverUrl];
+        } else {
+          currentServerUrl = API_ENDPOINT;
+          await AsyncStorage.multiSet([
+            [STORAGE_KEYS.serverUrl, API_ENDPOINT],
+            [STORAGE_KEYS.serverConfigVersion, API_ENDPOINT_CONFIG_VERSION]
+          ]);
+        }
+        if (!authToken && stored[STORAGE_KEYS.authToken]) authToken = stored[STORAGE_KEYS.authToken];
+      } finally {
+        nativeStorageHydrated = true;
+      }
+    })();
+  }
+  await nativeStorageHydrationPromise;
+};
+
+const cacheMobileUser = (user) => {
+  if (user) {
+    AsyncStorage.setItem(STORAGE_KEYS.cachedUser, JSON.stringify(user)).catch(() => {});
+  }
+};
+
+export const getCachedMobileUser = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.cachedUser);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
 };
 
 // Safe Fast Fetch with Timeout (Default 5 seconds)
@@ -67,6 +137,7 @@ export const safeFetch = async (url, options = {}, timeoutMs = 5000) => {
 
 // Auto-healing API requester
 export const requestApi = async (endpoint, options = {}, timeoutMs = 6000) => {
+  await hydrateMobileSession();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
@@ -103,11 +174,13 @@ export const requestApi = async (endpoint, options = {}, timeoutMs = 6000) => {
   try {
     return await Promise.any(scanPromises);
   } catch (e) {
-    throw new Error('Không thể kết nối đến máy chủ LinguaVault. Hãy đảm bảo điện thoại và máy tính cùng kết nối 1 mạng Wi-Fi.');
+    throw new Error('Không thể kết nối đến máy chủ LinguaVault. Hãy kiểm tra Internet và thử lại.');
   }
 };
 
 export const mobileApi = {
+  getBaseUrl: () => currentServerUrl,
+
   // 0. Authentication & User Profile
   auth: {
     register: async (data) => {
@@ -117,6 +190,7 @@ export const mobileApi = {
       });
       if (res && res.success && res.data?.token) {
         setMobileAuthToken(res.data.token);
+        cacheMobileUser(res.data.user);
       }
       return res;
     },
@@ -128,6 +202,7 @@ export const mobileApi = {
       });
       if (res && res.success && res.data?.token) {
         setMobileAuthToken(res.data.token);
+        cacheMobileUser(res.data.user);
       }
       return res;
     },
@@ -138,6 +213,7 @@ export const mobileApi = {
       });
       if (res && res.success && res.data?.token) {
         setMobileAuthToken(res.data.token);
+        cacheMobileUser(res.data.user);
       }
       return res;
     },
@@ -159,11 +235,14 @@ export const mobileApi = {
 
     logout: async () => {
       setMobileAuthToken(null);
+      AsyncStorage.removeItem(STORAGE_KEYS.cachedUser).catch(() => {});
       try {
         await requestApi('/api/auth/logout', { method: 'POST' });
       } catch (e) {}
       return { success: true };
-    }
+    },
+
+    getCachedUser: getCachedMobileUser
   },
 
   // 0.1 Connection & Server Health

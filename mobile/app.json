@@ -2,7 +2,7 @@
   "expo": {
     "name": "LinguaVault",
     "slug": "lingua-vault",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,10 +14,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.linguavault.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
@@ -26,8 +29,12 @@
     },
     "android": {
       "package": "com.linguavault.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "usesCleartextTraffic": true,
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM",
+        "VIBRATE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#090d16"
@@ -38,7 +45,17 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/alarm.wav"
+          ],
+          "defaultChannel": "hardcore-alarm-v1",
+          "color": "#ef4444"
+        }
+      ]
     ],
     "extra": {
       "eas": {

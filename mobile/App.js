@@ -17,11 +17,27 @@ import {
   Easing,
   KeyboardAvoidingView,
   RefreshControl,
-  PanResponder } from
+  PanResponder,
+  AppState,
+  BackHandler } from
 'react-native';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import { mobileApi, getServerUrl, setServerUrl } from './src/services/api';
+import { API_ENDPOINT } from './src/config';
+import {
+  addAlarmNotificationListeners,
+  cancelDailyAlarm,
+  getInitialAlarmNotificationResponse,
+  isValidAlarmTime,
+  loadAlarmConfig,
+  markAlarmChallengeCompleted,
+  saveAlarmConfig,
+  scheduleAlarmTest,
+  scheduleDailyAlarm,
+  setAlarmChallengeActive,
+  shouldRestoreAlarmChallenge
+} from './src/services/alarmService';
 import {
   IconHome,
   IconZap,
@@ -87,9 +103,9 @@ const DEBUG_ON_DEVICE = true;
 
 const debugServerBase = () => {
   try {
-    return typeof getServerUrl === 'function' ? getServerUrl() : 'http://192.168.110.47:5001';
+    return typeof getServerUrl === 'function' ? getServerUrl() : API_ENDPOINT;
   } catch (e) {
-    return 'http://192.168.110.47:5001';
+    return API_ENDPOINT;
   }
 };
 
@@ -320,7 +336,7 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
         try { await activeSoundObject.unloadAsync(); } catch (e) {}
         activeSoundObject = null;
       }
-      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : 'http://localhost:5001';
+      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
       const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
       
       const { sound } = await Audio.Sound.createAsync(
@@ -375,7 +391,7 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
         activeAudioElement.currentTime = 0;
       }
 
-      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : 'http://localhost:5001';
+      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
       const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
       const audio = new Audio(ttsUrl);
       activeAudioElement = audio;
@@ -423,7 +439,7 @@ class MobileErrorBoundary extends React.Component {
 
     // Auto-send error report to backend server for live debugging
     try {
-      const serverBase = typeof getServerUrl === 'function' ? getServerUrl() : 'http://192.168.110.47:5001';
+      const serverBase = typeof getServerUrl === 'function' ? getServerUrl() : API_ENDPOINT;
       fetch(`${serverBase}/api/logs/client-error`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -492,7 +508,7 @@ class MobileErrorBoundary extends React.Component {
             <TouchableOpacity
               onPress={() => {
                 try {
-                  const serverBase = typeof getServerUrl === 'function' ? getServerUrl() : 'http://192.168.110.47:5001';
+                  const serverBase = typeof getServerUrl === 'function' ? getServerUrl() : API_ENDPOINT;
                   fetch(`${serverBase}/api/logs/client-error`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -771,6 +787,7 @@ function MainApp() {
         localStorage.setItem('linguavault_alarm_q_count', cnt.toString());
       } catch (e) {}
     }
+    saveAlarmConfig({ enabled: autoAlarmEnabled, time: reminderTime, questionCount: cnt }).catch(() => {});
   };
 
   const handleUpdateMobileSpeed = (val) => {
@@ -851,6 +868,7 @@ function MainApp() {
   const [alarmWrongOpts, setAlarmWrongOpts] = useState([]);
   const [alarmCompleted, setAlarmCompleted] = useState(false);
   const [isAlarmSoundPlaying, setIsAlarmSoundPlaying] = useState(false);
+  const [alarmScheduleStatus, setAlarmScheduleStatus] = useState('idle');
   const [autoAlarmEnabled, setAutoAlarmEnabled] = useState(() => {
     if (typeof localStorage !== 'undefined') {
       return localStorage.getItem('linguavault_auto_alarm_enabled') === 'true';
@@ -861,8 +879,14 @@ function MainApp() {
   const showAlarmModalRef = useRef(false);
   const lastAlarmDateKeyRef = useRef('');
   const alarmAudioCtxRef = useRef(null);
+  const alarmNativeSoundRef = useRef(null);
+  const alarmLoopGenerationRef = useRef(0);
+  const alarmLoopStartingRef = useRef(false);
   const alarmIntervalRef = useRef(null);
   const alarmTimeoutsRef = useRef([]);
+  const alarmChallengeSourceRef = useRef('scheduled');
+  const alarmRestoreCheckedRef = useRef(false);
+  const startAlarmChallengeRef = useRef(null);
 
   // Gamification & AI Mastery Assessment State
   const [gamificationProfile, setGamificationProfile] = useState({ level: 1, totalXp: 180, title: 'Novice Scholar 🌱', progressPercent: 20 });
@@ -931,10 +955,43 @@ function MainApp() {
     } catch (e) {}
   };
 
-  const startMobileAlarmLoop = () => {
-    stopMobileAlarmLoop();
-    initMobileAlarmAudioCtx();
+  const startMobileAlarmLoop = async () => {
+    if (alarmLoopStartingRef.current || alarmNativeSoundRef.current || alarmIntervalRef.current) return;
+    const generation = alarmLoopGenerationRef.current + 1;
+    alarmLoopGenerationRef.current = generation;
+    alarmLoopStartingRef.current = true;
+    await stopMobileAlarmLoop({ invalidatePendingStart: false });
     setIsAlarmSoundPlaying(true);
+
+    if (Platform.OS !== 'web') {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false
+        });
+        const { sound } = await Audio.Sound.createAsync(
+          require('./assets/alarm.wav'),
+          { shouldPlay: true, isLooping: true, volume: 1.0 }
+        );
+        if (alarmLoopGenerationRef.current !== generation) {
+          await sound.stopAsync().catch(() => {});
+          await sound.unloadAsync().catch(() => {});
+          return;
+        }
+        alarmNativeSoundRef.current = sound;
+        return;
+      } catch (error) {
+        console.warn('[Alarm] Native looping sound failed:', error?.message || error);
+      } finally {
+        alarmLoopStartingRef.current = false;
+      }
+    }
+
+    if (alarmLoopGenerationRef.current !== generation) return;
+    initMobileAlarmAudioCtx();
 
     const playPattern = () => {
       const t1 = setTimeout(() => playSingleAlarmBeep(980, 0.08, 'sawtooth'), 0);
@@ -946,10 +1003,22 @@ function MainApp() {
 
     playPattern();
     alarmIntervalRef.current = setInterval(playPattern, 1100);
+    alarmLoopStartingRef.current = false;
   };
 
-  const stopMobileAlarmLoop = () => {
+  const stopMobileAlarmLoop = async ({ invalidatePendingStart = true } = {}) => {
+    if (invalidatePendingStart) alarmLoopGenerationRef.current += 1;
     setIsAlarmSoundPlaying(false);
+    if (alarmNativeSoundRef.current) {
+      const sound = alarmNativeSoundRef.current;
+      alarmNativeSoundRef.current = null;
+      try {
+        await sound.stopAsync();
+      } catch (e) {}
+      try {
+        await sound.unloadAsync();
+      } catch (e) {}
+    }
     if (alarmIntervalRef.current) {
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
@@ -1059,10 +1128,15 @@ function MainApp() {
     playCelebratoryVictory();
   };
 
-  const startAlarmChallenge = () => {
-    let count = 3;
-    if (typeof localStorage !== 'undefined') {
-      count = parseInt(localStorage.getItem('linguavault_alarm_q_count') || '3', 10) || 3;
+  const startAlarmChallenge = ({ source = 'scheduled', questionCount = alarmQuestionCount } = {}) => {
+    if (showAlarmModalRef.current) {
+      startMobileAlarmLoop();
+      return;
+    }
+    alarmChallengeSourceRef.current = source;
+    const count = [3, 5, 10].includes(Number(questionCount)) ? Number(questionCount) : 3;
+    if (source !== 'test') {
+      setAlarmChallengeActive(true).catch(() => {});
     }
 
     const src = words && words.length >= count ? words : [
@@ -1094,35 +1168,22 @@ function MainApp() {
     setAlarmWrongOpts([]);
     setShowAlarmModal(true);
     startMobileAlarmLoop();
-    try {
-      mobileApi.triggerSystemAlarm();
-    } catch (e) {}
   };
+  startAlarmChallengeRef.current = startAlarmChallenge;
 
   const handleDismissAlarm = () => {
     // Strict Hardcore Mode: Only closes after completing questions
     if (!alarmCompleted) return;
-    stopMobileAlarmLoop();
-    try {
-      mobileApi.stopSystemAlarm();
-    } catch (e) {}
-    setShowAlarmModal(false);
-    setAlarmCompleted(false);
-    setAlarmAnswered(false);
-    setAlarmIndex(0);
-    const now = new Date();
-    const key = `${now.toISOString().split('T')[0]}-${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    lastAlarmDateKeyRef.current = key;
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('linguavault_last_alarm_date', key);
-    }
+    handleCompleteAlarm();
   };
 
   const handleCompleteAlarm = async () => {
-    stopMobileAlarmLoop();
-    try {
-      await mobileApi.stopSystemAlarm();
-    } catch (e) {}
+    await stopMobileAlarmLoop();
+    if (alarmChallengeSourceRef.current === 'test') {
+      await markAlarmChallengeCompleted({ recordDailyCompletion: false }).catch(() => {});
+    } else {
+      await markAlarmChallengeCompleted().catch(() => {});
+    }
     try {
       await mobileApi.addXp(30, 'Giải mã Báo Thức Kỷ Luật Thép');
     } catch (e) {}
@@ -1138,6 +1199,7 @@ function MainApp() {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('linguavault_last_alarm_date', key);
     }
+    alarmChallengeSourceRef.current = 'scheduled';
     loadData();
   };
 
@@ -1145,6 +1207,14 @@ function MainApp() {
   const loadData = async () => {
     trace('loadData:start');
     try {
+      const [cachedUser, storedAlarmConfig] = await Promise.all([
+        mobileApi.auth.getCachedUser(),
+        loadAlarmConfig()
+      ]);
+      if (cachedUser) setCurrentUser((existing) => existing || cachedUser);
+      setAutoAlarmEnabled(storedAlarmConfig.enabled);
+      setAlarmQuestionCount(storedAlarmConfig.questionCount);
+
       const health = await mobileApi.checkHealth();
       setServerConnected(health.success);
       setServerTestResult(health.success ? 'online' : 'offline');
@@ -1188,7 +1258,11 @@ function MainApp() {
       }
       if (telegramRes?.success && telegramRes.data) {
         setDailyGoal(telegramRes.data.daily_word_goal || 10);
-        setReminderTime(telegramRes.data.telegram_reminder_time || '20:00');
+        setReminderTime(
+          storedAlarmConfig.enabled
+            ? storedAlarmConfig.time
+            : telegramRes.data.telegram_reminder_time || '20:00'
+        );
         setBotToken(telegramRes.data.telegram_bot_token || '');
         setChatId(telegramRes.data.telegram_chat_id || '');
         setTelegramEnabled(Boolean(telegramRes.data.telegram_enabled));
@@ -1343,7 +1417,7 @@ function MainApp() {
       setServerTestResult('offline');
       Alert.alert(
         'Không thể kết nối 🔴',
-        `Không tìm thấy Server tại:\n${updated}\n\n💡 Mẹo khắc phục:\n1. Đảm bảo máy tính đang chạy: 'node run-dev.js'\n2. Điện thoại và máy tính cùng kết nối 1 mạng Wi-Fi\n3. Kiểm tra đúng địa chỉ IP máy tính (ví dụ: http://192.168.1.x:5001)`
+        `Không tìm thấy Server tại:\n${updated}\n\n💡 Hãy kiểm tra kết nối Internet, chứng chỉ HTTPS và trạng thái máy chủ LinguaVault.`
       );
     }
   };
@@ -1359,54 +1433,95 @@ function MainApp() {
     if (currentUser) trace('main-ui:mounted', currentTab);
   }, [currentUser]);
 
-  // ⏰ AUTOMATIC ALARM WATCHER ON MOBILE (Checks every 15s and fires alarm only once at designated time)
+  // Native local notifications wake the device when the JS process is suspended or terminated.
+  // The foreground/AppState checks restore the quiz lock when the user returns without tapping
+  // the notification, or when the OS has reclaimed the process.
   useEffect(() => {
-    const checkAutoAlarm = () => {
+    let disposed = false;
+
+    const restoreAlarmIfNeeded = async ({ force = false, questionCount = null, source = 'scheduled' } = {}) => {
       try {
         if (showAlarmModalRef.current) return;
-
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const currentHH = String(now.getHours()).padStart(2, '0');
-        const currentMM = String(now.getMinutes()).padStart(2, '0');
-        const currentTimeStr = `${currentHH}:${currentMM}`;
-        const currentDateMinuteKey = `${yyyy}-${mm}-${dd}-${currentTimeStr}`;
-
-        let isAlarmEnabled = autoAlarmEnabled;
-        let targetAlarmTime = reminderTime || '20:00';
-        let savedLastTrigger = '';
-
-        if (typeof localStorage !== 'undefined') {
-          isAlarmEnabled = localStorage.getItem('linguavault_auto_alarm_enabled') === 'true';
-          targetAlarmTime = localStorage.getItem('linguavault_alarm_time') || reminderTime || '20:00';
-          savedLastTrigger = localStorage.getItem('linguavault_last_alarm_date') || '';
-        }
-
-        if (
-        isAlarmEnabled &&
-        currentTimeStr === targetAlarmTime &&
-        lastAlarmDateKeyRef.current !== currentDateMinuteKey &&
-        savedLastTrigger !== currentDateMinuteKey)
-        {
-          lastAlarmDateKeyRef.current = currentDateMinuteKey;
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('linguavault_last_alarm_date', currentDateMinuteKey);
-          }
-          startAlarmChallenge();
-        }
-      } catch (e) {}
+        const shouldLaunch = force || await shouldRestoreAlarmChallenge();
+        if (disposed || !shouldLaunch) return;
+        const config = await loadAlarmConfig();
+        startAlarmChallengeRef.current?.({
+          source,
+          questionCount: questionCount || config.questionCount
+        });
+      } catch (error) {
+        console.warn('[Alarm] Restore check failed:', error?.message || error);
+      }
     };
 
-    const interval = setInterval(checkAutoAlarm, 15000);
-    checkAutoAlarm();
+    const initializeAlarm = async () => {
+      if (alarmRestoreCheckedRef.current) return;
+      alarmRestoreCheckedRef.current = true;
+      try {
+        const config = await loadAlarmConfig();
+        if (disposed) return;
+        setAutoAlarmEnabled(config.enabled);
+        setAlarmQuestionCount(config.questionCount);
+        if (config.time) setReminderTime(config.time);
+
+        if (config.enabled) {
+          const scheduled = await scheduleDailyAlarm(config.time, config.questionCount);
+          setAlarmScheduleStatus(scheduled.success ? 'scheduled' : scheduled.reason || 'error');
+          if (!scheduled.success) {
+            setAutoAlarmEnabled(false);
+            await saveAlarmConfig({ ...config, enabled: false });
+          }
+        }
+
+        const initialResponse = await getInitialAlarmNotificationResponse();
+        if (initialResponse) {
+          const data = initialResponse.notification?.request?.content?.data;
+          await restoreAlarmIfNeeded({
+            force: true,
+            questionCount: data?.questionCount,
+            source: data?.test ? 'test' : 'scheduled'
+          });
+        } else {
+          await restoreAlarmIfNeeded();
+        }
+      } catch (error) {
+        setAlarmScheduleStatus('error');
+        console.warn('[Alarm] Initialization failed:', error?.message || error);
+      }
+    };
+
+    const unsubscribeNotifications = addAlarmNotificationListeners({
+      onReceive: (notification) => {
+        const data = notification?.request?.content?.data;
+        restoreAlarmIfNeeded({
+          force: true,
+          questionCount: data?.questionCount,
+          source: data?.test ? 'test' : 'scheduled'
+        });
+      },
+      onResponse: (response) => {
+        const data = response?.notification?.request?.content?.data;
+        restoreAlarmIfNeeded({
+          force: true,
+          questionCount: data?.questionCount,
+          source: data?.test ? 'test' : 'scheduled'
+        });
+      }
+    });
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') restoreAlarmIfNeeded();
+    });
+    const interval = setInterval(restoreAlarmIfNeeded, 15000);
+    initializeAlarm();
 
     return () => {
+      disposed = true;
       clearInterval(interval);
+      unsubscribeNotifications();
+      appStateSubscription.remove();
       stopMobileAlarmLoop();
     };
-  }, [reminderTime, autoAlarmEnabled]);
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -1451,7 +1566,10 @@ function MainApp() {
     if (isProfileEditModalOpen) {setIsProfileEditModalOpen(false);return;}
     if (showAIMasteryModal) {setShowAIMasteryModal(false);return;}
     if (showLevelLadderModal) {setShowLevelLadderModal(false);return;}
-    if (showAlarmModal) {setShowAlarmModal(false);return;}
+    if (showAlarmModal) {
+      startMobileAlarmLoop();
+      return;
+    }
     if (showTopicManagerModal) {setShowTopicManagerModal(false);return;}
     if (showPatternCategoryManagerModal) {setShowPatternCategoryManagerModal(false);return;}
     if (showCommandPaletteModal) {setShowCommandPaletteModal(false);return;}
@@ -1469,6 +1587,18 @@ function MainApp() {
       navigateTo('home');
     }
   };
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showAlarmModalRef.current) {
+        startMobileAlarmLoop();
+        return true;
+      }
+      handleGoBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [currentTab, tabHistory, selectedWordDetail, selectedNote, isProfileEditModalOpen, showAlarmModal]);
 
   const handleSwipeLeft = () => {
     if (currentTab === 'review') {
@@ -2376,6 +2506,10 @@ function MainApp() {
 
   // Telegram Settings Save
   const handleSaveTelegram = async () => {
+    if (!isValidAlarmTime(reminderTime)) {
+      Alert.alert('Giờ không hợp lệ', 'Vui lòng nhập giờ theo định dạng HH:mm, ví dụ 20:00.');
+      return;
+    }
     setIsSavingTelegram(true);
     try {
       const res = await mobileApi.saveTelegramSettings({
@@ -2386,12 +2520,84 @@ function MainApp() {
         telegram_enabled: telegramEnabled
       });
       if (res?.success) {
+        await saveAlarmConfig({
+          enabled: autoAlarmEnabled,
+          time: reminderTime,
+          questionCount: alarmQuestionCount
+        });
+        if (autoAlarmEnabled) {
+          const scheduled = await scheduleDailyAlarm(reminderTime, alarmQuestionCount);
+          setAlarmScheduleStatus(scheduled.success ? 'scheduled' : scheduled.reason || 'error');
+          if (!scheduled.success) {
+            setAutoAlarmEnabled(false);
+            await saveAlarmConfig({ enabled: false, time: reminderTime, questionCount: alarmQuestionCount });
+            Alert.alert(
+              'Đã lưu cài đặt, nhưng chưa bật báo thức',
+              'Hãy cấp quyền Thông báo và Âm thanh trong Cài đặt hệ thống rồi bật lại Báo thức Kỷ luật thép.'
+            );
+            return;
+          }
+        }
         Alert.alert('Thành công', 'Đã lưu cấu hình Mục tiêu & Bot Telegram!');
       }
     } catch (e) {
       Alert.alert('Lỗi', e.message);
     } finally {
       setIsSavingTelegram(false);
+    }
+  };
+
+  const handleToggleAutoAlarm = async () => {
+    const nextEnabled = !autoAlarmEnabled;
+    if (nextEnabled && !isValidAlarmTime(reminderTime)) {
+      Alert.alert('Giờ không hợp lệ', 'Vui lòng nhập giờ theo định dạng HH:mm, ví dụ 20:00.');
+      return;
+    }
+
+    setAlarmScheduleStatus(nextEnabled ? 'scheduling' : 'idle');
+    try {
+      if (nextEnabled) {
+        const scheduled = await scheduleDailyAlarm(reminderTime, alarmQuestionCount);
+        if (!scheduled.success) {
+          setAutoAlarmEnabled(false);
+          setAlarmScheduleStatus(scheduled.reason || 'error');
+          await saveAlarmConfig({ enabled: false, time: reminderTime, questionCount: alarmQuestionCount });
+          Alert.alert(
+            'Chưa cấp quyền thông báo',
+            'LinguaVault cần quyền Thông báo và Âm thanh để báo thức hoạt động khi app đã đóng. Hãy bật quyền trong Cài đặt hệ thống rồi thử lại.'
+          );
+          return;
+        }
+        setAutoAlarmEnabled(true);
+        setAlarmScheduleStatus('scheduled');
+        await saveAlarmConfig({ enabled: true, time: reminderTime, questionCount: alarmQuestionCount });
+        Alert.alert('Đã bật báo thức', `Thiết bị sẽ báo lúc ${reminderTime} mỗi ngày. Chạm thông báo để mở quiz bắt buộc.`);
+      } else {
+        await cancelDailyAlarm();
+        await saveAlarmConfig({ enabled: false, time: reminderTime, questionCount: alarmQuestionCount });
+        setAutoAlarmEnabled(false);
+        setAlarmScheduleStatus('idle');
+        Alert.alert('Đã tắt báo thức', 'Lịch báo thức native đã được hủy.');
+      }
+    } catch (error) {
+      setAlarmScheduleStatus('error');
+      Alert.alert('Không thể lên lịch báo thức', error?.message || 'Vui lòng kiểm tra quyền thông báo của ứng dụng.');
+    }
+  };
+
+  const handleTestNativeAlarm = async () => {
+    try {
+      const scheduled = await scheduleAlarmTest(10, alarmQuestionCount);
+      if (!scheduled.success) {
+        Alert.alert('Chưa cấp quyền', 'Hãy bật quyền Thông báo và Âm thanh cho LinguaVault rồi thử lại.');
+        return;
+      }
+      Alert.alert(
+        'Đã lên lịch test 10 giây',
+        'Hãy vuốt đóng LinguaVault ngay. Sau khoảng 10 giây, thiết bị phải phát âm báo; chạm thông báo sẽ mở quiz khóa.'
+      );
+    } catch (error) {
+      Alert.alert('Test native thất bại', error?.message || 'Không thể lên lịch thông báo thử.');
     }
   };
 
@@ -3489,10 +3695,10 @@ function MainApp() {
               }}>
                     {totalCount > 0 ?
                 <>
-                        {masteredCount > 0 && <View style={{ width: `${masteredCount / totalCount * 100}%`, backgroundColor: '#10b981' }} />}
-                        {reviewingCount > 0 && <View style={{ width: `${reviewingCount / totalCount * 100}%`, backgroundColor: '#0284c7' }} />}
-                        {learningCount > 0 && <View style={{ width: `${learningCount / totalCount * 100}%`, backgroundColor: '#f59e0b' }} />}
-                        {newCount > 0 && <View style={{ width: `${newCount / totalCount * 100}%`, backgroundColor: '#94a3b8' }} />}
+                        {masteredCount > 0 ? <View style={{ width: `${masteredCount / totalCount * 100}%`, backgroundColor: '#10b981' }} /> : null}
+                        {reviewingCount > 0 ? <View style={{ width: `${reviewingCount / totalCount * 100}%`, backgroundColor: '#0284c7' }} /> : null}
+                        {learningCount > 0 ? <View style={{ width: `${learningCount / totalCount * 100}%`, backgroundColor: '#f59e0b' }} /> : null}
+                        {newCount > 0 ? <View style={{ width: `${newCount / totalCount * 100}%`, backgroundColor: '#94a3b8' }} /> : null}
                       </> :
 
                 <View style={{ flex: 1, backgroundColor: theme.cardBorder }} />
@@ -7695,14 +7901,8 @@ function MainApp() {
                       <Text style={[styles.formTitle, { color: theme.textPrimary, marginBottom: 0 }]}>Báo Thức Kỷ Luật Thép</Text>
                     </View>
                     <TouchableOpacity
-                  onPress={() => {
-                    const nextVal = !autoAlarmEnabled;
-                    setAutoAlarmEnabled(nextVal);
-                    if (typeof localStorage !== 'undefined') {
-                      localStorage.setItem('linguavault_auto_alarm_enabled', nextVal.toString());
-                    }
-                    Alert.alert('Thông báo', nextVal ? 'Đã bật chuông báo thức tự động mỗi ngày!' : 'Đã tắt chuông báo thức tự động.');
-                  }}
+                  onPress={handleToggleAutoAlarm}
+                  disabled={alarmScheduleStatus === 'scheduling'}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -7716,13 +7916,17 @@ function MainApp() {
                   }}>
                   
                       <Text style={{ fontSize: 11, fontWeight: '800', color: autoAlarmEnabled ? '#ffffff' : theme.textSecondary }}>
-                        {autoAlarmEnabled ? '✓ Đang Bật' : '✕ Đang Tắt'}
+                        {alarmScheduleStatus === 'scheduling' ? 'Đang cấp quyền...' : autoAlarmEnabled ? '✓ Đang Bật' : '✕ Đang Tắt'}
                       </Text>
                     </TouchableOpacity>
                   </View>
                   <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
-                    Phát chuông số liên tục vào giờ nhắc nhở ({reminderTime || '20:00'}), bắt buộc giải đúng số câu Quiz để tắt chuông.
+                    Báo thức native vẫn kích hoạt khi app bị đóng. Khi mở LinguaVault, chuông chỉ dừng sau khi giải đúng đủ số câu Quiz.
                   </Text>
+                  {alarmScheduleStatus === 'scheduled' ?
+                    <Text style={{ color: '#10b981', fontSize: 11, fontWeight: '700', marginTop: 6 }}>
+                      ✓ Đã lên lịch native lúc {reminderTime || '20:00'} mỗi ngày
+                    </Text> : null}
 
                   <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 12 }]}>
                     🎯 Số câu hỏi thử thách: <Text style={{ color: '#ef4444', fontWeight: '800' }}>{alarmQuestionCount} câu</Text>
@@ -7754,7 +7958,7 @@ function MainApp() {
 
                   {/* Test Alarm Ring Button */}
                   <TouchableOpacity
-                onPress={startAlarmChallenge}
+                onPress={() => startAlarmChallenge({ source: 'test' })}
                 style={{
                   marginTop: 12,
                   paddingVertical: 12,
@@ -7769,8 +7973,25 @@ function MainApp() {
                 }}>
                 
                     <IconVolume2 size={16} color="#ef4444" />
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>🔔 Thử Chuông Báo Thức Ngay</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>🔔 Thử quiz + chuông trong app</Text>
                   </TouchableOpacity>
+
+                  {Platform.OS !== 'web' ?
+                    <TouchableOpacity
+                      onPress={handleTestNativeAlarm}
+                      style={{
+                        marginTop: 8,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        backgroundColor: theme.drawerCardBg,
+                        borderWidth: 1,
+                        borderColor: theme.cardBorder,
+                        alignItems: 'center'
+                      }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: theme.textPrimary }}>
+                        📱 Test khi đóng app (sau 10 giây)
+                      </Text>
+                    </TouchableOpacity> : null}
                 </View>
 
                 {/* AUDIO SPEED & ACCENT SETTINGS CARD */}
@@ -8923,7 +9144,7 @@ function MainApp() {
                   fontWeight: '600',
                   marginBottom: 12
                 }}
-                placeholder="http://192.168.1.x:5001"
+                placeholder={API_ENDPOINT}
                 placeholderTextColor={theme.textMuted}
                 value={serverUrlState}
                 onChangeText={setServerUrlState}
@@ -8936,7 +9157,7 @@ function MainApp() {
               GỢI Ý NHANH:
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-              {['http://192.168.110.47:5001', 'http://localhost:5001', 'http://127.0.0.1:5001'].map((ip) =>
+              {[API_ENDPOINT, 'http://localhost:5001', 'http://127.0.0.1:5001'].map((ip) =>
                 <TouchableOpacity
                   key={ip}
                   onPress={() => setServerUrlState(ip)}
@@ -9145,11 +9366,12 @@ function MainApp() {
       </> : null}</Modal>
 
       {/* HARDCORE ALARM CHALLENGE MODAL ON MOBILE */}
+      {showAlarmModal ?
       <Modal
-        visible={showAlarmModal}
+        visible={true}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => {}}>{showAlarmModal ? <>
+        onRequestClose={() => startMobileAlarmLoop()}><>
         
         <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.card, borderRadius: 24, padding: 22, borderWidth: 2, borderColor: '#ef4444' }}>
@@ -9310,7 +9532,7 @@ function MainApp() {
               }
           </View>
         </View>
-      </> : null}</Modal>
+      </></Modal> : null}
 
       {/* 9. AI VOCABULARY MASTERY ASSESSMENT REPORT MODAL */}
       <Modal
