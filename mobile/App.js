@@ -19,6 +19,8 @@ import {
   RefreshControl,
   PanResponder } from
 'react-native';
+import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
 import { mobileApi, getServerUrl, setServerUrl } from './src/services/api';
 import {
   IconHome,
@@ -266,6 +268,7 @@ let globalMobileSpeed = 0.9;
 let globalMobileAccent = 'en-US';
 let mobileCachedVoices = [];
 let activeAudioElement = null;
+let activeSoundObject = null;
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   const loadVoices = () => {
@@ -275,12 +278,51 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 
-const playMobileAudio = (wordText, rate = null, lang = null) => {
+const playMobileAudio = async (wordText, rate = null, lang = null) => {
   if (!wordText || typeof wordText !== 'string' || !wordText.trim()) return;
   const cleanText = wordText.trim();
   const targetRate = Math.max(0.4, Math.min(2.0, rate !== null ? parseFloat(rate) : globalMobileSpeed));
-  const targetLang = lang || globalMobileAccent;
+  const targetLang = lang || globalMobileAccent || 'en-US';
   const isUK = targetLang === 'en-GB';
+
+  // 1. Native iOS / Android: Try Native High-Definition Speech (AVSpeechSynthesizer)
+  try {
+    if (Speech && typeof Speech.speak === 'function') {
+      Speech.stop();
+      Speech.speak(cleanText, {
+        language: targetLang,
+        rate: targetRate,
+        pitch: 1.0,
+        onError: (err) => {
+          console.warn('[TTS] Native Speech error:', err);
+        }
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn('[TTS] Expo Speech fallback to Web/Audio:', e);
+  }
+
+  // 2. Native iOS / Android: Try Expo-AV Audio MP3 Stream
+  try {
+    if (Audio && Audio.Sound) {
+      if (activeSoundObject) {
+        try { await activeSoundObject.unloadAsync(); } catch (e) {}
+        activeSoundObject = null;
+      }
+      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : 'http://localhost:5001';
+      const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
+      
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: ttsUrl },
+        { shouldPlay: true, rate: targetRate }
+      );
+      activeSoundObject = sound;
+      return;
+    }
+  } catch (e) {
+    console.warn('[TTS] Expo AV streaming fallback:', e);
+  }
 
   // Fallback: Web Speech Synthesis with top natural Apple / Google English voices
   const speakSynthesis = () => {
@@ -315,7 +357,7 @@ const playMobileAudio = (wordText, rate = null, lang = null) => {
     }
   };
 
-  // 1. Try High-Definition Studio Audio MP3 Stream
+  // 3. Web & Electron: Try HTML5 Audio Stream
   try {
     if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
       if (activeAudioElement) {
@@ -341,7 +383,7 @@ const playMobileAudio = (wordText, rate = null, lang = null) => {
     console.warn('Audio streaming fallback:', e);
   }
 
-  // 2. Direct Web Speech Fallback
+  // 4. Direct Web Speech Fallback
   speakSynthesis();
 };
 
