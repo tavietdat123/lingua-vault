@@ -24,7 +24,7 @@ jobs:
         working-directory: server
     env:
       NODE_ENV: test
-      DB_PATH: ${{ runner.temp }}/lingua-vault-test.db
+      DB_PATH: /tmp/lingua-vault-test.db
       SCHEDULERS_ENABLED: "false"
 
     steps:
