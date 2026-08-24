@@ -1,6 +1,7 @@
 services:
   # 1. Ứng Dụng Chính: LinguaVault Backend API & Phục vụ Web SPA
   app:
+    image: ${APP_IMAGE:-lingua-vault:local}
     build:
       context: .
       dockerfile: Dockerfile

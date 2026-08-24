@@ -1,0 +1,165 @@
+name: LinguaVault CD
+
+on:
+  workflow_run:
+    workflows: ["LinguaVault CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  publish:
+    name: Publish production image
+    if: >-
+      vars.CD_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image: ${{ steps.image.outputs.value }}
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set immutable image name
+        id: image
+        run: echo "value=${IMAGE_NAME}:${DEPLOY_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image.outputs.value }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy production
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      VPS_HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GHCR_USERNAME: ${{ github.actor }}
+      PRODUCTION_IMAGE: ${{ needs.publish.outputs.image }}
+
+    steps:
+      - name: Checkout deployment files
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Validate deployment secrets
+        run: |
+          test -n "$VPS_HOST"
+          test -n "$VPS_PORT"
+          test -n "$VPS_USER"
+          test -n "$VPS_DEPLOY_PATH"
+          test -n "$VPS_SSH_PRIVATE_KEY"
+          test -n "$VPS_HOST_KEY"
+
+      - name: Configure SSH
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_HOST_KEY" > "$HOME/.ssh/known_hosts"
+
+      - name: Upload deployment configuration
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "mkdir -p '$VPS_DEPLOY_PATH/nginx' '$VPS_DEPLOY_PATH/server/data' '$VPS_DEPLOY_PATH/backups' '$VPS_DEPLOY_PATH/certbot/conf' '$VPS_DEPLOY_PATH/certbot/www'"
+          scp -P "$VPS_PORT" docker-compose.yml \
+            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.yml"
+          scp -P "$VPS_PORT" nginx/default.conf \
+            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/nginx/default.conf"
+
+      - name: Login VPS to GitHub Container Registry
+        run: |
+          printf '%s' "$GHCR_TOKEN" | ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+
+      - name: Backup SQLite and deploy
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            bash -s -- "$VPS_DEPLOY_PATH" "$PRODUCTION_IMAGE" <<'REMOTE_SCRIPT'
+          set -Eeuo pipefail
+
+          deploy_path="$1"
+          production_image="$2"
+          cd "$deploy_path"
+
+          if [ ! -f .env ]; then
+            echo "Missing production environment file: $deploy_path/.env" >&2
+            exit 1
+          fi
+
+          previous_image="$(docker inspect --format='{{.Config.Image}}' linguavault_app 2>/dev/null || true)"
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+
+          docker compose stop app 2>/dev/null || true
+          tar -czf "backups/sqlite-$timestamp.tar.gz" server/data
+
+          APP_IMAGE="$production_image" docker compose pull app
+          APP_IMAGE="$production_image" docker compose up -d --no-build --remove-orphans
+
+          healthy=false
+          for attempt in $(seq 1 12); do
+            if docker compose exec -T app node -e \
+              "fetch('http://127.0.0.1:5001/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
+              healthy=true
+              break
+            fi
+            sleep 5
+          done
+
+          if [ "$healthy" != true ]; then
+            echo "Production health check failed; rolling back application image." >&2
+            if [ -n "$previous_image" ]; then
+              APP_IMAGE="$previous_image" docker compose up -d --no-build app
+            fi
+            exit 1
+          fi
+
+          find backups -type f -name 'sqlite-*.tar.gz' -mtime +14 -delete
+          echo "Deployed $production_image successfully."
+          REMOTE_SCRIPT
