@@ -48,15 +48,18 @@ async function runTests() {
   
   // New card rated "again"
   const againResult = calculateNextSRS({ repetition: 0, interval: 0, easeFactor: 2.5 }, 'again');
-  assert(againResult.interval === 1 && againResult.repetition === 0, 'Đánh giá [Again]: interval = 1 ngày, repetition = 0');
+  assert(
+    againResult.interval === 0 && againResult.repetition === 0 && againResult.isIntraDay,
+    'Đánh giá [Again]: ôn lại trong ngày, repetition = 0'
+  );
 
   // New card rated "good"
   const good1 = calculateNextSRS({ repetition: 0, interval: 0, easeFactor: 2.5 }, 'good');
-  assert(good1.interval === 1 && good1.repetition === 1, 'Lần 1 đánh giá [Good]: interval = 1 ngày, repetition = 1');
+  assert(good1.interval === 3 && good1.repetition === 1, 'Lần 1 đánh giá [Good]: interval = 3 ngày, repetition = 1');
 
   // Second review rated "good"
   const good2 = calculateNextSRS(good1, 'good');
-  assert(good2.interval === 4 && good2.repetition === 2, 'Lần 2 đánh giá [Good]: interval = 4 ngày, repetition = 2');
+  assert(good2.interval === 7 && good2.repetition === 2, 'Lần 2 đánh giá [Good]: interval = 7 ngày, repetition = 2');
 
   // Third review rated "good"
   const good3 = calculateNextSRS(good2, 'good');
@@ -149,8 +152,13 @@ async function runTests() {
    • Trạng thái:   ${failedTests === 0 ? '🟢 TOÀN BỘ CHỨC NĂNG HOẠT ĐỘNG HOÀN HẢO 100%' : '🔴 CÓ LỖI'}
 =====================================================
   `);
+
+  if (failedTests > 0) {
+    process.exitCode = 1;
+  }
 }
 
 runTests().catch(err => {
   console.error('Fatal test error:', err);
+  process.exitCode = 1;
 });
