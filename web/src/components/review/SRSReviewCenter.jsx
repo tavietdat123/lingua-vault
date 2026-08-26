@@ -19,6 +19,11 @@ import {
 import confetti from 'canvas-confetti';
 import { playAudio, audioService } from '../../services/audioService';
 
+// Escape regex special characters safely
+function escapeRegExp(string) {
+  return String(string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Format dynamic interval label (SM-2+ multi-milestone)
 function getPreviewLabel(item, grade) {
   if (item?.previewIntervals?.[grade]?.text) {
@@ -55,20 +60,69 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
   });
 
   // Calculate filtered counts for badge display
-  const wordsCount = useMemo(() => dueItems.filter(i => (i.type || 'word') === 'word').length, [dueItems]);
-  const patternsCount = useMemo(() => dueItems.filter(i => i.type === 'pattern').length, [dueItems]);
+  const wordsCount = useMemo(() => dueItems.filter(i => (i?.type || 'word') === 'word').length, [dueItems]);
+  const patternsCount = useMemo(() => dueItems.filter(i => i?.type === 'pattern').length, [dueItems]);
 
   // Dynamic session deck based on filter
   const sessionDeck = useMemo(() => {
-    if (filterScope === 'words') return dueItems.filter(i => (i.type || 'word') === 'word');
-    if (filterScope === 'patterns') return dueItems.filter(i => i.type === 'pattern');
+    if (filterScope === 'words') return dueItems.filter(i => (i?.type || 'word') === 'word');
+    if (filterScope === 'patterns') return dueItems.filter(i => i?.type === 'pattern');
     return dueItems;
   }, [dueItems, filterScope]);
 
+  // Reset index safely if filter changes or deck is smaller than currentIndex
+  useEffect(() => {
+    if (currentIndex >= sessionDeck.length && sessionDeck.length > 0) {
+      setCurrentIndex(0);
+      setIsFlipped(false);
+      setUserAnswer('');
+      setIsAnswerChecked(false);
+    }
+  }, [sessionDeck.length, currentIndex]);
+
+  const handleFilterChange = (scope) => {
+    setFilterScope(scope);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setUserAnswer('');
+    setIsAnswerChecked(false);
+  };
+
   const filteredCategoryDeck = sessionDeck;
-  const currentItem = sessionDeck[currentIndex];
+  const currentItem = sessionDeck[currentIndex] || null;
   const isWord = (currentItem?.type || 'word') === 'word';
-  const primaryExample = currentItem?.examples?.[0] || '';
+
+  const primaryExample = useMemo(() => {
+    if (!currentItem) return '';
+    if (Array.isArray(currentItem.examples) && currentItem.examples.length > 0) {
+      const ex = currentItem.examples[0];
+      return typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
+    }
+    if (typeof currentItem.examples === 'string') {
+      try {
+        const parsed = JSON.parse(currentItem.examples);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const ex = parsed[0];
+          return typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
+        }
+      } catch (e) {
+        return currentItem.examples;
+      }
+    }
+    return '';
+  }, [currentItem]);
+
+  const safeCollocations = useMemo(() => {
+    if (!currentItem?.collocations) return [];
+    if (Array.isArray(currentItem.collocations)) return currentItem.collocations;
+    if (typeof currentItem.collocations === 'string') {
+      try {
+        const parsed = JSON.parse(currentItem.collocations);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  }, [currentItem]);
 
   // Confetti on session completion
   useEffect(() => {
@@ -93,7 +147,7 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
         playAudio(currentItem.word || currentItem.name, currentItem.audio_url);
       }
     }
-  }, [currentIndex, reviewMode, isFlipped, isCompleted]);
+  }, [currentIndex, reviewMode, isFlipped, isCompleted, currentItem]);
 
   // Keyboard Shortcuts (Space to flip, 1/2/3/4 to grade)
   useEffect(() => {
@@ -131,7 +185,9 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
     const xpMap = { again: 1, hard: 4, good: 7, easy: 10 };
     const xp = xpMap[rating] || 5;
 
-    await onReviewSubmit(currentItem.id, currentItem.type || 'word', rating);
+    if (onReviewSubmit) {
+      await onReviewSubmit(currentItem.id, currentItem.type || 'word', rating);
+    }
 
     // Update Session Metrics
     setSessionStats(prev => ({
@@ -156,9 +212,19 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
   };
 
   const getClozeSentence = (sentence, word) => {
-    if (!sentence || !word) return sentence;
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    return sentence.replace(regex, '________');
+    if (!sentence || !word) return sentence || '';
+    try {
+      const cleanTarget = String(word).trim();
+      const escaped = escapeRegExp(cleanTarget);
+      const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+      if (regex.test(sentence)) {
+        return sentence.replace(regex, '________');
+      }
+      const simpleRegex = new RegExp(escaped, 'gi');
+      return sentence.replace(simpleRegex, '________');
+    } catch (e) {
+      return String(sentence).replace(String(word), '________');
+    }
   };
 
   // Case 1: Session actually completed after reviewing cards
@@ -208,14 +274,14 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
       {/* 1. TOP BAR: CATEGORY FILTER PILLS & MODE SWITCHER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', background: 'var(--bg-secondary)', padding: '0.85rem 1.25rem', borderRadius: '18px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <button onClick={() => setFilterScope('all')} style={{ padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: filterScope === 'all' ? 'var(--accent-primary)' : 'var(--bg-tertiary)', color: filterScope === 'all' ? '#ffffff' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+          <button onClick={() => handleFilterChange('all')} style={{ padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: filterScope === 'all' ? 'var(--accent-primary)' : 'var(--bg-tertiary)', color: filterScope === 'all' ? '#ffffff' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
             Tất cả ({dueItems.length})
           </button>
-          <button onClick={() => setFilterScope('words')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: filterScope === 'words' ? 'var(--accent-primary)' : 'var(--bg-tertiary)', color: filterScope === 'words' ? '#ffffff' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+          <button onClick={() => handleFilterChange('words')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: filterScope === 'words' ? 'var(--accent-primary)' : 'var(--bg-tertiary)', color: filterScope === 'words' ? '#ffffff' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
             <BookOpen size={13} />
             <span>Từ vựng ({wordsCount})</span>
           </button>
-          <button onClick={() => setFilterScope('patterns')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: filterScope === 'patterns' ? 'var(--accent-primary)' : 'var(--bg-tertiary)', color: filterScope === 'patterns' ? '#ffffff' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+          <button onClick={() => handleFilterChange('patterns')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: filterScope === 'patterns' ? 'var(--accent-primary)' : 'var(--bg-tertiary)', color: filterScope === 'patterns' ? '#ffffff' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
             <Puzzle size={13} />
             <span>Mẫu câu ({patternsCount})</span>
           </button>
@@ -411,11 +477,11 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
                       {currentItem.meaning_en}
                     </p>
                   )}
-                  {currentItem?.collocations && currentItem.collocations.length > 0 && (
+                  {safeCollocations.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                      {currentItem.collocations.map((c, i) => (
+                      {safeCollocations.map((c, i) => (
                         <span key={i} className="tag-pill" style={{ background: 'var(--accent-primary-light)', color: 'var(--accent-primary)', fontSize: '0.8rem', fontWeight: 700 }}>
-                          ⚡ {typeof c === 'string' ? c : c.phrase}
+                          ⚡ {typeof c === 'string' ? c : c?.phrase || c?.text || ''}
                         </span>
                       ))}
                     </div>
