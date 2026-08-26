@@ -147,6 +147,8 @@ function mountPublicRoutes(app, authLimiter) {
   app.get('/api/audio/tts', rateLimit({ name: 'tts', max: 240, windowMs: 60_000 }), asyncHandler(streamTts));
 }
 
+const ttsMemoryCache = new Map();
+
 async function streamTts(req, res) {
   const text = String(req.query.text || '');
   const lang = String(req.query.lang || 'en-US');
@@ -155,22 +157,51 @@ async function streamTts(req, res) {
   }
 
   const cleanText = text.substring(0, 350).trim();
-  const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(lang)}&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+  const cacheKey = `${lang}:${cleanText.toLowerCase()}`;
 
-  const audioRes = await fetch(ttsUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      Referer: 'https://translate.google.com/'
-    }
-  });
-
-  if (!audioRes.ok) {
-    return res.status(502).json({ success: false, code: 'UPSTREAM_ERROR', error: 'TTS upstream error' });
+  // 1. Check in-memory cache for instant < 1ms response
+  if (ttsMemoryCache.has(cacheKey)) {
+    const cachedBuffer = ttsMemoryCache.get(cacheKey);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    return res.send(cachedBuffer);
   }
 
-  res.setHeader('Content-Type', 'audio/mpeg');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.send(Buffer.from(await audioRes.arrayBuffer()));
+  const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(lang)}&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const audioRes = await fetch(ttsUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: 'https://translate.google.com/'
+      }
+    });
+    clearTimeout(timeoutId);
+
+    if (!audioRes.ok) {
+      return res.status(502).json({ success: false, code: 'UPSTREAM_ERROR', error: 'TTS upstream error' });
+    }
+
+    const arrayBuffer = await audioRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Cache up to 2000 frequent words in memory
+    if (ttsMemoryCache.size > 2000) {
+      const firstKey = ttsMemoryCache.keys().next().value;
+      ttsMemoryCache.delete(firstKey);
+    }
+    ttsMemoryCache.set(cacheKey, buffer);
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.send(buffer);
+  } catch (err) {
+    return res.status(504).json({ success: false, code: 'TIMEOUT', error: 'TTS upstream timeout' });
+  }
 }
 
 /**

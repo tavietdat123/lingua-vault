@@ -20,7 +20,7 @@ export default function Dashboard({
   recentWords = [], 
   onStartReview, 
   onNavigate, 
-  audioSpeed = 0.9,
+  audioSpeed = 1.0,
   gamificationProfile,
   onOpenAIMasteryReport
 }) {
@@ -38,7 +38,7 @@ export default function Dashboard({
 
   const handlePlayAudio = (w) => {
     setPlayingWordId(w.id);
-    playAudio(w.word, w.audio_url, 'en-US', audioSpeed);
+    playAudio(w.word, w.audio_url, null, audioSpeed);
     setTimeout(() => setPlayingWordId(null), 1500);
   };
 
