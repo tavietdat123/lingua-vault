@@ -518,6 +518,9 @@ export default function App() {
               element={
                 <SRSReviewCenter
                   dueItems={dueItems}
+                  allWords={words}
+                  allPatterns={patterns}
+                  onAddWord={handleAddWord}
                   onReviewSubmit={handleReviewSubmit}
                   onFinishSession={() => {
                     refreshAllData();

@@ -37,12 +37,32 @@ function getPreviewLabel(item, grade) {
   return '3 ngày';
 }
 
-export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinishSession }) {
-  // 1. Deck Filter: 'all' | 'words' | 'patterns'
+export default function SRSReviewCenter({ 
+  dueItems = [], 
+  allWords = [], 
+  allPatterns = [], 
+  onAddWord, 
+  onReviewSubmit, 
+  onFinishSession 
+}) {
+  // 1. Cramming Mode: review all cards even when 0 due
+  const [isCramming, setIsCramming] = useState(false);
+
+  // 2. Deck Filter: 'all' | 'words' | 'patterns'
   const [filterScope, setFilterScope] = useState('all');
 
-  // 2. Active Recall Mode: 'flashcard' | 'cloze' | 'audio'
+  // 3. Active Recall Mode: 'flashcard' | 'cloze' | 'audio'
   const [reviewMode, setReviewMode] = useState('flashcard');
+
+  // Active items pool (either due items or cramming all items)
+  const activeItemsPool = useMemo(() => {
+    if (isCramming) {
+      const wordsList = (allWords || []).map(w => ({ ...w, type: 'word' }));
+      const patternsList = (allPatterns || []).map(p => ({ ...p, type: 'pattern' }));
+      return [...wordsList, ...patternsList];
+    }
+    return Array.isArray(dueItems) ? dueItems : [];
+  }, [isCramming, dueItems, allWords, allPatterns]);
 
   // Session & Card State
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -60,15 +80,15 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
   });
 
   // Calculate filtered counts for badge display
-  const wordsCount = useMemo(() => dueItems.filter(i => (i?.type || 'word') === 'word').length, [dueItems]);
-  const patternsCount = useMemo(() => dueItems.filter(i => i?.type === 'pattern').length, [dueItems]);
+  const wordsCount = useMemo(() => activeItemsPool.filter(i => (i?.type || 'word') === 'word').length, [activeItemsPool]);
+  const patternsCount = useMemo(() => activeItemsPool.filter(i => i?.type === 'pattern').length, [activeItemsPool]);
 
   // Dynamic session deck based on filter
   const sessionDeck = useMemo(() => {
-    if (filterScope === 'words') return dueItems.filter(i => (i?.type || 'word') === 'word');
-    if (filterScope === 'patterns') return dueItems.filter(i => i?.type === 'pattern');
-    return dueItems;
-  }, [dueItems, filterScope]);
+    if (filterScope === 'words') return activeItemsPool.filter(i => (i?.type || 'word') === 'word');
+    if (filterScope === 'patterns') return activeItemsPool.filter(i => i?.type === 'pattern');
+    return activeItemsPool;
+  }, [activeItemsPool, filterScope]);
 
   // Reset index safely if filter changes or deck is smaller than currentIndex
   useEffect(() => {
@@ -248,22 +268,64 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
     );
   }
 
-  // Case 2: Zero due items overall
-  if (dueItems.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'var(--bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', maxWidth: '620px', margin: '2rem auto', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)' }}>
-        <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
-          <CheckCircle2 size={38} />
+  // Case 2: Zero active items
+  if (activeItemsPool.length === 0) {
+    const totalVaultItems = (allWords?.length || 0) + (allPatterns?.length || 0);
+
+    if (totalVaultItems > 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'var(--bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', maxWidth: '640px', margin: '2rem auto', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)' }}>
+          <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
+            <CheckCircle2 size={38} />
+          </div>
+          <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+            Đã Hoàn Thành Thẻ Đến Hạn Hôm Nay!
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto 2rem auto' }}>
+            Tất cả các thẻ đang trong chu kỳ nhớ an toàn của thuật toán SM-2+. Bạn có thể quay lại vào ngày mai hoặc kích hoạt <b>Chế độ Ôn Luyện Tự Do</b> để củng cố toàn bộ kho từ bất kỳ lúc nào.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => { setIsCramming(true); setCurrentIndex(0); setIsFlipped(false); }} 
+              className="btn-primary" 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0.85rem 1.8rem', borderRadius: '14px', fontSize: '0.95rem', fontWeight: 800 }}
+            >
+              <Sparkles size={16} />
+              <span>Ôn Luyện Tự Do ({totalVaultItems} Thẻ)</span>
+            </button>
+            <button 
+              onClick={onFinishSession} 
+              className="btn-secondary" 
+              style={{ padding: '0.85rem 1.5rem', borderRadius: '14px', fontSize: '0.95rem' }}
+            >
+              Về Dashboard
+            </button>
+          </div>
         </div>
-        <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-          Đã Ôn Tập Toàn Bộ Hôm Nay!
+      );
+    }
+
+    return (
+      <div style={{ textAlign: 'center', padding: '3.5rem 2rem', background: 'var(--bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', maxWidth: '600px', margin: '2rem auto', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)' }}>
+        <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
+          <BookOpen size={36} />
+        </div>
+        <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+          Kho Thẻ Ôn Tập Đang Trống
         </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.75rem' }}>
-          Không còn thẻ từ vựng hay mẫu câu nào đến hạn. Hãy quay lại vào ngày mai để tiếp tục duy trì chu kỳ vàng trí nhớ.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginBottom: '1.75rem', lineHeight: 1.6 }}>
+          Bạn chưa có từ vựng hay mẫu câu nào trong tài khoản. Hãy thêm các từ vựng mới để kích hoạt chu kỳ ghi nhớ ngắt quãng!
         </p>
-        <button onClick={onFinishSession} className="btn-primary" style={{ padding: '0.8rem 2rem', borderRadius: '12px', margin: '0 auto' }}>
-          Về Trang Tổng Quan
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+          {onAddWord && (
+            <button onClick={onAddWord} className="btn-primary" style={{ padding: '0.8rem 1.8rem', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span>➕ Thêm Từ Vựng Đầu Tiên</span>
+            </button>
+          )}
+          <button onClick={onFinishSession} className="btn-secondary" style={{ padding: '0.8rem 1.5rem', borderRadius: '12px' }}>
+            Về Trang Tổng Quan
+          </button>
+        </div>
       </div>
     );
   }
