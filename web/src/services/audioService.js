@@ -202,19 +202,33 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
   const rawText = String(text || '').trim();
   if (!rawText) return false;
 
-  // Enhance phonetic enunciation of ending consonants (âm gió, âm bật /d/, /t/, /s/, /z/, /k/, /v/, /θ/)
-  // Adding punctuation allows TTS phoneme parsers to fully decay and articulate final consonant codas
-  const speechText = /[.!?]$/.test(rawText) ? rawText : `${rawText}.`;
-
   const isSingleWord = !rawText.includes(' ');
   const targetRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
-  // Single words benefit from a slightly more measured cadence (0.92x) so final consonants (like /d/ in avoid) are distinctly pronounced
+  
+  // 1. Phân loại theo cấu trúc ngữ pháp để tối ưu phát âm:
+  // - Từ đơn: tốc độ 0.92x (nếu user đặt 1.0x) + dấu chấm ngắt câu để mở rộng bộ đệm âm vị, bung trọn âm bật/âm gió kết thúc (/d/, /t/, /s/, /z/, /k/, /v/, /θ/)
+  // - Câu / Đoạn văn: giữ nguyên tốc độ tự nhiên 1.0x (hoặc theo thanh trượt của người dùng), giữ trọn vẹn ngữ điệu lên/xuống giọng bản xứ
   const safeRate = !isNaN(targetRate)
     ? (isSingleWord && targetRate === 1.0 ? 0.92 : Math.max(0.5, Math.min(1.8, targetRate)))
     : 0.92;
 
+  // Xử lý dấu kết thúc thông minh (tránh double period '..')
+  let speechText = rawText;
+  if (isSingleWord) {
+    speechText = /[.!?]$/.test(rawText) ? rawText : `${rawText}.`;
+  }
+
   const targetLang = lang || globalAudioAccent;
   const matchedVoice = getVoiceForAccent(targetLang);
+
+  // 2. Chia nhỏ đoạn văn dài (> 180 ký tự) để chống lỗi đứng hình 15s kinh điển của Web Speech API
+  const splitSentences = (longStr) => {
+    if (longStr.length <= 180) return [longStr];
+    const matches = longStr.match(/[^.!?\n]+[.!?\n]*/g);
+    return matches && matches.length > 0 ? matches.map(s => s.trim()).filter(Boolean) : [longStr];
+  };
+
+  const chunks = splitSentences(speechText);
 
   try {
     if (window.speechSynthesis.paused) {
@@ -222,39 +236,46 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
     }
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(speechText);
-    currentSpeechUtterance = utterance;
-    utterance.lang = matchedVoice?.lang || targetLang;
-    utterance.rate = safeRate;
-    utterance.pitch = 1.0;
-    
-    if (matchedVoice) {
-      utterance.voice = matchedVoice;
-    }
+    let chunkIndex = 0;
 
-    let started = false;
-    utterance.onstart = () => {
-      if (sessionId !== globalPlaybackSessionId) {
-        window.speechSynthesis.cancel();
+    const playNextChunk = () => {
+      if (chunkIndex >= chunks.length || sessionId !== globalPlaybackSessionId) {
+        currentSpeechUtterance = null;
         return;
       }
-      started = true;
-    };
-    utterance.onend = () => {
-      if (currentSpeechUtterance === utterance) currentSpeechUtterance = null;
-    };
-    utterance.onerror = (e) => {
-      if (currentSpeechUtterance !== utterance) return;
-      currentSpeechUtterance = null;
-      if (!started && onFailure && sessionId === globalPlaybackSessionId) {
-        onFailure();
+
+      const chunkText = chunks[chunkIndex];
+      chunkIndex++;
+
+      const utterance = new SpeechSynthesisUtterance(chunkText);
+      currentSpeechUtterance = utterance;
+      utterance.lang = matchedVoice?.lang || targetLang;
+      utterance.rate = safeRate;
+      utterance.pitch = 1.0;
+
+      if (matchedVoice) {
+        utterance.voice = matchedVoice;
+      }
+
+      utterance.onend = () => {
+        if (sessionId === globalPlaybackSessionId) {
+          playNextChunk();
+        }
+      };
+
+      utterance.onerror = (e) => {
+        if (sessionId === globalPlaybackSessionId && chunkIndex === 1 && onFailure) {
+          onFailure();
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
       }
     };
 
-    window.speechSynthesis.speak(utterance);
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
+    playNextChunk();
     return true;
   } catch (error) {
     currentSpeechUtterance = null;
