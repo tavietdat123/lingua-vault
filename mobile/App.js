@@ -3949,11 +3949,21 @@ function MainApp() {
             const primaryExample = curItem?.examples?.[0] || '';
             const targetWord = isWord ? curItem?.word || '' : curItem?.name || '';
 
-            // Helper for cloze sentences
+            // Helper for cloze sentences (safe against special characters)
             const getClozeSentenceMobile = (sentence, word) => {
               if (!sentence || !word) return sentence || '________';
-              const regex = new RegExp(`\\b${word}\\b`, 'gi');
-              return sentence.replace(regex, '________');
+              try {
+                const clean = String(word).trim();
+                const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+                if (regex.test(sentence)) {
+                  return sentence.replace(regex, '________');
+                }
+                const simple = new RegExp(escaped, 'gi');
+                return sentence.replace(simple, '________');
+              } catch (e) {
+                return String(sentence).replace(String(word), '________');
+              }
             };
 
             // Case 1: Session completed after reviewing cards
