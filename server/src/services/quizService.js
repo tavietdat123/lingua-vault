@@ -327,6 +327,23 @@ export const quizService = {
         }
       }
 
+      // Build detailed explanation and contextual translation
+      let explanation = '';
+      let translation = '';
+      const cleanExString = examples.length > 0 ? (typeof examples[0] === 'string' ? examples[0] : (examples[0]?.en || examples[0]?.sentence || '')) : '';
+
+      if (qType === 'meaning_vi' || qType === 'listening') {
+        explanation = `Từ "${targetWord.word}" mang nghĩa chuẩn xác là "${validTargetMeaning}". ${targetWord.part_of_speech ? `[Từ loại: ${targetWord.part_of_speech}]` : ''} ${targetWord.meaning_en ? `Định nghĩa tiếng Anh: ${targetWord.meaning_en}.` : ''}`;
+        translation = cleanExString ? `Ví dụ thực tế: "${cleanExString}"` : `Từ vựng: ${targetWord.word} ➔ ${validTargetMeaning}`;
+      } else if (qType === 'reverse_en') {
+        explanation = `Định nghĩa "${validTargetMeaning}" trong tiếng Anh tương ứng với từ "${targetWord.word}". ${targetWord.phonetic ? `Phiên âm IPA: /${targetWord.phonetic.replace(/\//g, '')}/.` : ''} ${targetWord.meaning_en ? `Định nghĩa: ${targetWord.meaning_en}.` : ''}`;
+        translation = cleanExString ? `Ví dụ thực tế: "${cleanExString}"` : `Ý nghĩa: ${validTargetMeaning}`;
+      } else if (qType === 'cloze_blank') {
+        const completedSentence = questionText.replace(/_______/g, targetWord.word);
+        explanation = `Điền từ "${targetWord.word}" (${validTargetMeaning}) để hoàn chỉnh câu: "${completedSentence}". ${targetWord.phonetic ? `Phiên âm: /${targetWord.phonetic.replace(/\//g, '')}/.` : ''}`;
+        translation = `Câu hoàn chỉnh: "${completedSentence}"`;
+      }
+
       return {
         id: `${targetWord.id}_q${index + 1}`,
         type: qType,
@@ -339,6 +356,8 @@ export const quizService = {
         promptSubtitle,
         correctAnswer,
         options,
+        explanation,
+        translation,
         audio_url: targetWord.audio_url,
         examples
       };
@@ -381,6 +400,7 @@ export const quizService = {
 
       results.push({
         id: item.id || item.wordId,
+        word: item.word || item.id,
         questionText: item.questionText,
         userAnswer: item.userAnswer,
         correctAnswer: item.correctAnswer,

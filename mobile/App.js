@@ -2777,7 +2777,9 @@ function MainApp() {
       word: currentQ.word,
       questionText: currentQ.questionText,
       correctAnswer: currentQ.correctAnswer,
-      userAnswer: option
+      userAnswer: option,
+      explanation: currentQ.explanation,
+      translation: currentQ.translation
     };
 
     setQuizUserAnswers((prev) => {
@@ -2812,7 +2814,9 @@ function MainApp() {
               word: q.word,
               questionText: q.questionText,
               correctAnswer: q.correctAnswer,
-              userAnswer: quizSelectedOption
+              userAnswer: quizSelectedOption,
+              explanation: q.explanation,
+              translation: q.translation
             };
           }
           return {
@@ -2820,7 +2824,9 @@ function MainApp() {
             word: q.word,
             questionText: q.questionText,
             correctAnswer: q.correctAnswer,
-            userAnswer: ''
+            userAnswer: '',
+            explanation: q.explanation,
+            translation: q.translation
           };
         });
 
@@ -5653,13 +5659,29 @@ function MainApp() {
 
                           {/* Row 3: Correct Answer (if wrong) */}
                           {Boolean(!item.isCorrect) ?
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
                               <Text style={{ fontSize: 13, color: theme.textSecondary }}>Đáp án đúng: </Text>
                               <Text style={{ fontSize: 13, fontWeight: '800', color: '#10b981', flex: 1 }}>
                                 {item.correctAnswer}
                               </Text>
                             </View> : null
-                  }
+                          }
+
+                          {/* Row 4: Explanation & Contextual translation */}
+                          {Boolean(item.explanation || item.translation) ? (
+                            <View style={{ backgroundColor: theme.innerCard, borderColor: theme.accent, borderLeftWidth: 3, padding: 8, borderRadius: 6, marginTop: 8 }}>
+                              {Boolean(item.explanation) ? (
+                                <Text style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 16 }}>
+                                  💡 <Text style={{ fontWeight: '700', color: theme.textPrimary }}>Giải thích:</Text> {item.explanation}
+                                </Text>
+                              ) : null}
+                              {Boolean(item.translation) ? (
+                                <Text style={{ fontSize: 11, fontStyle: 'italic', color: theme.textMuted, marginTop: 3 }}>
+                                  🌐 <Text style={{ fontWeight: '700' }}>Ngữ cảnh:</Text> "{item.translation}"
+                                </Text>
+                              ) : null}
+                            </View>
+                          ) : null}
                         </View>
                 )}
                     </View>

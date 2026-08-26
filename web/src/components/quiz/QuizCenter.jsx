@@ -242,7 +242,9 @@ export default function QuizCenter({ onOpenReview }) {
       word: currentQ.word,
       questionText: currentQ.questionText,
       correctAnswer: currentQ.correctAnswer,
-      userAnswer: option
+      userAnswer: option,
+      explanation: currentQ.explanation,
+      translation: currentQ.translation
     };
 
     setUserAnswers(prev => {
@@ -276,7 +278,9 @@ export default function QuizCenter({ onOpenReview }) {
               word: q.word,
               questionText: q.questionText,
               correctAnswer: q.correctAnswer,
-              userAnswer: selectedOption
+              userAnswer: selectedOption,
+              explanation: q.explanation,
+              translation: q.translation
             };
           }
           return {
@@ -284,7 +288,9 @@ export default function QuizCenter({ onOpenReview }) {
             word: q.word,
             questionText: q.questionText,
             correctAnswer: q.correctAnswer,
-            userAnswer: ''
+            userAnswer: '',
+            explanation: q.explanation,
+            translation: q.translation
           };
         });
 
@@ -376,6 +382,22 @@ export default function QuizCenter({ onOpenReview }) {
                         <span> • Đáp án đúng: <b className="text-green">{item.correctAnswer}</b></span>
                       )}
                     </div>
+                    {Boolean(item.explanation || item.translation) && (
+                      <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.82rem', lineHeight: 1.45, borderLeft: '3px solid var(--accent-primary)' }}>
+                        {Boolean(item.explanation) && (
+                          <div style={{ color: 'var(--text-primary)', marginBottom: item.translation ? '0.25rem' : 0 }}>
+                            <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>💡 Giải thích: </span>
+                            {item.explanation}
+                          </div>
+                        )}
+                        {Boolean(item.translation) && (
+                          <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                            <span style={{ fontWeight: 600 }}>🌐 Dịch: </span>
+                            "{item.translation}"
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -556,7 +578,7 @@ export default function QuizCenter({ onOpenReview }) {
                     </div>
                     <div>
                       <div className="feedback-title correct">Chính xác tuyệt đối! 🎉</div>
-                      <div className="feedback-desc">Bạn vừa củng cố vững chắc điểm nhớ của từ này.</div>
+                      <div className="feedback-desc">Bạn đã chọn đúng đáp án: <strong>{currentQ.correctAnswer}</strong></div>
                     </div>
                   </div>
                 ) : (
@@ -570,6 +592,31 @@ export default function QuizCenter({ onOpenReview }) {
                         Đáp án đúng là: <strong className="correct-answer-highlight">{currentQ.correctAnswer}</strong>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Detailed Explanation / Reasoning of Why this is correct */}
+                {Boolean(currentQ.explanation || currentQ.translation) && (
+                  <div style={{
+                    marginTop: '0.85rem',
+                    padding: '0.75rem 1rem',
+                    background: 'var(--bg-secondary)',
+                    borderLeft: '4px solid var(--accent-primary)',
+                    borderRadius: '10px',
+                    textAlign: 'left'
+                  }}>
+                    {Boolean(currentQ.explanation) && (
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: currentQ.translation ? '0.35rem' : 0 }}>
+                        <span style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>💡 Vì sao đáp án này đúng: </span>
+                        {currentQ.explanation}
+                      </div>
+                    )}
+                    {Boolean(currentQ.translation) && (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                        <span style={{ fontWeight: 700 }}>🌐 Ngữ cảnh: </span>
+                        "{currentQ.translation}"
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
