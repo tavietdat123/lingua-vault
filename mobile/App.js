@@ -301,85 +301,13 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 const playMobileAudio = async (wordText, rate = null, lang = null) => {
   if (!wordText || typeof wordText !== 'string' || !wordText.trim()) return;
   const cleanText = wordText.trim();
-  const targetRate = Math.max(0.4, Math.min(2.0, rate !== null ? parseFloat(rate) : globalMobileSpeed));
+  const targetRate = Math.max(0.5, Math.min(1.8, rate !== null ? parseFloat(rate) : globalMobileSpeed));
   const targetLang = lang || globalMobileAccent || 'en-US';
   const isUK = targetLang === 'en-GB';
   const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
   const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
 
-  // Native: prefer the best matching enhanced voice already installed on the
-  // device. It is free, works offline and avoids a network round trip.
-  if (Platform.OS !== 'web') {
-    try {
-      await ExpoAudio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false
-      });
-
-      await Speech.stop().catch(() => {});
-      if (activeSoundObject) {
-        const previousSound = activeSoundObject;
-        activeSoundObject = null;
-        await previousSound.stopAsync().catch(() => {});
-        await previousSound.unloadAsync().catch(() => {});
-      }
-      if (!nativeCachedVoices) {
-        nativeCachedVoices = await Speech.getAvailableVoicesAsync().catch(() => []);
-      }
-
-      const normalizedTarget = targetLang.replace('_', '-').toLowerCase();
-      const matchingVoices = nativeCachedVoices
-        .filter((voice) => String(voice.language || '').replace('_', '-').toLowerCase() === normalizedTarget)
-        .sort((a, b) => {
-          const scoreVoice = (voice) => {
-            const descriptor = `${voice.name || ''} ${voice.identifier || ''}`.toLowerCase();
-            let score = voice.quality === Speech.VoiceQuality.Enhanced || voice.quality === 'Enhanced' ? 100 : 0;
-            if (/premium|enhanced|neural|natural/.test(descriptor)) score += 40;
-            if (/compact/.test(descriptor)) score -= 20;
-            return score;
-          };
-          return scoreVoice(b) - scoreVoice(a);
-        });
-      const selectedVoice = matchingVoices[0];
-
-      if (selectedVoice) {
-        const nativeSpeechStarted = await new Promise((resolve) => {
-          let settled = false;
-          const finish = (started) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(startTimeout);
-            resolve(started);
-          };
-          const startTimeout = setTimeout(() => finish(false), 2500);
-
-          try {
-            Speech.speak(cleanText, {
-              language: targetLang,
-              voice: selectedVoice.identifier,
-              rate: targetRate,
-              pitch: 1.0,
-              onStart: () => finish(true),
-              onError: () => finish(false),
-              onStopped: () => finish(false)
-            });
-          } catch (error) {
-            finish(false);
-          }
-        });
-
-        if (nativeSpeechStarted) return;
-        await Speech.stop().catch(() => {});
-      }
-    } catch (nativeVoiceError) {
-      console.warn('[TTS] Enhanced native voice failed, using MP3:', nativeVoiceError);
-    }
-
-    // Free online fallback: use the server's Google Translate TTS proxy when
-    // there is no matching native voice or native speech cannot start.
+  const playMobileMp3 = async () => {
     try {
       if (activeSoundObject) {
         const previousSound = activeSoundObject;
@@ -403,13 +331,24 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
         if (activeSoundObject === sound) activeSoundObject = null;
         sound.unloadAsync().catch(() => {});
       });
-      return;
-    } catch (streamError) {
-      console.warn('[TTS] MP3 fallback failed:', streamError);
+    } catch (e) {
+      console.warn('[TTS] Mobile MP3 Stream fallback error:', e);
     }
+  };
 
-    // Last chance when voice enumeration is unavailable on a device.
+  // 1. Native iOS / Android: Direct Native High-Definition Speech Engine (AVSpeechSynthesizer)
+  if (Platform.OS !== 'web') {
     try {
+      if (ExpoAudio && ExpoAudio.setAudioModeAsync) {
+        await ExpoAudio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false
+        }).catch(() => {});
+      }
+
       if (Speech && typeof Speech.speak === 'function') {
         await Speech.stop().catch(() => {});
         Speech.speak(cleanText, {
@@ -417,20 +356,28 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
           rate: targetRate,
           pitch: 1.0,
           onError: (error) => {
-            console.warn('[TTS] Native speech failed:', error);
+            console.warn('[TTS] Native speech error, fallback to MP3:', error);
+            playMobileMp3();
           }
         });
+        return;
       }
-    } catch (nativeError) {
-      console.warn('[TTS] Native speech fallback failed:', nativeError);
+    } catch (nativeVoiceError) {
+      console.warn('[TTS] Native voice error:', nativeVoiceError);
     }
+
+    // Fallback to MP3 stream if native Speech module is unavailable
+    await playMobileMp3();
     return;
   }
 
-  // Web fallback: use the browser speech engine if MP3 playback is blocked.
+  // 2. Web & Electron: Instant Natural Speech Synthesis with High-Fidelity Voices
   const speakSynthesis = () => {
     try {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = targetLang;
@@ -441,50 +388,45 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
           mobileCachedVoices = window.speechSynthesis.getVoices() || [];
         }
 
+        const ROBOTIC_VOICES = /alex|fred|victoria|ralph|zarvox|trinoids|albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|junior|kathy|organ|princess|whisper|compact|espeak/i;
+        
         let bestVoice = null;
         if (isUK) {
-          bestVoice = mobileCachedVoices.find((v) => (v.lang === 'en-GB' || v.lang === 'en_GB') && (v.name.includes('Daniel') || v.name.includes('Oliver') || v.name.includes('Serena') || v.name.includes('Google UK') || v.name.includes('Kate') || v.name.includes('Stephanie'))) ||
-          mobileCachedVoices.find((v) => v.lang === 'en-GB' || v.lang === 'en_GB');
+          bestVoice = mobileCachedVoices.find((v) => 
+            (v.lang === 'en-GB' || v.lang === 'en_GB') && 
+            !ROBOTIC_VOICES.test(v.name) && 
+            (v.name.includes('Google UK') || v.name.includes('Daniel') || v.name.includes('Oliver') || v.name.includes('Serena') || v.name.includes('Kate'))
+          ) || mobileCachedVoices.find((v) => (v.lang === 'en-GB' || v.lang === 'en_GB') && !ROBOTIC_VOICES.test(v.name));
         } else {
-          bestVoice = mobileCachedVoices.find((v) => (v.lang === 'en-US' || v.lang === 'en_US') && (v.name.includes('Samantha') || v.name.includes('Ava') || v.name.includes('Google US') || v.name.includes('Allison') || v.name.includes('Alex') || v.name.includes('Victoria') || v.name.includes('Tom'))) ||
-          mobileCachedVoices.find((v) => v.lang === 'en-US' || v.lang === 'en_US');
+          bestVoice = mobileCachedVoices.find((v) => 
+            (v.lang === 'en-US' || v.lang === 'en_US') && 
+            !ROBOTIC_VOICES.test(v.name) && 
+            (v.name.includes('Google US') || v.name.includes('Samantha') || v.name.includes('Ava') || v.name.includes('Allison') || v.name.includes('Jenny') || v.name.includes('Aria'))
+          ) || mobileCachedVoices.find((v) => (v.lang === 'en-US' || v.lang === 'en_US') && !ROBOTIC_VOICES.test(v.name));
         }
 
         if (bestVoice) {
           utterance.voice = bestVoice;
         }
+
         window.speechSynthesis.speak(utterance);
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
       }
     } catch (err) {
       console.warn('Speech synthesis error:', err);
     }
   };
 
-  // Web & Electron: try the same production MP3 stream first.
+  // 3. Web & Electron HTML5 Audio Stream Fallback
   try {
-    if (typeof window !== 'undefined' && typeof window.Audio === 'function') {
-      if (activeAudioElement) {
-        activeAudioElement.pause();
-        activeAudioElement.currentTime = 0;
-      }
-
-      const audio = new window.Audio(ttsUrl);
-      activeAudioElement = audio;
-      audio.playbackRate = targetRate;
-
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          speakSynthesis();
-        });
-      }
+    if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+      speakSynthesis();
       return;
     }
-  } catch (e) {
-    console.warn('Audio streaming fallback:', e);
-  }
+  } catch (e) {}
 
-  // Direct Web Speech fallback.
   speakSynthesis();
 };
 
