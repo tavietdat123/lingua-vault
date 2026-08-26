@@ -2,8 +2,18 @@ import { db } from './database.js';
 import crypto from 'node:crypto';
 
 export function seedInitialData() {
+  try {
+    const seedFlag = db.prepare("SELECT value FROM settings WHERE key = 'initial_seed_completed'").get();
+    if (seedFlag && seedFlag.value === 'true') {
+      return;
+    }
+  } catch (e) {}
+
   const wordsCount = db.prepare('SELECT COUNT(*) as count FROM words').get();
   if (wordsCount.count > 0) {
+    try {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('initial_seed_completed', 'true')").run();
+    } catch (e) {}
     return; // Already seeded
   }
 

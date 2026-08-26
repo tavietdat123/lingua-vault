@@ -83,12 +83,17 @@ export default function SRSReviewCenter({ dueItems = [], onReviewSubmit, onFinis
     }
   }, [isCompleted, sessionStats.reviewed]);
 
-  // Autoplay audio on audio mode
+  // Autoplay audio on audio mode (debounced with lastPlayedKeyRef to eliminate double play)
+  const lastPlayedKeyRef = useRef('');
   useEffect(() => {
     if (reviewMode === 'audio' && currentItem && !isFlipped && !isCompleted) {
-      playAudio(currentItem.word || currentItem.name, currentItem.audio_url);
+      const itemKey = `${currentIndex}:${currentItem.id || currentItem.word || currentItem.name}`;
+      if (lastPlayedKeyRef.current !== itemKey) {
+        lastPlayedKeyRef.current = itemKey;
+        playAudio(currentItem.word || currentItem.name, currentItem.audio_url);
+      }
     }
-  }, [currentIndex, reviewMode, currentItem, isFlipped, isCompleted]);
+  }, [currentIndex, reviewMode, isFlipped, isCompleted]);
 
   // Keyboard Shortcuts (Space to flip, 1/2/3/4 to grade)
   useEffect(() => {

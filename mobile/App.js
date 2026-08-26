@@ -419,14 +419,6 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
     }
   };
 
-  // 3. Web & Electron HTML5 Audio Stream Fallback
-  try {
-    if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
-      speakSynthesis();
-      return;
-    }
-  } catch (e) {}
-
   speakSynthesis();
 };
 

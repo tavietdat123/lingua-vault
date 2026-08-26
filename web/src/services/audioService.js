@@ -121,11 +121,15 @@ const getVoiceForAccent = (targetLang) => {
   return englishVoices.sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] || null;
 };
 
+let globalPlaybackSessionId = 0;
+
 const stopCurrentPlayback = () => {
+  globalPlaybackSessionId++;
   if (currentActiveAudio) {
     try {
       currentActiveAudio.pause();
       currentActiveAudio.currentTime = 0;
+      currentActiveAudio.src = '';
     } catch (e) {}
     currentActiveAudio = null;
   }
@@ -138,26 +142,41 @@ const stopCurrentPlayback = () => {
 };
 
 const playHtmlAudio = (sourceUrl, rate, onFailure = null) => {
+  const sessionId = globalPlaybackSessionId;
   let started = false;
   let failed = false;
+  
+  if (currentActiveAudio) {
+    try {
+      currentActiveAudio.pause();
+      currentActiveAudio.src = '';
+    } catch (e) {}
+    currentActiveAudio = null;
+  }
+
   const audio = new Audio();
   currentActiveAudio = audio;
   audio.preload = 'auto';
   audio.playbackRate = rate;
 
   const fail = () => {
+    if (sessionId !== globalPlaybackSessionId) return;
     if (started || failed) return;
     failed = true;
     clearTimeout(startTimeout);
-    try { audio.pause(); } catch (e) {}
+    try { audio.pause(); audio.src = ''; } catch (e) {}
     if (currentActiveAudio === audio) currentActiveAudio = null;
     if (onFailure) onFailure();
   };
   
-  // Fast timeout: 700ms max waiting for network stream
-  const startTimeout = setTimeout(fail, 700);
+  // 900ms max waiting for network stream
+  const startTimeout = setTimeout(fail, 900);
 
   audio.onplaying = () => {
+    if (sessionId !== globalPlaybackSessionId) {
+      try { audio.pause(); audio.src = ''; } catch (e) {}
+      return;
+    }
     started = true;
     clearTimeout(startTimeout);
   };
@@ -179,13 +198,13 @@ const playFreeServerTts = (text, targetLang, targetRate) => {
 export const speakText = (text, lang = null, rate = null, onFailure = null) => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !text) return false;
 
+  const sessionId = globalPlaybackSessionId;
   const targetRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
   const safeRate = !isNaN(targetRate) ? Math.max(0.5, Math.min(1.8, targetRate)) : 1.0;
   const targetLang = lang || globalAudioAccent;
   const matchedVoice = getVoiceForAccent(targetLang);
 
   try {
-    // Un-stick Chrome speech queue if it was suspended
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
@@ -202,29 +221,25 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
     }
 
     let started = false;
-    const startTimeout = setTimeout(() => {
-      if (started || currentSpeechUtterance !== utterance) return;
-      currentSpeechUtterance = null;
-      if (onFailure) onFailure();
-    }, 500);
-
     utterance.onstart = () => {
+      if (sessionId !== globalPlaybackSessionId) {
+        window.speechSynthesis.cancel();
+        return;
+      }
       started = true;
-      clearTimeout(startTimeout);
     };
     utterance.onend = () => {
-      clearTimeout(startTimeout);
       if (currentSpeechUtterance === utterance) currentSpeechUtterance = null;
     };
     utterance.onerror = (e) => {
-      clearTimeout(startTimeout);
       if (currentSpeechUtterance !== utterance) return;
       currentSpeechUtterance = null;
-      if (!started && onFailure) onFailure();
+      if (!started && onFailure && sessionId === globalPlaybackSessionId) {
+        onFailure();
+      }
     };
 
     window.speechSynthesis.speak(utterance);
-    // Extra insurance: resume in case browser paused
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
@@ -243,12 +258,14 @@ export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
   const targetLang = lang || globalAudioAccent;
   const cleanText = (text || '').trim();
 
+  // Atomically cancel any active sound before starting the new one
   stopCurrentPlayback();
+  const currentSession = globalPlaybackSessionId;
 
-  // 1. Instant 0ms Browser Speech Synthesis with Natural Voice
-  if (cleanText) {
+  // 1. Instant Natural Browser Speech Synthesis
+  if (cleanText && typeof window !== 'undefined' && window.speechSynthesis) {
     const started = speakText(cleanText, targetLang, targetRate, () => {
-      // Fallback to Server Studio TTS if SpeechSynthesis fails
+      if (currentSession !== globalPlaybackSessionId) return;
       playFreeServerTts(cleanText, targetLang, targetRate);
     });
     if (started) return;
