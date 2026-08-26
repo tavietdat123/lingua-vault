@@ -416,11 +416,11 @@ export default function SRSReviewCenter({
           </div>
 
           {/* 3. 3D FLASHCARD DISPLAY CONTAINER */}
-          <div className="flashcard-container" onClick={() => (reviewMode === 'flashcard' || reviewMode === 'audio') && setIsFlipped(!isFlipped)} style={{ minHeight: '440px' }}>
-            <div className={`flashcard-inner ${isFlipped ? 'flipped' : ''}`} style={{ minHeight: '440px' }}>
+          <div className="flashcard-container" onClick={() => (reviewMode === 'flashcard' || reviewMode === 'audio') && setIsFlipped(!isFlipped)}>
+            <div className={`flashcard-inner ${isFlipped ? 'flipped' : ''}`}>
               
               {/* FRONT FACE */}
-              <div className="flashcard-face" style={{ minHeight: '440px', borderRadius: '24px', padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div className="flashcard-face">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span className={`badge ${isWord ? 'badge-blue' : 'badge-purple'}`} style={{ fontWeight: 800, padding: '0.25rem 0.65rem' }}>
@@ -508,7 +508,7 @@ export default function SRSReviewCenter({
               </div>
 
               {/* BACK FACE */}
-              <div className="flashcard-face flashcard-back" style={{ minHeight: '440px', borderRadius: '24px', padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div className="flashcard-face flashcard-back">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <h4 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>

@@ -359,14 +359,15 @@ button {
 .flashcard-container {
   perspective: 1200px;
   width: 100%;
-  max-width: 680px;
-  min-height: 400px;
+  max-width: 720px;
   margin: 0 auto;
   cursor: pointer;
 }
 
 .flashcard-inner {
-  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
   width: 100%;
   min-height: 400px;
   text-align: center;
@@ -379,13 +380,13 @@ button {
 }
 
 .flashcard-face {
-  position: absolute;
+  grid-area: 1 / 1 / 2 / 2;
   width: 100%;
   min-height: 400px;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   border-radius: var(--radius-xl);
-  padding: 2.75rem;
+  padding: 2.25rem 2rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -393,6 +394,7 @@ button {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-xl);
   backdrop-filter: blur(12px);
+  box-sizing: border-box;
 }
 
 .flashcard-back {
