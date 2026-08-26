@@ -199,8 +199,20 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !text) return false;
 
   const sessionId = globalPlaybackSessionId;
+  const rawText = String(text || '').trim();
+  if (!rawText) return false;
+
+  // Enhance phonetic enunciation of ending consonants (âm gió, âm bật /d/, /t/, /s/, /z/, /k/, /v/, /θ/)
+  // Adding punctuation allows TTS phoneme parsers to fully decay and articulate final consonant codas
+  const speechText = /[.!?]$/.test(rawText) ? rawText : `${rawText}.`;
+
+  const isSingleWord = !rawText.includes(' ');
   const targetRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
-  const safeRate = !isNaN(targetRate) ? Math.max(0.5, Math.min(1.8, targetRate)) : 1.0;
+  // Single words benefit from a slightly more measured cadence (0.92x) so final consonants (like /d/ in avoid) are distinctly pronounced
+  const safeRate = !isNaN(targetRate)
+    ? (isSingleWord && targetRate === 1.0 ? 0.92 : Math.max(0.5, Math.min(1.8, targetRate)))
+    : 0.92;
+
   const targetLang = lang || globalAudioAccent;
   const matchedVoice = getVoiceForAccent(targetLang);
 
@@ -210,9 +222,9 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
     }
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(speechText);
     currentSpeechUtterance = utterance;
-    utterance.lang = targetLang;
+    utterance.lang = matchedVoice?.lang || targetLang;
     utterance.rate = safeRate;
     utterance.pitch = 1.0;
     

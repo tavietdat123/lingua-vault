@@ -301,7 +301,9 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 const playMobileAudio = async (wordText, rate = null, lang = null) => {
   if (!wordText || typeof wordText !== 'string' || !wordText.trim()) return;
   const cleanText = wordText.trim();
-  const targetRate = Math.max(0.5, Math.min(1.8, rate !== null ? parseFloat(rate) : globalMobileSpeed));
+  const speechText = /[.!?]$/.test(cleanText) ? cleanText : `${cleanText}.`;
+  const isSingleWord = !cleanText.includes(' ');
+  const targetRate = Math.max(0.5, Math.min(1.8, rate !== null ? parseFloat(rate) : (isSingleWord ? 0.92 : globalMobileSpeed)));
   const targetLang = lang || globalMobileAccent || 'en-US';
   const isUK = targetLang === 'en-GB';
   const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
@@ -351,7 +353,7 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
 
       if (Speech && typeof Speech.speak === 'function') {
         await Speech.stop().catch(() => {});
-        Speech.speak(cleanText, {
+        Speech.speak(speechText, {
           language: targetLang,
           rate: targetRate,
           pitch: 1.0,
