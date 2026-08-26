@@ -22,7 +22,8 @@ import {
   BackHandler } from
 'react-native';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
+import { Audio as ExpoAudio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mobileApi, getServerUrl, setServerUrl } from './src/services/api';
 import { API_ENDPOINT } from './src/config';
 import {
@@ -283,8 +284,11 @@ export const removeVietnameseTones = (str) => {
 let globalMobileSpeed = 0.9;
 let globalMobileAccent = 'en-US';
 let mobileCachedVoices = [];
+let nativeCachedVoices = null;
 let activeAudioElement = null;
 let activeSoundObject = null;
+const AUDIO_SPEED_STORAGE_KEY = 'linguavault_audio_speed';
+const AUDIO_ACCENT_STORAGE_KEY = 'linguavault_audio_accent';
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   const loadVoices = () => {
@@ -300,57 +304,130 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
   const targetRate = Math.max(0.4, Math.min(2.0, rate !== null ? parseFloat(rate) : globalMobileSpeed));
   const targetLang = lang || globalMobileAccent || 'en-US';
   const isUK = targetLang === 'en-GB';
+  const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
+  const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
 
-  // 1. Native iOS / Android: Try Native High-Definition Speech (AVSpeechSynthesizer)
-  try {
-    if (Audio && Audio.setAudioModeAsync) {
-      Audio.setAudioModeAsync({
+  // Native: prefer the best matching enhanced voice already installed on the
+  // device. It is free, works offline and avoids a network round trip.
+  if (Platform.OS !== 'web') {
+    try {
+      await ExpoAudio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         allowsRecordingIOS: false,
         staysActiveInBackground: false,
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false
-      }).catch(() => {});
-    }
-
-    if (Speech && typeof Speech.speak === 'function') {
-      Speech.stop();
-      Speech.speak(cleanText, {
-        language: targetLang,
-        rate: targetRate,
-        pitch: 1.0,
-        onError: (err) => {
-          console.warn('[TTS] Native Speech error:', err);
-        }
       });
-      return;
-    }
-  } catch (e) {
-    console.warn('[TTS] Expo Speech fallback to Web/Audio:', e);
-  }
 
-  // 2. Native iOS / Android: Try Expo-AV Audio MP3 Stream
-  try {
-    if (Audio && Audio.Sound) {
+      await Speech.stop().catch(() => {});
       if (activeSoundObject) {
-        try { await activeSoundObject.unloadAsync(); } catch (e) {}
+        const previousSound = activeSoundObject;
         activeSoundObject = null;
+        await previousSound.stopAsync().catch(() => {});
+        await previousSound.unloadAsync().catch(() => {});
       }
-      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
-      const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
-      
-      const { sound } = await Audio.Sound.createAsync(
+      if (!nativeCachedVoices) {
+        nativeCachedVoices = await Speech.getAvailableVoicesAsync().catch(() => []);
+      }
+
+      const normalizedTarget = targetLang.replace('_', '-').toLowerCase();
+      const matchingVoices = nativeCachedVoices
+        .filter((voice) => String(voice.language || '').replace('_', '-').toLowerCase() === normalizedTarget)
+        .sort((a, b) => {
+          const scoreVoice = (voice) => {
+            const descriptor = `${voice.name || ''} ${voice.identifier || ''}`.toLowerCase();
+            let score = voice.quality === Speech.VoiceQuality.Enhanced || voice.quality === 'Enhanced' ? 100 : 0;
+            if (/premium|enhanced|neural|natural/.test(descriptor)) score += 40;
+            if (/compact/.test(descriptor)) score -= 20;
+            return score;
+          };
+          return scoreVoice(b) - scoreVoice(a);
+        });
+      const selectedVoice = matchingVoices[0];
+
+      if (selectedVoice) {
+        const nativeSpeechStarted = await new Promise((resolve) => {
+          let settled = false;
+          const finish = (started) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(startTimeout);
+            resolve(started);
+          };
+          const startTimeout = setTimeout(() => finish(false), 2500);
+
+          try {
+            Speech.speak(cleanText, {
+              language: targetLang,
+              voice: selectedVoice.identifier,
+              rate: targetRate,
+              pitch: 1.0,
+              onStart: () => finish(true),
+              onError: () => finish(false),
+              onStopped: () => finish(false)
+            });
+          } catch (error) {
+            finish(false);
+          }
+        });
+
+        if (nativeSpeechStarted) return;
+        await Speech.stop().catch(() => {});
+      }
+    } catch (nativeVoiceError) {
+      console.warn('[TTS] Enhanced native voice failed, using MP3:', nativeVoiceError);
+    }
+
+    // Free online fallback: use the server's Google Translate TTS proxy when
+    // there is no matching native voice or native speech cannot start.
+    try {
+      if (activeSoundObject) {
+        const previousSound = activeSoundObject;
+        activeSoundObject = null;
+        await previousSound.stopAsync().catch(() => {});
+        await previousSound.unloadAsync().catch(() => {});
+      }
+
+      const { sound } = await ExpoAudio.Sound.createAsync(
         { uri: ttsUrl },
-        { shouldPlay: true, rate: targetRate }
+        {
+          shouldPlay: true,
+          rate: targetRate,
+          shouldCorrectPitch: true,
+          volume: 1.0
+        }
       );
       activeSoundObject = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded || !status.didJustFinish) return;
+        if (activeSoundObject === sound) activeSoundObject = null;
+        sound.unloadAsync().catch(() => {});
+      });
       return;
+    } catch (streamError) {
+      console.warn('[TTS] MP3 fallback failed:', streamError);
     }
-  } catch (e) {
-    console.warn('[TTS] Expo AV streaming fallback:', e);
+
+    // Last chance when voice enumeration is unavailable on a device.
+    try {
+      if (Speech && typeof Speech.speak === 'function') {
+        await Speech.stop().catch(() => {});
+        Speech.speak(cleanText, {
+          language: targetLang,
+          rate: targetRate,
+          pitch: 1.0,
+          onError: (error) => {
+            console.warn('[TTS] Native speech failed:', error);
+          }
+        });
+      }
+    } catch (nativeError) {
+      console.warn('[TTS] Native speech fallback failed:', nativeError);
+    }
+    return;
   }
 
-  // Fallback: Web Speech Synthesis with top natural Apple / Google English voices
+  // Web fallback: use the browser speech engine if MP3 playback is blocked.
   const speakSynthesis = () => {
     try {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -383,17 +460,15 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
     }
   };
 
-  // 3. Web & Electron: Try HTML5 Audio Stream
+  // Web & Electron: try the same production MP3 stream first.
   try {
-    if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof window.Audio === 'function') {
       if (activeAudioElement) {
         activeAudioElement.pause();
         activeAudioElement.currentTime = 0;
       }
 
-      const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
-      const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
-      const audio = new Audio(ttsUrl);
+      const audio = new window.Audio(ttsUrl);
       activeAudioElement = audio;
       audio.playbackRate = targetRate;
 
@@ -409,7 +484,7 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
     console.warn('Audio streaming fallback:', e);
   }
 
-  // 4. Direct Web Speech Fallback
+  // Direct Web Speech fallback.
   speakSynthesis();
 };
 
@@ -753,17 +828,18 @@ function MainApp() {
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
   const [mobileSpeed, setMobileSpeed] = useState(() => {
     if (typeof localStorage !== 'undefined') {
-      const saved = parseFloat(localStorage.getItem('linguavault_audio_speed'));
+      const saved = parseFloat(localStorage.getItem(AUDIO_SPEED_STORAGE_KEY));
       if (!isNaN(saved) && saved >= 0.4 && saved <= 2.0) {
         globalMobileSpeed = saved;
         return saved;
       }
     }
+    globalMobileSpeed = 0.85;
     return 0.85;
   });
   const [mobileAccent, setMobileAccent] = useState(() => {
     if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('linguavault_audio_accent');
+      const saved = localStorage.getItem(AUDIO_ACCENT_STORAGE_KEY);
       if (saved) {
         globalMobileAccent = saved;
         return saved;
@@ -772,6 +848,30 @@ function MainApp() {
     return 'en-US';
   });
   const [showAudioSpeedModal, setShowAudioSpeedModal] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return undefined;
+    let isCancelled = false;
+    AsyncStorage.multiGet([AUDIO_SPEED_STORAGE_KEY, AUDIO_ACCENT_STORAGE_KEY])
+      .then((entries) => {
+        if (isCancelled) return;
+        const stored = Object.fromEntries(entries);
+        const savedSpeed = parseFloat(stored[AUDIO_SPEED_STORAGE_KEY]);
+        if (!isNaN(savedSpeed) && savedSpeed >= 0.4 && savedSpeed <= 2.0) {
+          globalMobileSpeed = savedSpeed;
+          setMobileSpeed(savedSpeed);
+        }
+        const savedAccent = stored[AUDIO_ACCENT_STORAGE_KEY];
+        if (savedAccent === 'en-US' || savedAccent === 'en-GB') {
+          globalMobileAccent = savedAccent;
+          setMobileAccent(savedAccent);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const [alarmQuestionCount, setAlarmQuestionCount] = useState(() => {
     if (typeof localStorage !== 'undefined') {
@@ -796,9 +896,10 @@ function MainApp() {
     globalMobileSpeed = num;
     if (typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem('linguavault_audio_speed', num.toString());
+        localStorage.setItem(AUDIO_SPEED_STORAGE_KEY, num.toString());
       } catch (e) {}
     }
+    AsyncStorage.setItem(AUDIO_SPEED_STORAGE_KEY, num.toString()).catch(() => {});
   };
 
   const handleUpdateMobileAccent = (acc) => {
@@ -806,9 +907,10 @@ function MainApp() {
     globalMobileAccent = acc;
     if (typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem('linguavault_audio_accent', acc);
+        localStorage.setItem(AUDIO_ACCENT_STORAGE_KEY, acc);
       } catch (e) {}
     }
+    AsyncStorage.setItem(AUDIO_ACCENT_STORAGE_KEY, acc).catch(() => {});
   };
 
   // Mobile Quiz State
@@ -965,14 +1067,14 @@ function MainApp() {
 
     if (Platform.OS !== 'web') {
       try {
-        await Audio.setAudioModeAsync({
+        await ExpoAudio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           allowsRecordingIOS: false,
           staysActiveInBackground: true,
           shouldDuckAndroid: false,
           playThroughEarpieceAndroid: false
         });
-        const { sound } = await Audio.Sound.createAsync(
+        const { sound } = await ExpoAudio.Sound.createAsync(
           require('./assets/alarm.wav'),
           { shouldPlay: true, isLooping: true, volume: 1.0 }
         );
@@ -3016,7 +3118,7 @@ function MainApp() {
         return;
       }
 
-      const audio = new Audio(userSpeakingAudioUrl);
+      const audio = new window.Audio(userSpeakingAudioUrl);
       speakingAudioPlayerRef.current = audio;
       setIsPlayingSpeakingAudio(true);
       audio.onended = () => {
