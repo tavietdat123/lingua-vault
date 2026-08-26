@@ -24,6 +24,34 @@ import ProfileEditModal from './components/auth/ProfileEditModal';
 import { api } from './services/api';
 import { audioService } from './services/audioService';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('[LinguaVault ErrorBoundary]', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ maxWidth: '580px', margin: '3rem auto', padding: '2.5rem', background: 'var(--bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', textAlign: 'center', boxShadow: 'var(--shadow-lg)' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto', fontSize: '1.8rem' }}>⚠️</div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Đã xảy ra sự cố hiển thị</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{this.state.error?.message || 'Vui lòng bấm tải lại.'}</p>
+          <button onClick={() => this.setState({ hasError: false, error: null })} className="btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: '12px' }}>
+            🔄 Thử Lại
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -430,120 +458,122 @@ export default function App() {
         />
 
         <div className="app-content">
-          <Routes>
-            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-            <Route 
-              path="/" 
-              element={
-                <Dashboard
-                  stats={stats}
-                  recentWords={words}
-                  onStartReview={() => handleNavigate('review')}
-                  onNavigate={handleNavigate}
-                  audioSpeed={audioSpeed}
-                  gamificationProfile={gamificationProfile}
-                  onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
-                />
-              } 
-            />
-            <Route 
-              path="/dashboard" 
-              element={
-                <Dashboard
-                  stats={stats}
-                  recentWords={words}
-                  onStartReview={() => handleNavigate('review')}
-                  onNavigate={handleNavigate}
-                  audioSpeed={audioSpeed}
-                  gamificationProfile={gamificationProfile}
-                  onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
-                />
-              } 
-            />
-            <Route 
-              path="/vocab" 
-              element={
-                <VocabVault
-                  words={words}
-                  topics={topics}
-                  onAddWord={handleAddWord}
-                  onEditWord={handleEditWord}
-                  onDeleteWord={handleDeleteWord}
-                  onOpenTopicManager={() => setIsTopicManagerOpen(true)}
-                />
-              } 
-            />
-            <Route 
-              path="/patterns" 
-              element={
-                <PatternHub
-                  patterns={patterns}
-                  onAddPattern={handleAddPattern}
-                  onEditPattern={handleEditPattern}
-                  onDeletePattern={handleDeletePattern}
-                />
-              } 
-            />
-            <Route 
-              path="/quiz" 
-              element={
-                <QuizCenter
-                  onOpenReview={() => handleNavigate('review')}
-                />
-              } 
-            />
-            <Route 
-              path="/speaking" 
-              element={
-                <SpeakingLab
-                  onSaveWord={handleAddWord}
-                />
-              } 
-            />
-            <Route 
-              path="/reader" 
-              element={
-                <SmartReader
-                  notes={notes}
-                  words={words}
-                  onSaveNote={handleSaveNote}
-                  onDeleteNote={handleDeleteNote}
-                  onSaveWordFromSelection={handleSaveWordFromSelection}
-                  onSendToAiLab={handleSendToAiLab}
-                />
-              } 
-            />
-            <Route 
-              path="/review" 
-              element={
-                <SRSReviewCenter
-                  dueItems={dueItems}
-                  allWords={words}
-                  allPatterns={patterns}
-                  onAddWord={handleAddWord}
-                  onReviewSubmit={handleReviewSubmit}
-                  onFinishSession={() => {
-                    refreshAllData();
-                    handleNavigate('dashboard');
-                    addToast('Chúc mừng bạn đã hoàn thành phiên ôn tập hôm nay!');
-                  }}
-                />
-              } 
-            />
-            <Route 
-              path="/ai-lab" 
-              element={
-                <AILab
-                  initialSentence={aiLabSentence}
-                  onSaveExtractedWord={(item) => {
-                    setEditingWord(item);
-                    setIsQuickAddOpen(true);
-                  }}
-                />
-              } 
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+              <Route 
+                path="/" 
+                element={
+                  <Dashboard
+                    stats={stats}
+                    recentWords={words}
+                    onStartReview={() => handleNavigate('review')}
+                    onNavigate={handleNavigate}
+                    audioSpeed={audioSpeed}
+                    gamificationProfile={gamificationProfile}
+                    onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
+                  />
+                } 
+              />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <Dashboard
+                    stats={stats}
+                    recentWords={words}
+                    onStartReview={() => handleNavigate('review')}
+                    onNavigate={handleNavigate}
+                    audioSpeed={audioSpeed}
+                    gamificationProfile={gamificationProfile}
+                    onOpenAIMasteryReport={() => setIsAIMasteryReportOpen(true)}
+                  />
+                } 
+              />
+              <Route 
+                path="/vocab" 
+                element={
+                  <VocabVault
+                    words={words}
+                    topics={topics}
+                    onAddWord={handleAddWord}
+                    onEditWord={handleEditWord}
+                    onDeleteWord={handleDeleteWord}
+                    onOpenTopicManager={() => setIsTopicManagerOpen(true)}
+                  />
+                } 
+              />
+              <Route 
+                path="/patterns" 
+                element={
+                  <PatternHub
+                    patterns={patterns}
+                    onAddPattern={handleAddPattern}
+                    onEditPattern={handleEditPattern}
+                    onDeletePattern={handleDeletePattern}
+                  />
+                } 
+              />
+              <Route 
+                path="/quiz" 
+                element={
+                  <QuizCenter
+                    onOpenReview={() => handleNavigate('review')}
+                  />
+                } 
+              />
+              <Route 
+                path="/speaking" 
+                element={
+                  <SpeakingLab
+                    onSaveWord={handleAddWord}
+                  />
+                } 
+              />
+              <Route 
+                path="/reader" 
+                element={
+                  <SmartReader
+                    notes={notes}
+                    words={words}
+                    onSaveNote={handleSaveNote}
+                    onDeleteNote={handleDeleteNote}
+                    onSaveWordFromSelection={handleSaveWordFromSelection}
+                    onSendToAiLab={handleSendToAiLab}
+                  />
+                } 
+              />
+              <Route 
+                path="/review" 
+                element={
+                  <SRSReviewCenter
+                    dueItems={dueItems}
+                    allWords={words}
+                    allPatterns={patterns}
+                    onAddWord={handleAddWord}
+                    onReviewSubmit={handleReviewSubmit}
+                    onFinishSession={() => {
+                      refreshAllData();
+                      handleNavigate('dashboard');
+                      addToast('Chúc mừng bạn đã hoàn thành phiên ôn tập hôm nay!');
+                    }}
+                  />
+                } 
+              />
+              <Route 
+                path="/ai-lab" 
+                element={
+                  <AILab
+                    initialSentence={aiLabSentence}
+                    onSaveExtractedWord={(item) => {
+                      setEditingWord(item);
+                      setIsQuickAddOpen(true);
+                    }}
+                  />
+                } 
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ErrorBoundary>
         </div>
       </main>
 
