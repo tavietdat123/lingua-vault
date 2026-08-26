@@ -304,6 +304,13 @@ export default function SpeakingLab({ onSaveWord }) {
 
   // Play Reference Native Audio
   const handlePlayReference = (textToPlay) => {
+    if (isPlayingUserAudio && userAudioPlayerRef.current) {
+      try {
+        userAudioPlayerRef.current.pause();
+        userAudioPlayerRef.current.currentTime = 0;
+      } catch (e) {}
+      setIsPlayingUserAudio(false);
+    }
     setIsPlayingReference(true);
     audioService.speak(textToPlay, audioAccent, audioSpeed);
     setTimeout(() => setIsPlayingReference(false), 3500);
@@ -313,12 +320,30 @@ export default function SpeakingLab({ onSaveWord }) {
   const togglePlayUserAudio = () => {
     if (!userAudioUrl) return;
     if (isPlayingUserAudio) {
-      userAudioPlayerRef.current?.pause();
+      if (userAudioPlayerRef.current) {
+        try {
+          userAudioPlayerRef.current.pause();
+          userAudioPlayerRef.current.currentTime = 0;
+        } catch (e) {}
+      }
       setIsPlayingUserAudio(false);
     } else {
-      userAudioPlayerRef.current = new Audio(userAudioUrl);
-      userAudioPlayerRef.current.onended = () => setIsPlayingUserAudio(false);
-      userAudioPlayerRef.current.play();
+      // Immediately cancel any active reference TTS speech
+      audioService.stop();
+      setIsPlayingReference(false);
+
+      if (userAudioPlayerRef.current) {
+        try {
+          userAudioPlayerRef.current.pause();
+          userAudioPlayerRef.current.currentTime = 0;
+        } catch (e) {}
+        userAudioPlayerRef.current = null;
+      }
+      const player = new Audio(userAudioUrl);
+      userAudioPlayerRef.current = player;
+      player.onended = () => setIsPlayingUserAudio(false);
+      player.onerror = () => setIsPlayingUserAudio(false);
+      player.play().catch(() => setIsPlayingUserAudio(false));
       setIsPlayingUserAudio(true);
     }
   };

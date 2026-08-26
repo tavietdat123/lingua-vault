@@ -414,6 +414,8 @@ export const audioService = {
   speak: (text, lang, rate) => playAudio(text, null, lang, rate),
   playAudio,
   speakText,
+  stop: stopCurrentPlayback,
+  stopPlayback: stopCurrentPlayback,
   playTapSound,
   playCorrectSound,
   playWrongSound,
@@ -425,4 +427,5 @@ export const audioService = {
   getAccent: getGlobalAudioAccent
 };
 
+export const stopPlayback = stopCurrentPlayback;
 export default audioService;
