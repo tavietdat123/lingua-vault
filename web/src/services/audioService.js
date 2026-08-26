@@ -25,22 +25,23 @@ let currentSpeechUtterance = null;
 // Preload and cache voices with continuous detection
 const loadVoices = () => {
   if (typeof window !== 'undefined' && window.speechSynthesis) {
-    const voices = window.speechSynthesis.getVoices() || [];
-    if (voices.length > 0) {
-      availableVoices = voices;
-    }
+    try {
+      const voices = window.speechSynthesis.getVoices() || [];
+      if (voices.length > 0) {
+        availableVoices = voices;
+      }
+    } catch (e) {}
   }
 };
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {
   loadVoices();
   window.speechSynthesis.onvoiceschanged = loadVoices;
-  // Retry periodically for browsers that load voices asynchronously
   if (availableVoices.length === 0) {
     const timer = setInterval(() => {
       loadVoices();
       if (availableVoices.length > 0) clearInterval(timer);
-    }, 200);
+    }, 150);
     setTimeout(() => clearInterval(timer), 3000);
   }
 }
@@ -68,8 +69,13 @@ export const setGlobalAudioAccent = (accent) => {
 export const getGlobalAudioAccent = () => globalAudioAccent;
 
 /**
- * Get the best matching studio/natural voice for the given accent
- * Strictly filters to native English voices to prevent OS fallback to Vietnamese/robotic voices
+ * Disqualifies outdated/robotic/novelty macOS & Windows voices
+ * such as Alex, Fred, Victoria, Ralph, Zarvox, Trinoids, etc.
+ */
+const ROBOTIC_VOICE_REGEX = /alex|fred|victoria|ralph|zarvox|trinoids|albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|junior|kathy|organ|princess|whisper|compact|espeak/i;
+
+/**
+ * Get the best matching natural/studio voice for the given accent
  */
 const getVoiceForAccent = (targetLang) => {
   if (availableVoices.length === 0) {
@@ -78,27 +84,41 @@ const getVoiceForAccent = (targetLang) => {
 
   const normalizedTarget = targetLang.replace('_', '-').toLowerCase();
   const isUK = normalizedTarget === 'en-gb';
-  const preferredNames = isUK
-    ? /daniel|oliver|serena|arthur|george|kate|sonia|ryan|hazel/i
-    : /samantha|ava|jenny|guy|aria|alex|allison|victoria|tom|joanna|kendra/i;
+
+  // High-fidelity natural voices
+  const topTierRegex = isUK
+    ? /google uk|daniel \(enhanced\)|oliver|serena|sonia|stephanie|kate|hazel|george|libby/i
+    : /google us|samantha \(enhanced\)|ava \(premium\)|ava|jenny|aria|guy|allison|samantha|joanna|kendra|zoe|tom/i;
 
   const scoreVoice = (voice) => {
     const normalizedLang = String(voice.lang || '').replace('_', '-').toLowerCase();
-    if (!normalizedLang.startsWith('en')) return -1000;
+    if (!normalizedLang.startsWith('en')) return -2000;
+    
     const descriptor = `${voice.name || ''} ${voice.voiceURI || ''}`;
-    let score = normalizedLang === normalizedTarget ? 120 : 20;
+    
+    // Penalize robotic/mechanical voices heavily
+    if (ROBOTIC_VOICE_REGEX.test(descriptor)) return -1000;
+
+    let score = 0;
+    if (normalizedLang === normalizedTarget) score += 150;
+    else if (normalizedLang.startsWith('en')) score += 30;
+
+    if (topTierRegex.test(descriptor)) score += 100;
     if (/natural|premium|enhanced|neural/i.test(descriptor)) score += 80;
-    if (preferredNames.test(descriptor)) score += 50;
-    if (/google/i.test(descriptor)) score += 30;
-    if (voice.localService) score += 25;
+    if (/google/i.test(descriptor)) score += 60;
+    if (voice.localService) score += 15;
     if (voice.default) score += 5;
-    if (/compact|espeak|novelty/i.test(descriptor)) score -= 60;
+
     return score;
   };
 
-  return availableVoices
-    .filter((voice) => String(voice.lang || '').toLowerCase().startsWith('en'))
-    .sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] || null;
+  const englishVoices = availableVoices.filter((voice) =>
+    String(voice.lang || '').toLowerCase().startsWith('en')
+  );
+
+  if (englishVoices.length === 0) return null;
+
+  return englishVoices.sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] || null;
 };
 
 const stopCurrentPlayback = () => {
@@ -110,9 +130,11 @@ const stopCurrentPlayback = () => {
     currentActiveAudio = null;
   }
   currentSpeechUtterance = null;
-  try {
-    window.speechSynthesis?.cancel();
-  } catch (e) {}
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
 };
 
 const playHtmlAudio = (sourceUrl, rate, onFailure = null) => {
@@ -131,10 +153,10 @@ const playHtmlAudio = (sourceUrl, rate, onFailure = null) => {
     if (currentActiveAudio === audio) currentActiveAudio = null;
     if (onFailure) onFailure();
   };
-  const startTimeout = setTimeout(fail, 900);
+  
+  // Fast timeout: 700ms max waiting for network stream
+  const startTimeout = setTimeout(fail, 700);
 
-  // `playing` fires when audio data is actually flowing. `play` can fire while
-  // the element is still buffering, which caused the old false-success delay.
   audio.onplaying = () => {
     started = true;
     clearTimeout(startTimeout);
@@ -149,6 +171,7 @@ const playHtmlAudio = (sourceUrl, rate, onFailure = null) => {
 };
 
 const playFreeServerTts = (text, targetLang, targetRate) => {
+  if (!text) return;
   const ttsUrl = `/api/audio/tts?text=${encodeURIComponent(text.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
   playHtmlAudio(ttsUrl, targetRate);
 };
@@ -160,24 +183,30 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
   const safeRate = !isNaN(targetRate) ? Math.max(0.5, Math.min(1.8, targetRate)) : 1.0;
   const targetLang = lang || globalAudioAccent;
   const matchedVoice = getVoiceForAccent(targetLang);
-  if (!matchedVoice) return false;
 
   try {
+    // Un-stick Chrome speech queue if it was suspended
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
     currentSpeechUtterance = utterance;
     utterance.lang = targetLang;
     utterance.rate = safeRate;
     utterance.pitch = 1.0;
-    utterance.voice = matchedVoice;
+    
+    if (matchedVoice) {
+      utterance.voice = matchedVoice;
+    }
 
     let started = false;
     const startTimeout = setTimeout(() => {
       if (started || currentSpeechUtterance !== utterance) return;
       currentSpeechUtterance = null;
-      window.speechSynthesis.cancel();
       if (onFailure) onFailure();
-    }, 900);
+    }, 500);
 
     utterance.onstart = () => {
       started = true;
@@ -187,7 +216,7 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
       clearTimeout(startTimeout);
       if (currentSpeechUtterance === utterance) currentSpeechUtterance = null;
     };
-    utterance.onerror = () => {
+    utterance.onerror = (e) => {
       clearTimeout(startTimeout);
       if (currentSpeechUtterance !== utterance) return;
       currentSpeechUtterance = null;
@@ -195,6 +224,10 @@ export const speakText = (text, lang = null, rate = null, onFailure = null) => {
     };
 
     window.speechSynthesis.speak(utterance);
+    // Extra insurance: resume in case browser paused
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
     return true;
   } catch (error) {
     currentSpeechUtterance = null;
@@ -208,32 +241,28 @@ export const playAudio = (text, audioUrl = null, lang = null, rate = null) => {
   const parsedRate = rate !== null ? parseFloat(rate) : globalAudioSpeed;
   const targetRate = !isNaN(parsedRate) ? Math.max(0.5, Math.min(1.8, parsedRate)) : 1.0;
   const targetLang = lang || globalAudioAccent;
-  const isUK = targetLang === 'en-GB';
   const cleanText = (text || '').trim();
 
   stopCurrentPlayback();
 
-  // Real dictionary recordings are the most accurate source when available.
-  if (audioUrl && audioUrl.trim()) {
-    let matchedAudioUrl = audioUrl;
-    if (isUK && audioUrl.includes('-us.mp3')) {
-      matchedAudioUrl = audioUrl.replace('-us.mp3', '-uk.mp3');
-    } else if (!isUK && audioUrl.includes('-uk.mp3')) {
-      matchedAudioUrl = audioUrl.replace('-uk.mp3', '-us.mp3');
-    }
-
-    playHtmlAudio(matchedAudioUrl, targetRate, () => {
-      const speaking = speakText(cleanText, targetLang, targetRate, () => playFreeServerTts(cleanText, targetLang, targetRate));
-      if (!speaking) playFreeServerTts(cleanText, targetLang, targetRate);
+  // 1. Instant 0ms Browser Speech Synthesis with Natural Voice
+  if (cleanText) {
+    const started = speakText(cleanText, targetLang, targetRate, () => {
+      // Fallback to Server Studio TTS if SpeechSynthesis fails
+      playFreeServerTts(cleanText, targetLang, targetRate);
     });
+    if (started) return;
+  }
+
+  // 2. Fallback: Server HD Studio Audio
+  if (cleanText) {
+    playFreeServerTts(cleanText, targetLang, targetRate);
     return;
   }
 
-  // Browser Natural/Enhanced voices start immediately and avoid server delay.
-  if (cleanText) {
-    const speaking = speakText(cleanText, targetLang, targetRate, () => playFreeServerTts(cleanText, targetLang, targetRate));
-    if (!speaking) playFreeServerTts(cleanText, targetLang, targetRate);
-    return;
+  // 3. Fallback: Raw audioUrl if provided
+  if (audioUrl && audioUrl.trim()) {
+    playHtmlAudio(audioUrl, targetRate);
   }
 };
 
