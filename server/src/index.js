@@ -1,7 +1,6 @@
 import { config, auditConfig } from './config.js';
 import { createApp } from './app.js';
 import { initializeDatabase } from './db/database.js';
-import { seedInitialData, seedWorkProjectData } from './db/seedData.js';
 import { schedulerService } from './services/schedulerService.js';
 import { telegramBotService } from './services/telegramBotService.js';
 
@@ -10,10 +9,8 @@ for (const problem of auditConfig()) {
   console.warn('⚠️  Config warning:', problem);
 }
 
-// 2. Database & seed data
+// 2. Database initialization (No auto-seeding on boot)
 initializeDatabase();
-seedInitialData();
-seedWorkProjectData();
 
 // 3. Application
 const app = createApp();
