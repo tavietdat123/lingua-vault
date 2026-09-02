@@ -322,9 +322,12 @@ export const quizService = {
       candidateWords = topicFiltered;
     }
 
-    // 2. Filter by Granular IELTS Level Tier if specified
+    // 2. Filter by Granular IELTS Level Tier or Easy/Medium/Hard if specified
     if (level && level !== 'all') {
       const tierMap = {
+        'easy': ['A1', 'A2', 'B1'],
+        'medium': ['B1', 'B2'],
+        'hard': ['B2', 'C1', 'C2'],
         'ielts_4_5': ['A1', 'A2', 'B1'],
         'ielts_55_60': ['B1', 'B2'],
         'ielts_65_70': ['B2'],
@@ -332,9 +335,11 @@ export const quizService = {
         'ielts_85_90': ['C1', 'C2']
       };
       const allowedLevels = tierMap[level] || [];
-      const levelFiltered = candidateWords.filter(w => allowedLevels.includes((w.level || '').toUpperCase()));
-      if (levelFiltered.length > 0) {
-        candidateWords = levelFiltered;
+      if (allowedLevels.length > 0) {
+        const levelFiltered = candidateWords.filter(w => allowedLevels.includes((w.level || '').toUpperCase()));
+        if (levelFiltered.length > 0) {
+          candidateWords = levelFiltered;
+        }
       }
     }
 
@@ -369,6 +374,15 @@ export const quizService = {
 
       const validTargetMeaning = cleanMeaningText(targetWord.meaning_vi, targetWord.meaning_en, targetWord.word);
 
+      // Determine question difficulty
+      let qDifficulty = 'medium';
+      const wLevel = (targetWord.level || '').toUpperCase();
+      if (level === 'easy' || ['A1', 'A2', 'B1'].includes(wLevel)) {
+        qDifficulty = 'easy';
+      } else if (level === 'hard' || ['C1', 'C2'].includes(wLevel)) {
+        qDifficulty = 'hard';
+      }
+
       // Distractor pool: Filter out current word and extract valid meanings
       const otherValidWords = words.filter(w => 
         w.id !== targetWord.id && 
@@ -393,8 +407,8 @@ export const quizService = {
       if (qType === 'meaning_vi' || qType === 'listening') {
         questionText = targetWord.word;
         promptSubtitle = qType === 'listening' 
-          ? 'Nghe phát âm và chọn nghĩa tiếng Việt chính xác:' 
-          : 'Chọn nghĩa tiếng Việt chính xác của từ vựng:';
+          ? (qDifficulty === 'easy' ? 'Nghe phát âm rõ ràng và chọn nghĩa tiếng Việt:' : 'Nghe phát âm và chọn nghĩa tiếng Việt chuẩn xác nhất:')
+          : (qDifficulty === 'easy' ? `Chọn nghĩa tiếng Việt của từ "${targetWord.word}":` : 'Chọn nghĩa tiếng Việt chính xác theo ngữ cảnh:');
         correctAnswer = validTargetMeaning;
 
         const rawOptions = [
@@ -410,7 +424,9 @@ export const quizService = {
           cleanDef = cleanDef.replace(regex, '_______');
         }
         questionText = cleanDef;
-        promptSubtitle = 'Chọn từ vựng tiếng Anh tương ứng với nghĩa trên:';
+        promptSubtitle = qDifficulty === 'easy'
+          ? `Chọn từ vựng tiếng Anh tương ứng (${targetWord.part_of_speech || 'từ vựng'}):`
+          : 'Chọn từ vựng tiếng Anh tương ứng với định nghĩa trên:';
         correctAnswer = targetWord.word;
 
         const rawOptions = [
@@ -451,7 +467,11 @@ export const quizService = {
         }
 
         questionText = cleanSentence;
-        promptSubtitle = `Điền từ vựng thích hợp vào chỗ trống (${cleanSubtitleDef}):`;
+        promptSubtitle = qDifficulty === 'easy'
+          ? `Điền từ vựng thích hợp vào chỗ trống (${cleanSubtitleDef}):`
+          : (qDifficulty === 'hard' 
+            ? 'Chọn từ vựng phù hợp nhất với ngữ cảnh học thuật và ngữ pháp:' 
+            : `Điền từ vựng thích hợp vào chỗ trống (${targetWord.part_of_speech || 'ngữ cảnh'}):`);
         correctAnswer = targetWord.word;
 
         const rawOptions = [
@@ -497,7 +517,8 @@ export const quizService = {
         type: qType,
         word: targetWord.word,
         phonetic: targetWord.phonetic,
-        level: targetWord.level || 'B2',
+        difficulty: qDifficulty,
+        level: targetWord.level || (qDifficulty === 'easy' ? 'A2' : qDifficulty === 'hard' ? 'C1' : 'B2'),
         meaning_vi: validTargetMeaning,
         meaning_en: targetWord.meaning_en,
         questionText,
@@ -514,6 +535,7 @@ export const quizService = {
     return {
       topic: topicDisplay,
       mode,
+      level,
       totalQuestions: questions.length,
       questions
     };
@@ -732,6 +754,13 @@ export const quizService = {
         }
       }
 
+      let qDifficulty = 'medium';
+      if (level === 'easy' || (pat.level || '').toUpperCase() === 'A2' || (pat.level || '').toUpperCase() === 'B1') {
+        qDifficulty = 'easy';
+      } else if (level === 'hard' || (pat.level || '').toUpperCase() === 'C1' || (pat.level || '').toUpperCase() === 'C2') {
+        qDifficulty = 'hard';
+      }
+
       return {
         id: `pq-${idx + 1}`,
         type: qType,
@@ -739,6 +768,8 @@ export const quizService = {
         word: pat.name,
         formula: pat.formula,
         tone: pat.tone,
+        difficulty: qDifficulty,
+        level: pat.level || (qDifficulty === 'easy' ? 'B1' : qDifficulty === 'hard' ? 'C1' : 'B2'),
         questionText,
         promptSubtitle,
         options,
@@ -750,6 +781,7 @@ export const quizService = {
     return {
       topic: '🧩 Mẫu Câu & Cấu Trúc Ngữ Pháp',
       isPatternQuiz: true,
+      level,
       totalQuestions: questions.length,
       questions
     };

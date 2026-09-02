@@ -5750,9 +5750,27 @@ function MainApp() {
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                     {/* Header */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <Text style={{ fontWeight: '800', color: theme.accent, fontSize: 14 }}>
-                        CÂU {quizIndex + 1} / {quizData.questions.length}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontWeight: '800', color: theme.accent, fontSize: 14 }}>
+                          CÂU {quizIndex + 1} / {quizData.questions.length}
+                        </Text>
+                        {Boolean(quizData.questions[quizIndex]?.difficulty) && (
+                          <View style={{
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                            backgroundColor: quizData.questions[quizIndex].difficulty === 'easy' ? 'rgba(16, 185, 129, 0.2)' : quizData.questions[quizIndex].difficulty === 'hard' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'
+                          }}>
+                            <Text style={{
+                              fontSize: 10,
+                              fontWeight: '800',
+                              color: quizData.questions[quizIndex].difficulty === 'easy' ? '#10b981' : quizData.questions[quizIndex].difficulty === 'hard' ? '#ef4444' : '#f59e0b'
+                            }}>
+                              {quizData.questions[quizIndex].difficulty === 'easy' ? '🟢 Dễ' : quizData.questions[quizIndex].difficulty === 'hard' ? '🔴 Khó' : '🟡 Trung Bình'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <View style={{ backgroundColor: theme.innerCard, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}>
                         <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700' }}>🏷️ {quizData.topic}</Text>
                       </View>
@@ -6337,13 +6355,16 @@ function MainApp() {
                           </>
                 }
 
-                        {/* Step 3: IELTS Level Tier */}
+                        {/* Step 3: Difficulty Levels */}
                         <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
-                          3. Chọn Cấp Độ (IELTS / CEFR):
+                          3. Mức Độ Khó Của Câu Hỏi:
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                           {[
                   { id: 'all', label: '🌟 Mọi Cấp Độ' },
+                  { id: 'easy', label: '🟢 Dễ (A1 - B1)' },
+                  { id: 'medium', label: '🟡 Trung Bình (B1 - B2)' },
+                  { id: 'hard', label: '🔴 Khó (B2 - C2)' },
                   { id: 'ielts_4_5', label: '🥉 IELTS 4.0 - 5.0' },
                   { id: 'ielts_55_60', label: '🎖️ IELTS 5.5 - 6.0' },
                   { id: 'ielts_65_70', label: '🥈 IELTS 6.5 - 7.0' },

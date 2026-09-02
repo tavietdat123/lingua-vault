@@ -499,6 +499,21 @@ export default function QuizCenter({ onOpenReview }) {
               <span className="question-counter-badge">
                 CÂU {currentIndex + 1} <span style={{ opacity: 0.6 }}>/ {quizData.questions.length}</span>
               </span>
+              {currentQ.difficulty && (
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: currentQ.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.15)' : currentQ.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                  color: currentQ.difficulty === 'easy' ? '#10b981' : currentQ.difficulty === 'hard' ? '#ef4444' : '#f59e0b',
+                  border: `1px solid ${currentQ.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.3)' : currentQ.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                }}>
+                  {currentQ.difficulty === 'easy' ? '🟢 Dễ' : currentQ.difficulty === 'hard' ? '🔴 Khó' : '🟡 Trung Bình'}
+                </span>
+              )}
               <span className="quiz-topic-pill">
                 <Tag size={13} />
                 <span>{quizData.topic}</span>
@@ -1201,29 +1216,64 @@ export default function QuizCenter({ onOpenReview }) {
               </div>
             )}
 
-            {/* Step 3: IELTS Level Tier */}
+            {/* Step 3: Difficulty & IELTS Level Tier */}
             <div className="setup-section" style={{ marginTop: '1.2rem' }}>
-              <h3>3. Chọn Cấp Độ Khó (IELTS / CEFR)</h3>
-              <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ margin: 0 }}>3. Mức Độ Khó Của Câu Hỏi (Difficulty Levels)</h3>
+                <span style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: '700' }}>
+                  {selectedLevel === 'all' && '🌟 Mọi mức độ'}
+                  {selectedLevel === 'easy' && '🟢 Mức Dễ (Cơ bản)'}
+                  {selectedLevel === 'medium' && '🟡 Mức Trung Bình (Chuẩn)'}
+                  {selectedLevel === 'hard' && '🔴 Mức Khó (Thử thách)'}
+                  {selectedLevel.startsWith('ielts') && `🎯 ${selectedLevel.replace('ielts_', 'Band ').replace('_', '.')}`}
+                </span>
+              </div>
+
+              {/* Core 3 Difficulty Levels + All */}
+              <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem', marginBottom: '0.75rem' }}>
                 {[
-                  { id: 'all', label: 'Mọi Cấp Độ', desc: 'Đa dạng linh hoạt (A2 - C2)' },
-                  { id: 'ielts_4_5', label: 'IELTS 4.0 - 5.0', desc: 'Nền tảng (A2 - B1)' },
-                  { id: 'ielts_55_60', label: 'IELTS 5.5 - 6.0', desc: 'Tiền trung cấp (B1 - B2)' },
-                  { id: 'ielts_65_70', label: 'IELTS 6.5 - 7.0', desc: 'Trung cấp khá (B2 - C1)' },
-                  { id: 'ielts_75_80', label: 'IELTS 7.5 - 8.0', desc: 'Cao cấp (C1 Mastery)' },
-                  { id: 'ielts_85_90', label: 'IELTS 8.5 - 9.0', desc: 'Bản xứ / Chuyên gia (C2)' }
+                  { id: 'all', label: '🌟 Mọi Cấp Độ (Tự động)', desc: 'Kết hợp linh hoạt từ A1 đến C2' },
+                  { id: 'easy', label: '🟢 Dễ (Cơ bản A1 - B1)', desc: 'Trực quan, gợi ý rõ ràng, dễ nhớ' },
+                  { id: 'medium', label: '🟡 Trung Bình (B1 - B2)', desc: 'Ngữ cảnh chuẩn đời sống & công sở' },
+                  { id: 'hard', label: '🔴 Khó (Thử thách B2 - C2)', desc: 'Học thuật IELTS, bẫy & từ đồng nghĩa' }
                 ].map(lvl => (
                   <button
                     key={lvl.id}
                     className={`count-pill-btn ${selectedLevel === lvl.id ? 'active' : ''}`}
                     onClick={() => setSelectedLevel(lvl.id)}
-                    style={{ textAlign: 'left', padding: '0.6rem 0.8rem' }}
+                    style={{ textAlign: 'left', padding: '0.65rem 0.85rem' }}
                   >
                     <b>{lvl.label}</b>
                     <small style={{ display: 'block', marginTop: '2px', opacity: 0.85 }}>{lvl.desc}</small>
                   </button>
                 ))}
               </div>
+
+              {/* Granular IELTS Band Selection */}
+              <details style={{ marginTop: '0.4rem', fontSize: '0.82rem' }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, padding: '4px 0' }}>
+                  🎯 Tùy chọn chi tiết theo Band điểm IELTS (Nhấn để mở rộng)
+                </summary>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem', marginTop: '0.6rem' }}>
+                  {[
+                    { id: 'ielts_4_5', label: '🥉 IELTS 4.0 - 5.0', desc: 'Nền tảng (A2 - B1)' },
+                    { id: 'ielts_55_60', label: '🎖️ IELTS 5.5 - 6.0', desc: 'Tiền trung cấp (B1 - B2)' },
+                    { id: 'ielts_65_70', label: '🥈 IELTS 6.5 - 7.0', desc: 'Trung cấp khá (B2 - C1)' },
+                    { id: 'ielts_75_80', label: '🥇 IELTS 7.5 - 8.0', desc: 'Cao cấp (C1 Mastery)' },
+                    { id: 'ielts_85_90', label: '👑 IELTS 8.5 - 9.0', desc: 'Bản xứ / Chuyên gia (C2)' }
+                  ].map(lvl => (
+                    <button
+                      key={lvl.id}
+                      className={`count-pill-btn ${selectedLevel === lvl.id ? 'active' : ''}`}
+                      onClick={() => setSelectedLevel(lvl.id)}
+                      style={{ textAlign: 'left', padding: '0.5rem 0.7rem' }}
+                    >
+                      <b>{lvl.label}</b>
+                      <small style={{ display: 'block', marginTop: '2px', opacity: 0.85 }}>{lvl.desc}</small>
+                    </button>
+                  ))}
+                </div>
+              </details>
             </div>
 
             {/* Step 4: Question Count & Mode */}

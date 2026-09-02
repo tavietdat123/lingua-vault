@@ -165,10 +165,19 @@ export function normalizeAndRandomizeQuestions(parsed, defaultPrefix = 'ai_q') {
       [cleanOpts[i], cleanOpts[j]] = [cleanOpts[j], cleanOpts[i]];
     }
 
+    let qDifficulty = q.difficulty || 'medium';
+    if (q.level && ['A1', 'A2', 'B1'].includes(String(q.level).toUpperCase())) {
+      qDifficulty = 'easy';
+    } else if (q.level && ['C1', 'C2'].includes(String(q.level).toUpperCase())) {
+      qDifficulty = 'hard';
+    }
+
     return {
       id: q.id || `${defaultPrefix}_${idx + 1}`,
       type: q.type || 'cloze_blank',
       word: q.word || q.targetWord || q.term || 'Vocabulary',
+      difficulty: qDifficulty,
+      level: q.level || (qDifficulty === 'easy' ? 'B1' : qDifficulty === 'hard' ? 'C1' : 'B2'),
       questionText: q.questionText || q.question || q.prompt || q.text || 'Question text',
       promptSubtitle: q.promptSubtitle || q.subtitle || q.instruction || 'Chọn đáp án chính xác:',
       options: cleanOpts,
@@ -705,9 +714,12 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
     ];
   }
 
-  // Filter candidate words by Granular IELTS tier if specified
+  // Filter candidate words by Granular IELTS tier or Easy/Medium/Hard if specified
   if (level && level !== 'all') {
     const tierMap = {
+      'easy': ['A1', 'A2', 'B1'],
+      'medium': ['B1', 'B2'],
+      'hard': ['B2', 'C1', 'C2'],
       'ielts_4_5': ['A1', 'A2', 'B1'],
       'ielts_55_60': ['B1', 'B2'],
       'ielts_65_70': ['B2'],
@@ -738,6 +750,9 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
 
   const ieltsRequirementMap = {
     'all': 'Đa dạng linh hoạt từ A2 đến C2',
+    'easy': 'Mức độ DỄ (Cơ bản / Nền tảng A1 - B1): Ngữ cảnh giao tiếp hàng ngày thân thuộc, câu văn ngắn gọn, từ ngữ tự nhiên và dễ nắm bắt, các phương án gây nhiễu rõ ràng.',
+    'medium': 'Mức độ TRUNG BÌNH (Tiêu chuẩn B1 - B2): Ngữ cảnh công việc & đời sống xã hội, câu văn ghép hoàn chỉnh, phân biệt rõ nghĩa từ.',
+    'hard': 'Mức độ KHÓ (Nâng cao & Thử thách B2 - C2): Ngữ cảnh học thuật chuyên sâu, bài luận IELTS Writing Task 2, collocations học thuật đắt giá, bẫy trắc nghiệm logic và sắc thái từ tinh tế.',
     'ielts_4_5': 'Cấp độ IELTS Band 4.0 - 5.0 (CEFR A2 - B1 Nền Tảng): Ngữ cảnh giao tiếp hàng ngày thân thuộc, câu văn ngắn gọn, từ ngữ tự nhiên và dễ nắm bắt.',
     'ielts_55_60': 'Cấp độ IELTS Band 5.5 - 6.0 (CEFR B1 - B2 Tiền Trung Cấp): Ngữ cảnh công việc cơ bản & đời sống xã hội, câu văn ghép đơn giản, phân biệt rõ nghĩa từ.',
     'ielts_65_70': 'Cấp độ IELTS Band 6.5 - 7.0 (CEFR B2 - C1 Trung Cấp Khá): Ngữ cảnh bài luận học thuật, báo chí, môi trường công sở chuyên nghiệp, cấu trúc câu phức và mệnh đề quan hệ.',
