@@ -855,6 +855,7 @@ function MainApp() {
   const [quizDates, setQuizDates] = useState([]);
   const [selectedQuizDateScope, setSelectedQuizDateScope] = useState('all'); // 'all' | 'today' | 'yesterday' | 'last_7_days' | 'specific'
   const [selectedQuizDates, setSelectedQuizDates] = useState([]);
+  const [selectedQuizDate, setSelectedQuizDate] = useState('');
   const [selectedQuizTopics, setSelectedQuizTopics] = useState(['All']);
   const [selectedQuizPatternCategory, setSelectedQuizPatternCategory] = useState('all');
   const [selectedQuizLevel, setSelectedQuizLevel] = useState('all');
