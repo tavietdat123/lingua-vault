@@ -298,6 +298,17 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 
+// Global iOS Audio Session Configuration for Silent Mode Playback
+if (Platform.OS !== 'web' && ExpoAudio && ExpoAudio.setAudioModeAsync) {
+  ExpoAudio.setAudioModeAsync({
+    playsInSilentModeIOS: true,
+    allowsRecordingIOS: false,
+    staysActiveInBackground: false,
+    shouldDuckAndroid: true,
+    playThroughEarpieceAndroid: false
+  }).catch(() => {});
+}
+
 const playMobileAudio = async (wordText, rate = null, lang = null) => {
   if (!wordText || typeof wordText !== 'string' || !wordText.trim()) return;
   const cleanText = wordText.trim();
@@ -308,7 +319,9 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
   const isUK = targetLang === 'en-GB';
   const baseUrl = mobileApi?.getBaseUrl ? mobileApi.getBaseUrl() : API_ENDPOINT;
   const ttsUrl = `${baseUrl}/api/audio/tts?text=${encodeURIComponent(cleanText.substring(0, 350))}&lang=${encodeURIComponent(targetLang)}`;
+  const directGoogleTts = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(targetLang)}&client=tw-ob&q=${encodeURIComponent(cleanText.substring(0, 350))}`;
 
+  // 1. MP3 Audio Stream Fallback (High-definition human audio via Server or Direct Google CDN)
   const playMobileMp3 = async () => {
     try {
       if (activeSoundObject) {
@@ -318,30 +331,8 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
         await previousSound.unloadAsync().catch(() => {});
       }
 
-      const { sound } = await ExpoAudio.Sound.createAsync(
-        { uri: ttsUrl },
-        {
-          shouldPlay: true,
-          rate: targetRate,
-          shouldCorrectPitch: true,
-          volume: 1.0
-        }
-      );
-      activeSoundObject = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded || !status.didJustFinish) return;
-        if (activeSoundObject === sound) activeSoundObject = null;
-        sound.unloadAsync().catch(() => {});
-      });
-    } catch (e) {
-      console.warn('[TTS] Mobile MP3 Stream fallback error:', e);
-    }
-  };
-
-  // 1. Native iOS / Android: Direct Native High-Definition Speech Engine (AVSpeechSynthesizer)
-  if (Platform.OS !== 'web') {
-    try {
-      if (ExpoAudio && ExpoAudio.setAudioModeAsync) {
+      // Ensure iOS audio mode plays even if the physical silent switch is flipped to mute
+      if (Platform.OS !== 'web' && ExpoAudio && ExpoAudio.setAudioModeAsync) {
         await ExpoAudio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           allowsRecordingIOS: false,
@@ -351,17 +342,77 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
         }).catch(() => {});
       }
 
+      const streamUrls = [ttsUrl, directGoogleTts];
+      let loadedSound = null;
+
+      for (const uri of streamUrls) {
+        try {
+          const res = await ExpoAudio.Sound.createAsync(
+            { uri },
+            {
+              shouldPlay: true,
+              rate: targetRate,
+              shouldCorrectPitch: true,
+              volume: 1.0
+            }
+          );
+          if (res && res.sound) {
+            loadedSound = res.sound;
+            break;
+          }
+        } catch (soundErr) {
+          console.warn('[TTS] MP3 stream URL failed:', uri, soundErr?.message);
+        }
+      }
+
+      if (loadedSound) {
+        activeSoundObject = loadedSound;
+        loadedSound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || !status.didJustFinish) return;
+          if (activeSoundObject === loadedSound) activeSoundObject = null;
+          loadedSound.unloadAsync().catch(() => {});
+        });
+      }
+    } catch (e) {
+      console.warn('[TTS] Mobile MP3 Stream fallback error:', e);
+    }
+  };
+
+  // 2. Native iOS / Android: Direct Native High-Definition Speech Engine (AVSpeechSynthesizer)
+  if (Platform.OS !== 'web') {
+    let nativeSpeechStarted = false;
+    try {
       if (Speech && typeof Speech.speak === 'function') {
-        await Speech.stop().catch(() => {});
+        const isSpeaking = await Speech.isSpeakingAsync().catch(() => false);
+        if (isSpeaking) {
+          await Speech.stop().catch(() => {});
+          await new Promise(r => setTimeout(r, 60));
+        }
+
         Speech.speak(speechText, {
           language: targetLang,
-          rate: targetRate,
+          rate: Math.min(1.0, targetRate), // iOS normal rate is 1.0
           pitch: 1.0,
+          onStart: () => {
+            nativeSpeechStarted = true;
+          },
           onError: (error) => {
             console.warn('[TTS] Native speech error, fallback to MP3:', error);
             playMobileMp3();
           }
         });
+
+        // Watchdog for iOS: if AVSpeechSynthesizer doesn't start in 450ms, play MP3 fallback
+        setTimeout(() => {
+          if (!nativeSpeechStarted) {
+            Speech.isSpeakingAsync().then(speaking => {
+              if (!speaking) {
+                console.warn('[TTS] iOS speech did not start, activating MP3 stream');
+                playMobileMp3();
+              }
+            }).catch(() => playMobileMp3());
+          }
+        }, 450);
         return;
       }
     } catch (nativeVoiceError) {
@@ -373,14 +424,31 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
     return;
   }
 
-  // 2. Web & Electron: Instant Natural Speech Synthesis with High-Fidelity Voices
+  // 3. Web & Mobile Safari on iOS / Electron: Instant Natural Speech Synthesis + HTML5 Audio Fallback
+  const playWebAudioFallback = () => {
+    try {
+      if (typeof Audio !== 'undefined') {
+        const audio = new Audio(ttsUrl);
+        audio.playbackRate = targetRate;
+        audio.play().catch(() => {
+          const backupAudio = new Audio(directGoogleTts);
+          backupAudio.playbackRate = targetRate;
+          backupAudio.play().catch(e => console.warn('[TTS] All web audio attempts failed:', e));
+        });
+      }
+    } catch (e) {
+      console.warn('[TTS] Web audio element error:', e);
+    }
+  };
+
   const speakSynthesis = () => {
     try {
+      let webSynthStarted = false;
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
-        window.speechSynthesis.cancel();
+
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = targetLang;
         utterance.rate = targetRate;
@@ -411,13 +479,33 @@ const playMobileAudio = async (wordText, rate = null, lang = null) => {
           utterance.voice = bestVoice;
         }
 
+        utterance.onstart = () => {
+          webSynthStarted = true;
+        };
+
+        utterance.onerror = (err) => {
+          console.warn('[TTS] Web speech synthesis failed, triggering HTML5 audio fallback:', err);
+          playWebAudioFallback();
+        };
+
         window.speechSynthesis.speak(utterance);
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
+
+        // On iOS Safari, speechSynthesis often fails silently due to silent mode or webkit bug
+        setTimeout(() => {
+          if (!webSynthStarted && (!window.speechSynthesis.speaking || window.speechSynthesis.paused)) {
+            console.warn('[TTS] iOS Safari speech synthesis stalled, activating HTML5 audio fallback');
+            playWebAudioFallback();
+          }
+        }, 450);
+      } else {
+        playWebAudioFallback();
       }
     } catch (err) {
       console.warn('Speech synthesis error:', err);
+      playWebAudioFallback();
     }
   };
 
