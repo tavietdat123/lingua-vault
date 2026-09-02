@@ -309,9 +309,22 @@ if (Platform.OS !== 'web' && ExpoAudio && ExpoAudio.setAudioModeAsync) {
   }).catch(() => {});
 }
 
+const sanitizeSpeechText = (raw) => {
+  if (!raw || typeof raw !== 'string') return '';
+  let str = raw.trim();
+  // Strip attached Vietnamese text in parens if any (e.g. '(Né tránh, tránh xa)')
+  str = str.replace(/\s*\([^)]*[\u00C0-\u024F\u1EA0-\u1EF9][^)]*\)/gi, '');
+  // Strip part of speech in brackets (e.g. '[noun]', '[verb]')
+  str = str.replace(/\s*\[(noun|verb|adjective|adverb|adj|adv|idiom|collocation|phrasal verb)\]/gi, '');
+  if (str.startsWith('/') && str.endsWith('/')) {
+    str = str.slice(1, -1);
+  }
+  return str.trim();
+};
+
 const playMobileAudio = async (wordText, rate = null, lang = null) => {
   if (!wordText || typeof wordText !== 'string' || !wordText.trim()) return;
-  const cleanText = wordText.trim();
+  const cleanText = sanitizeSpeechText(wordText) || wordText.trim();
   const speechText = /[.!?]$/.test(cleanText) ? cleanText : `${cleanText}.`;
   const isSingleWord = !cleanText.includes(' ');
   const targetRate = Math.max(0.5, Math.min(1.8, rate !== null ? parseFloat(rate) : (isSingleWord ? 0.92 : globalMobileSpeed)));
