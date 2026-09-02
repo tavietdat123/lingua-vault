@@ -1219,12 +1219,12 @@ export default function QuizCenter({ onOpenReview }) {
             {/* Step 3: Difficulty & IELTS Level Tier */}
             <div className="setup-section" style={{ marginTop: '1.2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <h3 style={{ margin: 0 }}>3. Mức Độ Khó Của Câu Hỏi (Difficulty Levels)</h3>
+                <h3 style={{ margin: 0 }}>3. Độ Khó Để Giải Câu Hỏi (Solving Difficulty)</h3>
                 <span style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: '700' }}>
                   {selectedLevel === 'all' && '🌟 Mọi mức độ'}
-                  {selectedLevel === 'easy' && '🟢 Mức Dễ (Cơ bản)'}
-                  {selectedLevel === 'medium' && '🟡 Mức Trung Bình (Chuẩn)'}
-                  {selectedLevel === 'hard' && '🔴 Mức Khó (Thử thách)'}
+                  {selectedLevel === 'easy' && '🟢 Mức Dễ (Có gợi ý, dễ loại trừ)'}
+                  {selectedLevel === 'medium' && '🟡 Mức Trung Bình (Chuẩn ngữ cảnh)'}
+                  {selectedLevel === 'hard' && '🔴 Mức Khó (Bẫy từ loại & ngữ pháp)'}
                   {selectedLevel.startsWith('ielts') && `🎯 ${selectedLevel.replace('ielts_', 'Band ').replace('_', '.')}`}
                 </span>
               </div>
@@ -1232,10 +1232,10 @@ export default function QuizCenter({ onOpenReview }) {
               {/* Core 3 Difficulty Levels + All */}
               <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem', marginBottom: '0.75rem' }}>
                 {[
-                  { id: 'all', label: '🌟 Mọi Cấp Độ (Tự động)', desc: 'Kết hợp linh hoạt từ A1 đến C2' },
-                  { id: 'easy', label: '🟢 Dễ (Cơ bản A1 - B1)', desc: 'Trực quan, gợi ý rõ ràng, dễ nhớ' },
-                  { id: 'medium', label: '🟡 Trung Bình (B1 - B2)', desc: 'Ngữ cảnh chuẩn đời sống & công sở' },
-                  { id: 'hard', label: '🔴 Khó (Thử thách B2 - C2)', desc: 'Học thuật IELTS, bẫy & từ đồng nghĩa' }
+                  { id: 'all', label: '🌟 Mọi Độ Khó', desc: 'Kết hợp linh hoạt câu dễ, vừa và thử thách' },
+                  { id: 'easy', label: '🟢 Dễ Giải (Có gợi ý)', desc: 'Kèm gợi ý trực quan, đáp án nhiễu dễ loại trừ' },
+                  { id: 'medium', label: '🟡 Trung Bình (Chuẩn)', desc: 'Đọc hiểu ngữ cảnh câu, 4 lựa chọn cùng loại từ' },
+                  { id: 'hard', label: '🔴 Khó (Đánh đố cao)', desc: 'Bẫy từ loại (Word Forms), từ đồng nghĩa & ngữ pháp' }
                 ].map(lvl => (
                   <button
                     key={lvl.id}

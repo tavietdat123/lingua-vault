@@ -6357,14 +6357,14 @@ function MainApp() {
 
                         {/* Step 3: Difficulty Levels */}
                         <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
-                          3. Mức Độ Khó Của Câu Hỏi:
+                          3. Độ Khó Để Giải Câu Hỏi:
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                           {[
-                  { id: 'all', label: '🌟 Mọi Cấp Độ' },
-                  { id: 'easy', label: '🟢 Dễ (A1 - B1)' },
-                  { id: 'medium', label: '🟡 Trung Bình (B1 - B2)' },
-                  { id: 'hard', label: '🔴 Khó (B2 - C2)' },
+                  { id: 'all', label: '🌟 Mọi Độ Khó' },
+                  { id: 'easy', label: '🟢 Dễ Giải (Có gợi ý)' },
+                  { id: 'medium', label: '🟡 Trung Bình (Chuẩn)' },
+                  { id: 'hard', label: '🔴 Khó (Đánh đố cao)' },
                   { id: 'ielts_4_5', label: '🥉 IELTS 4.0 - 5.0' },
                   { id: 'ielts_55_60', label: '🎖️ IELTS 5.5 - 6.0' },
                   { id: 'ielts_65_70', label: '🥈 IELTS 6.5 - 7.0' },

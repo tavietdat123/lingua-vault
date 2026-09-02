@@ -104,6 +104,48 @@ export function filterItemsByDate(items, dateScope = 'all', specificDate = null,
   return items;
 }
 
+const EASY_DISTRACTORS = [
+  { word: 'apple', meaning_vi: 'Quả táo (trái cây ăn ngọt)' },
+  { word: 'morning', meaning_vi: 'Buổi sáng sớm tinh mơ' },
+  { word: 'water', meaning_vi: 'Nước uống giải khát hàng ngày' },
+  { word: 'house', meaning_vi: 'Ngôi nhà để ở' },
+  { word: 'run', meaning_vi: 'Chạy nhanh bằng hai chân' },
+  { word: 'book', meaning_vi: 'Quyển sách để đọc giải trí' },
+  { word: 'music', meaning_vi: 'Âm nhạc và giai điệu bài hát' },
+  { word: 'sunshine', meaning_vi: 'Ánh nắng mặt trời ấm áp' }
+];
+
+export function generateTrickyWordFamily(word) {
+  const w = (word || '').toLowerCase().trim();
+  const forms = new Set();
+  if (w.endsWith('tion')) {
+    forms.add(w.slice(0, -4) + 'te');
+    forms.add(w.slice(0, -4) + 'tive');
+    forms.add(w.slice(0, -4) + 'tively');
+  } else if (w.endsWith('able') || w.endsWith('ible')) {
+    forms.add(w.slice(0, -4) + 'ability');
+    forms.add(w.slice(0, -4) + 'ably');
+  } else if (w.endsWith('ent')) {
+    forms.add(w.slice(0, -3) + 'ence');
+    forms.add(w.slice(0, -3) + 'ently');
+  } else if (w.endsWith('ant')) {
+    forms.add(w.slice(0, -3) + 'ance');
+    forms.add(w.slice(0, -3) + 'antly');
+  } else if (w.endsWith('ly')) {
+    forms.add(w.slice(0, -2));
+  } else if (w.endsWith('ive')) {
+    forms.add(w.slice(0, -3) + 'ion');
+    forms.add(w.slice(0, -3) + 'ively');
+  } else {
+    forms.add(w + 'ing');
+    forms.add(w + 'ed');
+    forms.add(w + 'ment');
+    forms.add(w + 'ness');
+    forms.add(w + 'ly');
+  }
+  return [...forms].filter(f => f !== w && f.length > 2);
+}
+
 const HIGH_QUALITY_DISTRACTORS = [
   { word: 'resilient', meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh' },
   { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc rõ ràng' },
@@ -322,12 +364,10 @@ export const quizService = {
       candidateWords = topicFiltered;
     }
 
-    // 2. Filter by Granular IELTS Level Tier or Easy/Medium/Hard if specified
-    if (level && level !== 'all') {
+    // 2. Filter by Granular IELTS Level Tier ONLY if explicitly requested (e.g. ielts_4_5)
+    // NOTE: 'easy', 'medium', 'hard' represent QUESTION SOLVING DIFFICULTY, NOT vocabulary level!
+    if (level && level.startsWith('ielts_')) {
       const tierMap = {
-        'easy': ['A1', 'A2', 'B1'],
-        'medium': ['B1', 'B2'],
-        'hard': ['B2', 'C1', 'C2'],
         'ielts_4_5': ['A1', 'A2', 'B1'],
         'ielts_55_60': ['B1', 'B2'],
         'ielts_65_70': ['B2'],
@@ -342,6 +382,8 @@ export const quizService = {
         }
       }
     }
+
+    const questionDifficulty = ['easy', 'medium', 'hard'].includes(level) ? level : 'all';
 
     // 3. Quy tắc chọn từ mục tiêu:
     // - Nếu số từ candidate >= targetCount -> Chọn ngẫu nhiên KHÔNG LẶP LẠI
@@ -374,29 +416,11 @@ export const quizService = {
 
       const validTargetMeaning = cleanMeaningText(targetWord.meaning_vi, targetWord.meaning_en, targetWord.word);
 
-      // Determine question difficulty
-      let qDifficulty = 'medium';
-      const wLevel = (targetWord.level || '').toUpperCase();
-      if (level === 'easy' || ['A1', 'A2', 'B1'].includes(wLevel)) {
-        qDifficulty = 'easy';
-      } else if (level === 'hard' || ['C1', 'C2'].includes(wLevel)) {
-        qDifficulty = 'hard';
-      }
-
-      // Distractor pool: Filter out current word and extract valid meanings
-      const otherValidWords = words.filter(w => 
-        w.id !== targetWord.id && 
-        w.word.toLowerCase() !== targetWord.word.toLowerCase() &&
-        w.meaning_vi && !w.meaning_vi.includes('Tra cứu thêm')
-      );
-      const shuffledOthers = [...otherValidWords].sort(() => 0.5 - Math.random());
-      let distractors = shuffledOthers.slice(0, 3);
-
-      if (distractors.length < 3) {
-        const fallbacks = HIGH_QUALITY_DISTRACTORS.filter(f => 
-          f.word.toLowerCase() !== targetWord.word.toLowerCase()
-        );
-        distractors = [...distractors, ...fallbacks].slice(0, 3);
+      // Determine question solving difficulty: easy, medium, hard
+      let qDifficulty = questionDifficulty;
+      if (qDifficulty === 'all') {
+        const diffCycle = ['easy', 'medium', 'hard'];
+        qDifficulty = diffCycle[index % diffCycle.length];
       }
 
       let questionText = '';
@@ -404,81 +428,169 @@ export const quizService = {
       let correctAnswer = '';
       let options = [];
 
-      if (qType === 'meaning_vi' || qType === 'listening') {
-        questionText = targetWord.word;
-        promptSubtitle = qType === 'listening' 
-          ? (qDifficulty === 'easy' ? 'Nghe phát âm rõ ràng và chọn nghĩa tiếng Việt:' : 'Nghe phát âm và chọn nghĩa tiếng Việt chuẩn xác nhất:')
-          : (qDifficulty === 'easy' ? `Chọn nghĩa tiếng Việt của từ "${targetWord.word}":` : 'Chọn nghĩa tiếng Việt chính xác theo ngữ cảnh:');
-        correctAnswer = validTargetMeaning;
+      if (qDifficulty === 'easy') {
+        // === MỨC DỄ: Câu hỏi trực quan, có gợi ý rõ ràng, đáp án gây nhiễu khác biệt dễ loại trừ ===
+        if (qType === 'meaning_vi' || qType === 'listening') {
+          questionText = targetWord.word;
+          promptSubtitle = qType === 'listening'
+            ? `Nghe phát âm và chọn nghĩa tiếng Việt (Gợi ý phiên âm: /${targetWord.phonetic?.replace(/\//g, '') || ''}/):`
+            : `Chọn nghĩa tiếng Việt của từ "${targetWord.word}" (${targetWord.part_of_speech ? `Từ loại: ${targetWord.part_of_speech}` : 'từ vựng'}):`;
+          correctAnswer = validTargetMeaning;
 
-        const rawOptions = [
-          validTargetMeaning,
-          ...distractors.map(d => cleanMeaningText(d.meaning_vi, d.meaning_en, d.word))
-        ];
-        options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
-      } else if (qType === 'reverse_en') {
-        // Sanitize definition so it never mentions the English word
-        let cleanDef = validTargetMeaning;
-        if (targetWord.word && cleanDef) {
-          const regex = new RegExp(`\\b${targetWord.word}\\b`, 'gi');
-          cleanDef = cleanDef.replace(regex, '_______');
-        }
-        questionText = cleanDef;
-        promptSubtitle = qDifficulty === 'easy'
-          ? `Chọn từ vựng tiếng Anh tương ứng (${targetWord.part_of_speech || 'từ vựng'}):`
-          : 'Chọn từ vựng tiếng Anh tương ứng với định nghĩa trên:';
-        correctAnswer = targetWord.word;
+          const easyPool = EASY_DISTRACTORS.filter(ed => ed.word !== targetWord.word.toLowerCase());
+          easyPool.sort(() => 0.5 - Math.random());
+          options = [validTargetMeaning, ...easyPool.slice(0, 3).map(e => e.meaning_vi)];
+          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+        } else if (qType === 'reverse_en') {
+          questionText = validTargetMeaning;
+          promptSubtitle = `Chọn từ tiếng Anh có nghĩa "${validTargetMeaning}" (Gợi ý: Bắt đầu bằng "${targetWord.word[0].toUpperCase()}...", ${targetWord.word.length} chữ cái):`;
+          correctAnswer = targetWord.word;
 
-        const rawOptions = [
-          targetWord.word,
-          ...distractors.map(d => d.word)
-        ];
-        options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
-      } else if (qType === 'cloze_blank') {
-        // Find clean sentence with word
-        let cleanSentence = '';
-        if (examples.length > 0) {
-          for (const ex of examples) {
-            const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
-            if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
-              // Strip attached Vietnamese translation in parens if any
-              const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
-              cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
-              break;
+          const easyPool = EASY_DISTRACTORS.filter(ed => ed.word !== targetWord.word.toLowerCase());
+          easyPool.sort(() => 0.5 - Math.random());
+          options = [targetWord.word, ...easyPool.slice(0, 3).map(e => e.word)];
+          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+        } else if (qType === 'cloze_blank') {
+          let cleanSentence = '';
+          if (examples.length > 0) {
+            for (const ex of examples) {
+              const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
+              if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
+                const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
+                break;
+              }
             }
           }
+          if (!cleanSentence) {
+            cleanSentence = `Please remember to _______ when handling this process.`;
+          }
+          questionText = cleanSentence;
+          promptSubtitle = `Điền từ thích hợp vào chỗ trống (Gợi ý: "${validTargetMeaning}" - Bắt đầu bằng "${targetWord.word[0].toUpperCase()}..."):`;
+          correctAnswer = targetWord.word;
+
+          const easyPool = EASY_DISTRACTORS.filter(ed => ed.word !== targetWord.word.toLowerCase());
+          easyPool.sort(() => 0.5 - Math.random());
+          options = [targetWord.word, ...easyPool.slice(0, 3).map(e => e.word)];
+          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+        }
+      } else if (qDifficulty === 'hard') {
+        // === MỨC KHÓ: Đánh đố cao, bẫy họ từ (Word Forms), bẫy từ gần nghĩa, không có gợi ý ===
+        if (qType === 'meaning_vi' || qType === 'listening') {
+          questionText = targetWord.word;
+          promptSubtitle = qType === 'listening'
+            ? 'Nghe phát âm chuẩn và chọn sắc thái nghĩa chính xác nhất theo ngữ cảnh:'
+            : `Phân tích sắc thái chuyên sâu để chọn nghĩa chuẩn xác nhất của từ "${targetWord.word}":`;
+          correctAnswer = validTargetMeaning;
+
+          const otherValidWords = words.filter(w => 
+            w.id !== targetWord.id && 
+            w.word.toLowerCase() !== targetWord.word.toLowerCase() &&
+            w.meaning_vi && !w.meaning_vi.includes('Tra cứu thêm')
+          );
+          otherValidWords.sort(() => 0.5 - Math.random());
+          const subtleDistractors = otherValidWords.slice(0, 3).map(d => cleanMeaningText(d.meaning_vi, d.meaning_en, d.word));
+          options = [validTargetMeaning, ...subtleDistractors];
+          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+        } else if (qType === 'reverse_en') {
+          questionText = validTargetMeaning;
+          promptSubtitle = 'Chọn từ vựng tiếng Anh chính xác nhất theo đúng định nghĩa học thuật:';
+          correctAnswer = targetWord.word;
+
+          const wordFamily = generateTrickyWordFamily(targetWord.word);
+          const otherWords = words.filter(w => w.id !== targetWord.id).map(w => w.word).sort(() => 0.5 - Math.random());
+          options = [targetWord.word, ...wordFamily.slice(0, 2), ...otherWords.slice(0, 3)].slice(0, 4);
+          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+        } else if (qType === 'cloze_blank') {
+          let cleanSentence = '';
+          if (examples.length > 0) {
+            for (const ex of examples) {
+              const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
+              if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
+                const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
+                break;
+              }
+            }
+          }
+          if (!cleanSentence) {
+            cleanSentence = `In professional environments, one must demonstrate great _______ to overcome obstacles.`;
+          }
+          questionText = cleanSentence;
+          promptSubtitle = 'Phân tích cấu trúc ngữ pháp và ngữ cảnh để chọn từ/dạng từ chính xác nhất:';
+          correctAnswer = targetWord.word;
+
+          // TRICKY BẪY TỪ LOẠI (Word Family Traps: e.g. resilient vs resilience vs resiliently)
+          const trickyForms = generateTrickyWordFamily(targetWord.word);
+          const otherWordList = words.filter(w => w.id !== targetWord.id).map(w => w.word).sort(() => 0.5 - Math.random());
+          options = [targetWord.word, ...trickyForms.slice(0, 2), ...otherWordList.slice(0, 2)].slice(0, 4);
+          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+        }
+      } else {
+        // === MỨC TRUNG BÌNH: Tiêu chuẩn, đọc hiểu ngữ cảnh câu, phương án cùng từ loại, không gợi ý lộ liễu ===
+        const otherValidWords = words.filter(w => 
+          w.id !== targetWord.id && 
+          w.word.toLowerCase() !== targetWord.word.toLowerCase() &&
+          w.meaning_vi && !w.meaning_vi.includes('Tra cứu thêm')
+        );
+        otherValidWords.sort(() => 0.5 - Math.random());
+        let distractors = otherValidWords.slice(0, 3);
+        if (distractors.length < 3) {
+          distractors = [...distractors, ...HIGH_QUALITY_DISTRACTORS.filter(f => f.word.toLowerCase() !== targetWord.word.toLowerCase())].slice(0, 3);
         }
 
-        if (!cleanSentence) {
-          const templates = [
-            `The company is seeking a team member who is _______ in their work.`,
-            `It is crucial to understand how to _______ available resources effectively.`,
-            `Her _______ approach to problem-solving received great admiration from everyone.`,
-            `Leaders must maintain a _______ attitude when overcoming market challenges.`,
-            `He made a conscious effort to be _______ during the entire presentation.`
+        if (qType === 'meaning_vi' || qType === 'listening') {
+          questionText = targetWord.word;
+          promptSubtitle = qType === 'listening' 
+            ? 'Nghe phát âm và chọn nghĩa tiếng Việt chính xác:' 
+            : 'Chọn nghĩa tiếng Việt chính xác theo ngữ cảnh:';
+          correctAnswer = validTargetMeaning;
+
+          const rawOptions = [
+            validTargetMeaning,
+            ...distractors.map(d => cleanMeaningText(d.meaning_vi, d.meaning_en, d.word))
           ];
-          cleanSentence = templates[index % templates.length];
+          options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
+        } else if (qType === 'reverse_en') {
+          let cleanDef = validTargetMeaning;
+          if (targetWord.word && cleanDef) {
+            const regex = new RegExp(`\\b${targetWord.word}\\b`, 'gi');
+            cleanDef = cleanDef.replace(regex, '_______');
+          }
+          questionText = cleanDef;
+          promptSubtitle = 'Chọn từ vựng tiếng Anh tương ứng với định nghĩa trên:';
+          correctAnswer = targetWord.word;
+
+          const rawOptions = [
+            targetWord.word,
+            ...distractors.map(d => d.word)
+          ];
+          options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
+        } else if (qType === 'cloze_blank') {
+          let cleanSentence = '';
+          if (examples.length > 0) {
+            for (const ex of examples) {
+              const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
+              if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
+                const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
+                break;
+              }
+            }
+          }
+          if (!cleanSentence) {
+            cleanSentence = `The company is seeking a team member who is _______ in their work.`;
+          }
+          questionText = cleanSentence;
+          promptSubtitle = 'Điền từ vựng thích hợp vào chỗ trống trong câu sau:';
+          correctAnswer = targetWord.word;
+
+          const rawOptions = [
+            targetWord.word,
+            ...distractors.map(d => d.word)
+          ];
+          options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
         }
-
-        let cleanSubtitleDef = validTargetMeaning;
-        if (targetWord.word && cleanSubtitleDef) {
-          const regex = new RegExp(`\\b${targetWord.word}\\b`, 'gi');
-          cleanSubtitleDef = cleanSubtitleDef.replace(regex, '...');
-        }
-
-        questionText = cleanSentence;
-        promptSubtitle = qDifficulty === 'easy'
-          ? `Điền từ vựng thích hợp vào chỗ trống (${cleanSubtitleDef}):`
-          : (qDifficulty === 'hard' 
-            ? 'Chọn từ vựng phù hợp nhất với ngữ cảnh học thuật và ngữ pháp:' 
-            : `Điền từ vựng thích hợp vào chỗ trống (${targetWord.part_of_speech || 'ngữ cảnh'}):`);
-        correctAnswer = targetWord.word;
-
-        const rawOptions = [
-          targetWord.word,
-          ...distractors.map(d => d.word)
-        ];
-        options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
       }
 
       // Ensure 4 distinct options always exist

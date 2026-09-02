@@ -714,12 +714,10 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
     ];
   }
 
-  // Filter candidate words by Granular IELTS tier or Easy/Medium/Hard if specified
-  if (level && level !== 'all') {
+  // Filter candidate words by Granular IELTS tier ONLY if explicitly requested (e.g. ielts_4_5)
+  // 'easy', 'medium', 'hard' represent QUESTION SOLVING DIFFICULTY, NOT vocabulary level filter!
+  if (level && level.startsWith('ielts_')) {
     const tierMap = {
-      'easy': ['A1', 'A2', 'B1'],
-      'medium': ['B1', 'B2'],
-      'hard': ['B2', 'C1', 'C2'],
       'ielts_4_5': ['A1', 'A2', 'B1'],
       'ielts_55_60': ['B1', 'B2'],
       'ielts_65_70': ['B2'],
@@ -750,9 +748,9 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
 
   const ieltsRequirementMap = {
     'all': 'Đa dạng linh hoạt từ A2 đến C2',
-    'easy': 'Mức độ DỄ (Cơ bản / Nền tảng A1 - B1): Ngữ cảnh giao tiếp hàng ngày thân thuộc, câu văn ngắn gọn, từ ngữ tự nhiên và dễ nắm bắt, các phương án gây nhiễu rõ ràng.',
-    'medium': 'Mức độ TRUNG BÌNH (Tiêu chuẩn B1 - B2): Ngữ cảnh công việc & đời sống xã hội, câu văn ghép hoàn chỉnh, phân biệt rõ nghĩa từ.',
-    'hard': 'Mức độ KHÓ (Nâng cao & Thử thách B2 - C2): Ngữ cảnh học thuật chuyên sâu, bài luận IELTS Writing Task 2, collocations học thuật đắt giá, bẫy trắc nghiệm logic và sắc thái từ tinh tế.',
+    'easy': 'MỨC ĐỘ DỄ GIẢI (EASY TO SOLVE): Câu hỏi trực quan, ngữ cảnh thân thuộc, các phương án gây nhiễu phân biệt rất rõ ràng không gây nhầm lẫn. Kèm gợi ý nghĩa hoặc từ loại rõ ràng trong hướng dẫn.',
+    'medium': 'MỨC ĐỘ TIÊU CHUẨN (STANDARD TO SOLVE): Câu văn ngữ cảnh đời sống & công sở chuẩn mực, 4 lựa chọn cùng loại từ, người học cần hiểu đúng nghĩa câu để chọn.',
+    'hard': 'MỨC ĐỘ KHÓ & ĐÁNH ĐỐ CAO (VERY TRICKY & HARD TO SOLVE): Câu hỏi cực kỳ đánh đố về cách dùng. Sử dụng BẪY HỌ TỪ (Word Family: đưa danh từ/tính từ/trạng từ của từ đó vào phương án gây nhiễu) hoặc BẪY TỪ GẦN NGHĨA (Confusing Synonyms) / Collocations để người học phải phân tích sâu ngữ pháp và sắc thái mới giải được.',
     'ielts_4_5': 'Cấp độ IELTS Band 4.0 - 5.0 (CEFR A2 - B1 Nền Tảng): Ngữ cảnh giao tiếp hàng ngày thân thuộc, câu văn ngắn gọn, từ ngữ tự nhiên và dễ nắm bắt.',
     'ielts_55_60': 'Cấp độ IELTS Band 5.5 - 6.0 (CEFR B1 - B2 Tiền Trung Cấp): Ngữ cảnh công việc cơ bản & đời sống xã hội, câu văn ghép đơn giản, phân biệt rõ nghĩa từ.',
     'ielts_65_70': 'Cấp độ IELTS Band 6.5 - 7.0 (CEFR B2 - C1 Trung Cấp Khá): Ngữ cảnh bài luận học thuật, báo chí, môi trường công sở chuyên nghiệp, cấu trúc câu phức và mệnh đề quan hệ.',
