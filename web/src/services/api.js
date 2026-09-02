@@ -480,6 +480,15 @@ export const api = {
     }
   },
 
+  getQuizDates: async () => {
+    try {
+      const res = await authFetch(`${API_BASE}/quiz/dates`);
+      return await res.json();
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
   generateQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed' }) => {
     const res = await authFetch(`${API_BASE}/quiz/generate`, {
       method: 'POST',

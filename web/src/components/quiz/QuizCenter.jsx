@@ -24,7 +24,8 @@ import {
   Shuffle,
   Headphones,
   Edit3,
-  ArrowRight
+  ArrowRight,
+  Calendar
 } from 'lucide-react';
 
 export default function QuizCenter({ onOpenReview }) {
@@ -32,6 +33,9 @@ export default function QuizCenter({ onOpenReview }) {
   const [quizCategory, setQuizCategory] = useState('vocab'); // 'vocab' | 'pattern'
   const [topics, setTopics] = useState([]);
   const [patternCategories, setPatternCategories] = useState([]);
+  const [quizDates, setQuizDates] = useState([]);
+  const [dateScope, setDateScope] = useState('all'); // 'all' | 'today' | 'yesterday' | 'last_7_days' | 'specific'
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedTopics, setSelectedTopics] = useState(['All']);
   const [selectedPatternCategory, setSelectedPatternCategory] = useState('all');
   const [selectedLevel, setSelectedLevel] = useState('all');
@@ -57,6 +61,7 @@ export default function QuizCenter({ onOpenReview }) {
   useEffect(() => {
     loadTopics();
     loadPatternCategories();
+    loadQuizDates();
     loadQuizHistory();
   }, []);
 
@@ -71,6 +76,16 @@ export default function QuizCenter({ onOpenReview }) {
     const res = await api.getPatternCategories();
     if (res.success) {
       setPatternCategories(res.data || []);
+    }
+  };
+
+  const loadQuizDates = async () => {
+    const res = await api.getQuizDates();
+    if (res.success && res.data) {
+      setQuizDates(res.data || []);
+      if (res.data.length > 0 && !selectedDate) {
+        setSelectedDate(res.data[0].date);
+      }
     }
   };
 
@@ -138,20 +153,26 @@ export default function QuizCenter({ onOpenReview }) {
     setLoading(true);
     try {
       let res;
+      const targetDate = dateScope === 'specific' ? selectedDate : null;
+
       if (quizCategory === 'pattern') {
         if (useAi) {
           res = await api.generateAIPatternQuiz({
             category: selectedPatternCategory,
             count: questionCount,
             level: selectedLevel,
-            mode: quizMode
+            mode: quizMode,
+            date_scope: dateScope,
+            date: targetDate
           });
         } else {
           res = await api.generatePatternQuiz({
             category: selectedPatternCategory,
             count: questionCount,
             mode: quizMode,
-            level: selectedLevel
+            level: selectedLevel,
+            date_scope: dateScope,
+            date: targetDate
           });
         }
       } else {
@@ -160,14 +181,18 @@ export default function QuizCenter({ onOpenReview }) {
             topic: selectedTopics,
             count: questionCount,
             level: selectedLevel,
-            mode: quizMode
+            mode: quizMode,
+            date_scope: dateScope,
+            date: targetDate
           });
         } else {
           res = await api.generateQuiz({
             topic: selectedTopics,
             count: questionCount,
             mode: quizMode,
-            level: selectedLevel
+            level: selectedLevel,
+            date_scope: dateScope,
+            date: targetDate
           });
         }
       }
@@ -875,15 +900,138 @@ export default function QuizCenter({ onOpenReview }) {
           </div>
 
           <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.25rem 0 0.5rem 0' }} />
-            {/* Step 1: Choose Topic / Tone */}
-            {quizCategory === 'vocab' ? (
-              <div className="setup-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                  <h3 style={{ margin: 0 }}>1. Chọn Chủ Đề (Topic) - <small style={{ fontWeight: 'normal', color: 'var(--text-secondary)' }}>Có thể chọn nhiều chủ đề cùng lúc</small></h3>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: '600' }}>
-                    Đã chọn: {selectedTopics.includes('All') ? 'Tất cả chủ đề' : `${selectedTopics.length} chủ đề`}
+
+          {/* Step 1: Daily Date Range / Scope Selector */}
+          <div className="setup-section" style={{ marginBottom: '1.2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={18} color="var(--accent-primary)" />
+                <span>1. Phạm Vi Ngày Nạp Từ Vựng</span>
+              </h3>
+              <span style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: '700' }}>
+                {dateScope === 'all' && 'Toàn bộ kho từ'}
+                {dateScope === 'today' && 'Từ vựng nạp Hôm nay'}
+                {dateScope === 'yesterday' && 'Từ vựng nạp Hôm qua'}
+                {dateScope === 'last_7_days' && '7 ngày gần nhất'}
+                {dateScope === 'specific' && (selectedDate ? `Ngày ${selectedDate}` : 'Chọn ngày cụ thể')}
+              </span>
+            </div>
+
+            <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              {[
+                { id: 'all', label: 'Toàn Bộ Thời Gian', icon: Sparkles, desc: 'Tất cả các từ' },
+                { id: 'today', label: 'Hôm Nay', icon: Clock, desc: 'Từ nạp hôm nay' },
+                { id: 'yesterday', label: 'Hôm Qua', icon: Clock, desc: 'Từ nạp hôm qua' },
+                { id: 'last_7_days', label: '7 Ngày Gần Nhất', icon: Flame, desc: 'Tuần qua' },
+                { id: 'specific', label: 'Theo Từng Ngày', icon: Calendar, desc: 'Chọn ngày cụ thể' }
+              ].map(scope => {
+                const isSelected = dateScope === scope.id;
+                const IconComp = scope.icon;
+                return (
+                  <button
+                    key={scope.id}
+                    className={`count-pill-btn ${isSelected ? 'active' : ''}`}
+                    onClick={() => setDateScope(scope.id)}
+                    style={{ textAlign: 'left', padding: '0.65rem 0.8rem', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <IconComp size={14} color={isSelected ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                      <b>{scope.label}</b>
+                    </div>
+                    <small style={{ opacity: 0.85 }}>{scope.desc}</small>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* If Specific Date is chosen: show available dates list and custom date picker */}
+            {dateScope === 'specific' && (
+              <div style={{
+                background: 'var(--bg-secondary)',
+                border: '1.5px solid var(--accent-primary)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.85rem 1rem',
+                marginTop: '0.5rem',
+                animation: 'fadeIn 0.2s ease'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    📅 Danh Sách Các Ngày Đã Nạp Từ Vựng / Mẫu Câu:
                   </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Hoặc chọn ngày:</span>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      style={{
+                        padding: '0.3rem 0.6rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.82rem',
+                        fontWeight: 700
+                      }}
+                    />
+                  </div>
                 </div>
+
+                {quizDates.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>Chưa có dữ liệu ngày nào.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                    {quizDates.map(qd => {
+                      const isPicked = selectedDate === qd.date;
+                      return (
+                        <button
+                          key={qd.date}
+                          onClick={() => setSelectedDate(qd.date)}
+                          style={{
+                            padding: '0.4rem 0.85rem',
+                            borderRadius: '12px',
+                            border: isPicked ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                            background: isPicked ? 'var(--accent-primary)' : 'var(--bg-card)',
+                            color: isPicked ? '#ffffff' : 'var(--text-primary)',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>{qd.label}</span>
+                          <span style={{
+                            background: isPicked ? 'rgba(255,255,255,0.25)' : 'var(--bg-tertiary)',
+                            color: isPicked ? '#ffffff' : 'var(--text-secondary)',
+                            padding: '1px 6px',
+                            borderRadius: '10px',
+                            fontSize: '0.72rem'
+                          }}>
+                            {quizCategory === 'pattern' ? `${qd.patterns_count} câu` : `${qd.words_count} từ`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.25rem 0 0.5rem 0' }} />
+
+          {/* Step 2: Choose Topic / Tone */}
+          {quizCategory === 'vocab' ? (
+            <div className="setup-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                <h3 style={{ margin: 0 }}>2. Chọn Chủ Đề (Topic) - <small style={{ fontWeight: 'normal', color: 'var(--text-secondary)' }}>Có thể chọn nhiều chủ đề cùng lúc</small></h3>
+                <span style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: '600' }}>
+                  Đã chọn: {selectedTopics.includes('All') ? 'Tất cả chủ đề' : `${selectedTopics.length} chủ đề`}
+                </span>
+              </div>
                 <div className="topics-chip-grid">
                   {topics.map(t => {
                     const topicKey = t.id || t.name;
@@ -906,7 +1054,7 @@ export default function QuizCenter({ onOpenReview }) {
             ) : (
               <div className="setup-section">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                  <h3 style={{ margin: 0 }}>1. Chọn Mục Đích / Chức Năng Diễn Đạt</h3>
+                  <h3 style={{ margin: 0 }}>2. Chọn Mục Đích / Chức Năng Diễn Đạt</h3>
                   <span style={{ fontSize: '0.82rem', color: '#ec4899', fontWeight: '600' }}>
                     Phân loại theo tư duy giao tiếp & viết luận
                   </span>
@@ -942,9 +1090,9 @@ export default function QuizCenter({ onOpenReview }) {
               </div>
             )}
 
-            {/* Step 2: IELTS Level Tier */}
+            {/* Step 3: IELTS Level Tier */}
             <div className="setup-section" style={{ marginTop: '1.2rem' }}>
-              <h3>2. Chọn Cấp Độ Khó (IELTS / CEFR)</h3>
+              <h3>3. Chọn Cấp Độ Khó (IELTS / CEFR)</h3>
               <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.6rem' }}>
                 {[
                   { id: 'all', label: 'Mọi Cấp Độ', desc: 'Đa dạng linh hoạt (A2 - C2)' },
@@ -967,10 +1115,10 @@ export default function QuizCenter({ onOpenReview }) {
               </div>
             </div>
 
-            {/* Step 3: Question Count & Mode */}
+            {/* Step 4: Question Count & Mode */}
             <div className="setup-grid-row">
               <div className="setup-section">
-                <h3>3. Số Lượng Câu Hỏi</h3>
+                <h3>4. Số Lượng Câu Hỏi</h3>
                 <div className="count-selector-row">
                   {[5, 10, 15].map(cnt => (
                     <button
@@ -986,7 +1134,7 @@ export default function QuizCenter({ onOpenReview }) {
               </div>
 
               <div className="setup-section">
-                <h3>4. Chế Độ Câu Hỏi</h3>
+                <h3>5. Chế Độ Câu Hỏi</h3>
                 <div className="mode-selector-row">
                   {[
                     { id: 'mixed', label: 'Hỗn Hợp (Tất cả)', icon: Shuffle },

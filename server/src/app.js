@@ -372,6 +372,7 @@ function buildProtectedRouter() {
 
   // Quiz
   api.get('/quiz/topics', quizController.getTopics);
+  api.get('/quiz/dates', quizController.getDates);
   api.post('/quiz/generate', quizController.generateQuiz);
   api.post('/quiz/generate-ai', quizController.generateAIQuiz);
   api.post('/quiz/generate-pattern', quizController.generatePatternQuiz);

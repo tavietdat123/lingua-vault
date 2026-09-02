@@ -546,6 +546,14 @@ export const mobileApi = {
     }
   },
 
+  getQuizDates: async () => {
+    try {
+      return await requestApi('/api/quiz/dates');
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
   generateQuiz: async (params = { topic: 'All', count: 5, mode: 'mixed' }) => {
     return await requestApi('/api/quiz/generate', {
       method: 'POST',

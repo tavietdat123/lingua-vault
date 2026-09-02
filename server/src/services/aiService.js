@@ -1,5 +1,5 @@
 import { getDb } from '../db/database.js';
-import { resolveTopics } from './quizService.js';
+import { resolveTopics, filterItemsByDate } from './quizService.js';
 
 export function getEffectiveApiKey(apiKey = null) {
   if (apiKey && typeof apiKey === 'string' && apiKey.trim()) return apiKey.trim();
@@ -670,7 +670,7 @@ Trả về JSON với cấu trúc:
 /**
  * 8. AI Smart Contextual Quiz Generator (Biên soạn bài trắc nghiệm ngữ cảnh thực tế theo cấp độ IELTS)
  */
-export async function generateAIQuiz({ topic = 'All', count = 5, words = [], level = 'all', mode = 'mixed' }, apiKey = null) {
+export async function generateAIQuiz({ topic = 'All', count = 5, words = [], level = 'all', mode = 'mixed', date_scope = 'all', date = null }, apiKey = null) {
   const db = getDb();
   let candidateWords = [];
   let topicDisplay = 'Tất cả (All)';
@@ -678,17 +678,20 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
   if (words && words.length > 0) {
     candidateWords = words;
   } else {
-    const allWords = db.prepare('SELECT id, word, meaning_vi, level, topic_id FROM words').all();
+    const allWords = db.prepare('SELECT id, word, meaning_vi, level, topic_id, created_at FROM words').all();
+    const dateFiltered = filterItemsByDate(allWords, date_scope, date);
     const resolved = resolveTopics(db, topic);
     if (!resolved.isAll) {
       topicDisplay = resolved.displayNames.join(' + ');
-      candidateWords = allWords.filter(w => {
+      candidateWords = dateFiltered.filter(w => {
         const wTopicId = (w.topic_id || '').toLowerCase();
         return resolved.targetIds.includes(wTopicId);
       });
+    } else {
+      candidateWords = dateFiltered;
     }
-    if (candidateWords.length === 0) {
-      candidateWords = allWords;
+    if (candidateWords.length === 0 && dateFiltered.length > 0) {
+      candidateWords = dateFiltered;
     }
   }
 
@@ -853,12 +856,17 @@ Hãy trả về JSON với cấu trúc:
 /**
  * 9. AI Smart Pattern Quiz Generator (Biên soạn bài trắc nghiệm mẫu câu & cấu trúc chuyên sâu bằng AI)
  */
-export async function generateAIPatternQuiz({ category = 'all', tone = 'all', count = 5, level = 'all', mode = 'mixed' }, apiKey = null) {
+export async function generateAIPatternQuiz({ category = 'all', tone = 'all', count = 5, level = 'all', mode = 'mixed', date_scope = 'all', date = null }, apiKey = null) {
   const db = getDb();
-  let patterns = db.prepare('SELECT id, name, formula, explanation, meaning_vi, category, tone, examples FROM patterns').all();
+  let patterns = db.prepare('SELECT id, name, formula, explanation, meaning_vi, category, tone, examples, created_at FROM patterns').all();
 
   if (patterns.length === 0) {
     throw new Error('Kho mẫu câu đang trống. Vui lòng thêm mẫu câu trước khi tạo Quiz AI!');
+  }
+
+  patterns = filterItemsByDate(patterns, date_scope, date);
+  if (patterns.length === 0) {
+    throw new Error('Không có mẫu câu nào trong phạm vi ngày đã chọn!');
   }
 
   const targetCount = Math.max(1, parseInt(count, 10) || 5);

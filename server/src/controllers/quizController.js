@@ -59,15 +59,40 @@ export const quizController = {
     }
   },
 
+  // GET /api/quiz/dates
+  getDates: (req, res) => {
+    try {
+      const userId = req.user?.id || 'admin_master_user_id';
+      const dates = quizService.getDates(userId);
+      res.json({ success: true, data: dates });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+
   // POST /api/quiz/generate
   generateQuiz: async (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { topic = 'All', count = 5, mode = 'mixed', use_ai = false, level = 'all' } = req.body;
+      const { topic = 'All', count = 5, mode = 'mixed', use_ai = false, level = 'all', date_scope = 'all', date = null } = req.body;
       const topicLabel = Array.isArray(topic) ? topic.join(', ') : String(topic || 'All');
+      
+      let dateTag = '';
+      if (date_scope === 'today') dateTag = ' [Hôm nay]';
+      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
+      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
+      else if (date) {
+        try {
+          const [y, m, d] = String(date).split('-');
+          dateTag = ` [${d}/${m}/${y}]`;
+        } catch (e) {
+          dateTag = ` [${date}]`;
+        }
+      }
+
       if (use_ai) {
-        const quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, level, mode });
-        const finalTopic = quiz.topic || topicLabel;
+        const quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, level, mode, date_scope, date });
+        const finalTopic = quiz.topic || `${topicLabel}${dateTag}`;
         const historyId = autoSaveQuizToHistory({
           title: `✨ Đề AI Từ Vựng: ${finalTopic} (${quiz.questions?.length || count} câu)`,
           type: 'vocab',
@@ -78,10 +103,10 @@ export const quizController = {
           questions: quiz.questions,
           userId
         });
-        return res.json({ success: true, data: { ...quiz, history_id: historyId } });
+        return res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
       }
-      const quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, userId });
-      const finalTopic = quiz.topic || topicLabel;
+      const quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, date_scope, date, userId });
+      const finalTopic = quiz.topic || `${topicLabel}${dateTag}`;
       const historyId = autoSaveQuizToHistory({
         title: `🎯 Đề Từ Vựng: ${finalTopic} (${quiz.questions?.length || count} câu)`,
         type: 'vocab',
@@ -92,7 +117,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
     } catch (err) {
       console.error('generateQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });
@@ -103,16 +128,29 @@ export const quizController = {
   generateAIQuiz: async (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { topic = 'All', count = 5, words = [], level = 'all', mode = 'mixed' } = req.body;
+      const { topic = 'All', count = 5, words = [], level = 'all', mode = 'mixed', date_scope = 'all', date = null } = req.body;
       let quiz;
       try {
-        quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, words, level, mode });
+        quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, words, level, mode, date_scope, date });
       } catch (aiErr) {
         console.warn('[AI Quiz Fallback] Gemini call failed, using high-quality local generator:', aiErr.message);
-        quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, userId });
+        quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, date_scope, date, userId });
       }
 
-      const topicLabel = Array.isArray(topic) ? topic.join(', ') : (quiz.topic || String(topic || 'All'));
+      let dateTag = '';
+      if (date_scope === 'today') dateTag = ' [Hôm nay]';
+      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
+      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
+      else if (date) {
+        try {
+          const [y, m, d] = String(date).split('-');
+          dateTag = ` [${d}/${m}/${y}]`;
+        } catch (e) {
+          dateTag = ` [${date}]`;
+        }
+      }
+
+      const topicLabel = Array.isArray(topic) ? topic.join(', ') : (quiz.topic || `${String(topic || 'All')}${dateTag}`);
       const historyId = autoSaveQuizToHistory({
         title: `✨ Đề AI Từ Vựng: ${topicLabel} (${quiz.questions?.length || count} câu)`,
         type: 'vocab',
@@ -123,7 +161,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
     } catch (err) {
       console.error('generateAIQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });
@@ -134,9 +172,23 @@ export const quizController = {
   generatePatternQuiz: (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all' } = req.body;
-      const quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, userId });
-      const categoryLabel = Array.isArray(category) ? category.join(', ') : String(category || 'Tất cả');
+      const { category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null } = req.body;
+      const quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, date_scope, date, userId });
+      
+      let dateTag = '';
+      if (date_scope === 'today') dateTag = ' [Hôm nay]';
+      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
+      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
+      else if (date) {
+        try {
+          const [y, m, d] = String(date).split('-');
+          dateTag = ` [${d}/${m}/${y}]`;
+        } catch (e) {
+          dateTag = ` [${date}]`;
+        }
+      }
+
+      const categoryLabel = Array.isArray(category) ? category.join(', ') : `${String(category || 'Tất cả')}${dateTag}`;
       const historyId = autoSaveQuizToHistory({
         title: `🧩 Đề Mẫu Câu: ${categoryLabel} (${quiz.questions?.length || count} câu)`,
         type: 'pattern',
@@ -147,7 +199,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
     } catch (err) {
       console.error('generatePatternQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });
@@ -158,16 +210,29 @@ export const quizController = {
   generateAIPatternQuiz: async (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { category = 'all', tone = 'all', count = 5, level = 'all', mode = 'mixed' } = req.body;
+      const { category = 'all', tone = 'all', count = 5, level = 'all', mode = 'mixed', date_scope = 'all', date = null } = req.body;
       let quiz;
       try {
-        quiz = await generateAIPatternQuiz({ category, tone, count: parseInt(count, 10) || 5, level, mode });
+        quiz = await generateAIPatternQuiz({ category, tone, count: parseInt(count, 10) || 5, level, mode, date_scope, date });
       } catch (aiErr) {
         console.warn('[AI Pattern Quiz Fallback] Gemini call failed, using high-quality local generator:', aiErr.message);
-        quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level });
+        quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, date_scope, date });
       }
 
-      const categoryLabel = Array.isArray(category) ? category.join(', ') : String(category || 'Tất cả');
+      let dateTag = '';
+      if (date_scope === 'today') dateTag = ' [Hôm nay]';
+      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
+      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
+      else if (date) {
+        try {
+          const [y, m, d] = String(date).split('-');
+          dateTag = ` [${d}/${m}/${y}]`;
+        } catch (e) {
+          dateTag = ` [${date}]`;
+        }
+      }
+
+      const categoryLabel = Array.isArray(category) ? category.join(', ') : `${String(category || 'Tất cả')}${dateTag}`;
       const historyId = autoSaveQuizToHistory({
         title: `✨ Đề AI Mẫu Câu: ${categoryLabel} (${quiz.questions?.length || count} câu)`,
         type: 'pattern',
@@ -178,7 +243,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
     } catch (err) {
       console.error('generateAIPatternQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });

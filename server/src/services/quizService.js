@@ -50,6 +50,50 @@ export function resolveTopics(db, topicInput) {
   };
 }
 
+// Helper to filter items by Date Scope
+export function filterItemsByDate(items, dateScope = 'all', specificDate = null) {
+  if (!items || items.length === 0) return [];
+  if (!dateScope || dateScope === 'all') return items;
+
+  const now = new Date();
+  const todayStr = now.toISOString().substring(0, 10);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().substring(0, 10);
+
+  const d7 = new Date(now);
+  d7.setDate(d7.getDate() - 7);
+  const d7Str = d7.toISOString().substring(0, 10);
+
+  const d30 = new Date(now);
+  d30.setDate(d30.getDate() - 30);
+  const d30Str = d30.toISOString().substring(0, 10);
+
+  if (dateScope === 'today') {
+    return items.filter(i => (i.created_at || '').substring(0, 10) === todayStr);
+  }
+  if (dateScope === 'yesterday') {
+    return items.filter(i => (i.created_at || '').substring(0, 10) === yesterdayStr);
+  }
+  if (dateScope === 'last_7_days') {
+    return items.filter(i => (i.created_at || '').substring(0, 10) >= d7Str);
+  }
+  if (dateScope === 'last_30_days') {
+    return items.filter(i => (i.created_at || '').substring(0, 10) >= d30Str);
+  }
+  if (dateScope === 'custom' || dateScope === 'specific') {
+    if (Array.isArray(specificDate)) {
+      return items.filter(i => specificDate.includes((i.created_at || '').substring(0, 10)));
+    }
+    return items.filter(i => (i.created_at || '').substring(0, 10) === specificDate);
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateScope)) {
+    return items.filter(i => (i.created_at || '').substring(0, 10) === dateScope);
+  }
+
+  return items;
+}
+
 const HIGH_QUALITY_DISTRACTORS = [
   { word: 'resilient', meaning_vi: 'Kiên cường, có khả năng phục hồi nhanh' },
   { word: 'articulate', meaning_vi: 'Ăn nói lưu loát, diễn đạt mạch lạc rõ ràng' },
@@ -143,13 +187,79 @@ export const quizService = {
     return topicItems;
   },
 
-  // 2. Generate a Quiz based on Single/Multiple Topics, Question Count and IELTS Level for specific user
-  generateQuiz: ({ topic = 'All', count = 5, mode = 'mixed', level = 'all', userId = 'admin_master_user_id' }) => {
+  // 1b. Get all available dates with counts of words and patterns created on each day
+  getDates: (userId = 'admin_master_user_id') => {
+    const db = getDb();
+    const wordDates = db.prepare(`
+      SELECT substr(created_at, 1, 10) as date, count(*) as count
+      FROM words
+      WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+        AND created_at IS NOT NULL
+      GROUP BY substr(created_at, 1, 10)
+      ORDER BY date DESC
+    `).all(userId, userId, userId);
+
+    const patternDates = db.prepare(`
+      SELECT substr(created_at, 1, 10) as date, count(*) as count
+      FROM patterns
+      WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+        AND created_at IS NOT NULL
+      GROUP BY substr(created_at, 1, 10)
+      ORDER BY date DESC
+    `).all(userId, userId, userId);
+
+    const dateMap = new Map();
+    const now = new Date();
+    const todayStr = now.toISOString().substring(0, 10);
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().substring(0, 10);
+
+    wordDates.forEach(r => {
+      if (!r.date) return;
+      const existing = dateMap.get(r.date) || { date: r.date, words_count: 0, patterns_count: 0, total_count: 0 };
+      existing.words_count += r.count;
+      existing.total_count += r.count;
+      dateMap.set(r.date, existing);
+    });
+
+    patternDates.forEach(r => {
+      if (!r.date) return;
+      const existing = dateMap.get(r.date) || { date: r.date, words_count: 0, patterns_count: 0, total_count: 0 };
+      existing.patterns_count += r.count;
+      existing.total_count += r.count;
+      dateMap.set(r.date, existing);
+    });
+
+    const sortedDates = Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+
+    return sortedDates.map(item => {
+      let label = item.date;
+      try {
+        const [y, m, d] = item.date.split('-');
+        label = `${d}/${m}/${y}`;
+      } catch (e) {}
+
+      if (item.date === todayStr) {
+        label = `Hôm nay (${label})`;
+      } else if (item.date === yesterdayStr) {
+        label = `Hôm qua (${label})`;
+      }
+
+      return {
+        ...item,
+        label
+      };
+    });
+  },
+
+  // 2. Generate a Quiz based on Topics, Date Scope, Count and IELTS Level
+  generateQuiz: ({ topic = 'All', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, userId = 'admin_master_user_id' }) => {
     const db = getDb();
     let words = db.prepare(`
       SELECT * FROM words 
-      WHERE (user_id = ? OR user_id IS NULL OR user_id = 'admin_master_user_id')
-    `).all(userId);
+      WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
+    `).all(userId, userId, userId);
 
     if (words.length === 0) {
       throw new Error('Kho từ vựng đang trống. Vui lòng thêm từ vựng trước khi tạo bài Quiz!');
@@ -157,21 +267,40 @@ export const quizService = {
 
     const targetCount = Math.max(1, parseInt(count, 10) || 5);
 
-    // 1. Filter by Single or Multiple Topics
-    let candidateWords = words;
+    // 1. Filter by Date Scope if specified
+    let candidateWords = filterItemsByDate(words, date_scope, date);
+    if (candidateWords.length === 0) {
+      let dateLabel = date_scope;
+      if (date_scope === 'today') dateLabel = 'Hôm nay';
+      else if (date_scope === 'yesterday') dateLabel = 'Hôm qua';
+      else if (date_scope === 'last_7_days') dateLabel = '7 ngày gần nhất';
+      else if (date_scope === 'last_30_days') dateLabel = '30 ngày gần nhất';
+      else if (date) {
+        try {
+          const [y, m, d] = String(date).split('-');
+          dateLabel = `Ngày ${d}/${m}/${y}`;
+        } catch (e) {
+          dateLabel = `Ngày ${date}`;
+        }
+      }
+      throw new Error(`Không có từ vựng nào được thêm vào trong phạm vi [${dateLabel}]. Vui lòng chọn ngày khác hoặc chọn [Toàn bộ]!`);
+    }
+
+    // 2. Filter by Single or Multiple Topics
     let topicDisplay = 'Tất cả (All)';
 
     const resolved = resolveTopics(db, topic);
     if (!resolved.isAll) {
       topicDisplay = resolved.displayNames.join(' + ');
-      candidateWords = words.filter(w => {
+      const topicFiltered = candidateWords.filter(w => {
         const wTopicId = (w.topic_id || '').toLowerCase();
         return resolved.targetIds.includes(wTopicId);
       });
 
-      if (candidateWords.length === 0) {
-        throw new Error(`Các chủ đề đã chọn (${topicDisplay}) chưa có từ vựng nào trong kho từ. Vui lòng thêm từ hoặc chọn chủ đề khác!`);
+      if (topicFiltered.length === 0) {
+        throw new Error(`Các chủ đề đã chọn (${topicDisplay}) chưa có từ vựng nào trong phạm vi ngày đã chọn. Vui lòng chọn chủ đề khác hoặc chọn [Tất cả]!`);
       }
+      candidateWords = topicFiltered;
     }
 
     // 2. Filter by Granular IELTS Level Tier if specified
@@ -450,7 +579,7 @@ export const quizService = {
   },
 
   // 4. Generate Sentence Pattern Quiz
-  generatePatternQuiz: ({ category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', userId = 'admin_master_user_id' }) => {
+  generatePatternQuiz: ({ category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, userId = 'admin_master_user_id' }) => {
     const db = getDb();
     let patterns = db.prepare(`
       SELECT * FROM patterns 
@@ -463,10 +592,27 @@ export const quizService = {
 
     const targetCount = Math.max(1, parseInt(count, 10) || 5);
 
+    // Filter by Date Scope if specified
+    let candidatePatterns = filterItemsByDate(patterns, date_scope, date);
+    if (candidatePatterns.length === 0) {
+      let dateLabel = date_scope;
+      if (date_scope === 'today') dateLabel = 'Hôm nay';
+      else if (date_scope === 'yesterday') dateLabel = 'Hôm qua';
+      else if (date_scope === 'last_7_days') dateLabel = '7 ngày gần nhất';
+      else if (date) {
+        try {
+          const [y, m, d] = String(date).split('-');
+          dateLabel = `Ngày ${d}/${m}/${y}`;
+        } catch (e) {
+          dateLabel = `Ngày ${date}`;
+        }
+      }
+      throw new Error(`Không có mẫu câu nào được thêm vào trong phạm vi [${dateLabel}]. Vui lòng chọn ngày khác!`);
+    }
+
     const filterTarget = (category && category !== 'all') ? category : tone;
-    let candidatePatterns = patterns;
     if (filterTarget && filterTarget !== 'all') {
-      const filtered = patterns.filter(p => 
+      const filtered = candidatePatterns.filter(p => 
         (p.category || '').toLowerCase() === filterTarget.toLowerCase() ||
         (p.tone || '').toLowerCase().includes(filterTarget.toLowerCase())
       );

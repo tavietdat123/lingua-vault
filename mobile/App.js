@@ -852,6 +852,9 @@ function MainApp() {
   // Mobile Quiz State
   const [selectedQuizCategory, setSelectedQuizCategory] = useState('vocab'); // 'vocab' | 'pattern'
   const [quizTopics, setQuizTopics] = useState([]);
+  const [quizDates, setQuizDates] = useState([]);
+  const [selectedQuizDateScope, setSelectedQuizDateScope] = useState('all'); // 'all' | 'today' | 'yesterday' | 'last_7_days' | 'specific'
+  const [selectedQuizDate, setSelectedQuizDate] = useState('');
   const [selectedQuizTopics, setSelectedQuizTopics] = useState(['All']);
   const [selectedQuizPatternCategory, setSelectedQuizPatternCategory] = useState('all');
   const [selectedQuizLevel, setSelectedQuizLevel] = useState('all');
@@ -1259,7 +1262,7 @@ function MainApp() {
       if (health.url) setServerUrlState(health.url);
       trace('loadData:health-ok', health.success);
 
-      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes, gamificationRes, realTopicsRes, patternCatsRes, quizHistoryRes] = await Promise.all([
+      const [statsRes, dueRes, wordsRes, patternsRes, notesRes, settingsRes, telegramRes, topicsRes, promptsRes, gamificationRes, realTopicsRes, patternCatsRes, quizHistoryRes, quizDatesRes] = await Promise.all([
       mobileApi.getStats(),
       mobileApi.getDueItems(),
       mobileApi.getWords(),
@@ -1272,7 +1275,8 @@ function MainApp() {
       mobileApi.getGamificationProfile(),
       mobileApi.getTopics(),
       mobileApi.getPatternCategories(),
-      mobileApi.getQuizHistory()]
+      mobileApi.getQuizHistory(),
+      mobileApi.getQuizDates()]
       );
 
       if (statsRes?.success) setStats(statsRes.data);
@@ -1280,6 +1284,10 @@ function MainApp() {
       if (realTopicsRes?.success) setTopics(realTopicsRes.data || []);
       if (patternCatsRes?.success) setPatternCategories(patternCatsRes.data || []);
       if (quizHistoryRes?.success) setQuizHistory(quizHistoryRes.data || []);
+      if (quizDatesRes?.success && quizDatesRes.data) {
+        setQuizDates(quizDatesRes.data || []);
+        if (quizDatesRes.data.length > 0) setSelectedQuizDate(quizDatesRes.data[0].date);
+      }
       if (dueRes?.success) {
         const combined = [
         ...(dueRes.data?.words || []),
@@ -2684,20 +2692,26 @@ function MainApp() {
     setIsQuizLoading(true);
     try {
       let res;
+      const targetDate = selectedQuizDateScope === 'specific' ? selectedQuizDate : null;
+
       if (selectedQuizCategory === 'pattern') {
         if (useAi) {
           res = await mobileApi.generateAIPatternQuiz({
             category: selectedQuizPatternCategory,
             count: quizQuestionCount,
             level: selectedQuizLevel,
-            mode: selectedQuizMode
+            mode: selectedQuizMode,
+            date_scope: selectedQuizDateScope,
+            date: targetDate
           });
         } else {
           res = await mobileApi.generatePatternQuiz({
             category: selectedQuizPatternCategory,
             count: quizQuestionCount,
             mode: selectedQuizMode,
-            level: selectedQuizLevel
+            level: selectedQuizLevel,
+            date_scope: selectedQuizDateScope,
+            date: targetDate
           });
         }
       } else {
@@ -2706,14 +2720,18 @@ function MainApp() {
             topic: selectedQuizTopics,
             count: quizQuestionCount,
             level: selectedQuizLevel,
-            mode: selectedQuizMode
+            mode: selectedQuizMode,
+            date_scope: selectedQuizDateScope,
+            date: targetDate
           });
         } else {
           res = await mobileApi.generateQuiz({
             topic: selectedQuizTopics,
             count: quizQuestionCount,
             mode: selectedQuizMode,
-            level: selectedQuizLevel
+            level: selectedQuizLevel,
+            date_scope: selectedQuizDateScope,
+            date: targetDate
           });
         }
       }
@@ -6121,12 +6139,88 @@ function MainApp() {
                           </TouchableOpacity>
                         </View>
 
-                        {/* Step 1: Choose Topic / Tone */}
+                                   {/* Step 1: Date Scope Selector */}
+                        <View style={{ marginBottom: 16 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 0 }]}>
+                              📅 1. Phạm Vi Ngày Nạp Từ Vựng:
+                            </Text>
+                            <Text style={{ fontSize: 11, color: theme.accent, fontWeight: '700' }}>
+                              {selectedQuizDateScope === 'all' && 'Toàn bộ kho từ'}
+                              {selectedQuizDateScope === 'today' && 'Hôm nay'}
+                              {selectedQuizDateScope === 'yesterday' && 'Hôm qua'}
+                              {selectedQuizDateScope === 'last_7_days' && '7 ngày qua'}
+                              {selectedQuizDateScope === 'specific' && (selectedQuizDate || 'Chọn ngày')}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                            {[
+                              { id: 'all', label: 'Toàn bộ' },
+                              { id: 'today', label: 'Hôm nay' },
+                              { id: 'yesterday', label: 'Hôm qua' },
+                              { id: 'last_7_days', label: '7 ngày qua' },
+                              { id: 'specific', label: 'Theo ngày' }
+                            ].map((s) => {
+                              const isSelected = selectedQuizDateScope === s.id;
+                              return (
+                                <TouchableOpacity
+                                  key={s.id}
+                                  style={[
+                                    styles.filterChip,
+                                    { backgroundColor: isSelected ? theme.accent : theme.innerCard, borderColor: isSelected ? theme.accent : theme.cardBorder, paddingVertical: 6, paddingHorizontal: 10 }
+                                  ]}
+                                  onPress={() => setSelectedQuizDateScope(s.id)}
+                                >
+                                  <Text style={[styles.filterChipText, { color: isSelected ? '#ffffff' : theme.textSecondary, fontWeight: isSelected ? '800' : '600', fontSize: 11 }]}>
+                                    {s.label}{isSelected ? ' ✓' : ''}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+
+                          {selectedQuizDateScope === 'specific' && (
+                            <View style={{ backgroundColor: theme.innerCard, borderWidth: 1, borderColor: theme.accent, borderRadius: 12, padding: 10, marginTop: 4 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textPrimary, marginBottom: 6 }}>
+                                📅 Chọn ngày đã nạp từ vựng:
+                              </Text>
+                              {quizDates.length === 0 ? (
+                                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Chưa có danh sách ngày nào.</Text>
+                              ) : (
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                  {quizDates.map((qd) => {
+                                    const isPicked = selectedQuizDate === qd.date;
+                                    return (
+                                      <TouchableOpacity
+                                        key={qd.date}
+                                        style={{
+                                          paddingVertical: 5,
+                                          paddingHorizontal: 8,
+                                          borderRadius: 8,
+                                          backgroundColor: isPicked ? theme.accent : theme.cardBackground,
+                                          borderWidth: 1,
+                                          borderColor: isPicked ? theme.accent : theme.cardBorder
+                                        }}
+                                        onPress={() => setSelectedQuizDate(qd.date)}
+                                      >
+                                        <Text style={{ fontSize: 11, fontWeight: isPicked ? '800' : '600', color: isPicked ? '#ffffff' : theme.textPrimary }}>
+                                          {qd.label} ({selectedQuizCategory === 'pattern' ? `${qd.patterns_count} câu` : `${qd.words_count} từ`})
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              )}
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Step 2: Choose Topic / Tone */}
                         {selectedQuizCategory === 'vocab' ?
                 <>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                               <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 0 }]}>
-                                1. Chọn Chủ Đề (Topic):
+                                2. Chọn Chủ Đề (Topic):
                               </Text>
                               <Text style={{ fontSize: 11, color: theme.accent, fontWeight: '700' }}>
                                 {selectedQuizTopics.includes('All') ? 'Tất cả (All)' : `${selectedQuizTopics.length} chủ đề`}
@@ -6160,7 +6254,7 @@ function MainApp() {
                 <>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                               <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 0 }]}>
-                                1. Chọn Nhóm Chức Năng Câu:
+                                2. Chọn Nhóm Chức Năng Câu:
                               </Text>
                               <Text style={{ fontSize: 11, color: '#ec4899', fontWeight: '700' }}>
                                 7 nhóm chức năng
@@ -6201,9 +6295,9 @@ function MainApp() {
                           </>
                 }
 
-                        {/* Step 2: IELTS Level Tier */}
+                        {/* Step 3: IELTS Level Tier */}
                         <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
-                          2. Chọn Cấp Độ (IELTS / CEFR):
+                          3. Chọn Cấp Độ (IELTS / CEFR):
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                           {[
@@ -6232,9 +6326,9 @@ function MainApp() {
                   })}
                         </View>
 
-                        {/* Step 3: Question Count */}
+                        {/* Step 4: Question Count */}
                         <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
-                          3. Số Lượng Câu Hỏi:
+                          4. Số Lượng Câu Hỏi:
                         </Text>
                         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
                           {[5, 10, 15].map((cnt) =>
@@ -6253,9 +6347,9 @@ function MainApp() {
                   )}
                         </View>
 
-                        {/* Question Mode */}
+                        {/* Step 5: Question Mode */}
                         <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 8 }]}>
-                          4. Chế Độ Câu Hỏi:
+                          5. Chế Độ Câu Hỏi:
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
                           {[
