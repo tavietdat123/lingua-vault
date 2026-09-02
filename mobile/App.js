@@ -854,7 +854,7 @@ function MainApp() {
   const [quizTopics, setQuizTopics] = useState([]);
   const [quizDates, setQuizDates] = useState([]);
   const [selectedQuizDateScope, setSelectedQuizDateScope] = useState('all'); // 'all' | 'today' | 'yesterday' | 'last_7_days' | 'specific'
-  const [selectedQuizDate, setSelectedQuizDate] = useState('');
+  const [selectedQuizDates, setSelectedQuizDates] = useState([]);
   const [selectedQuizTopics, setSelectedQuizTopics] = useState(['All']);
   const [selectedQuizPatternCategory, setSelectedQuizPatternCategory] = useState('all');
   const [selectedQuizLevel, setSelectedQuizLevel] = useState('all');
@@ -2688,11 +2688,34 @@ function MainApp() {
     setSelectedQuizTopics(updated);
   };
 
+  const toggleMobileQuizDate = (dateStr) => {
+    let updated;
+    if (selectedQuizDates.includes(dateStr)) {
+      updated = selectedQuizDates.filter((d) => d !== dateStr);
+    } else {
+      updated = [...selectedQuizDates, dateStr];
+    }
+    setSelectedQuizDates(updated);
+    if (updated.length > 0) {
+      setSelectedQuizDateScope('specific');
+    } else {
+      setSelectedQuizDateScope('all');
+    }
+  };
+
   const handleStartMobileQuiz = async (useAi = false) => {
     setIsQuizLoading(true);
     try {
       let res;
-      const targetDate = selectedQuizDateScope === 'specific' ? selectedQuizDate : null;
+      let targetDate = null;
+      if (selectedQuizDateScope === 'specific') {
+        targetDate = selectedQuizDates.length === 1 ? selectedQuizDates[0] : (selectedQuizDates.length > 1 ? selectedQuizDates : null);
+        if (!targetDate) {
+          Alert.alert('Thông báo', 'Vui lòng chọn ít nhất 1 ngày học trong danh sách bên dưới.');
+          setIsQuizLoading(false);
+          return;
+        }
+      }
 
       if (selectedQuizCategory === 'pattern') {
         if (useAi) {
@@ -6139,29 +6162,34 @@ function MainApp() {
                           </TouchableOpacity>
                         </View>
 
-                                   {/* Step 1: Date Scope Selector */}
+                        {/* Step 1: Date Scope Selector */}
                         <View style={{ marginBottom: 16 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                             <Text style={[styles.inputLabel, { color: theme.textPrimary, fontWeight: '800', marginBottom: 0 }]}>
                               📅 1. Phạm Vi Ngày Nạp Từ Vựng:
                             </Text>
                             <Text style={{ fontSize: 11, color: theme.accent, fontWeight: '700' }}>
-                              {selectedQuizDateScope === 'all' && 'Toàn bộ kho từ'}
-                              {selectedQuizDateScope === 'today' && 'Hôm nay'}
-                              {selectedQuizDateScope === 'yesterday' && 'Hôm qua'}
-                              {selectedQuizDateScope === 'last_7_days' && '7 ngày qua'}
-                              {selectedQuizDateScope === 'specific' && (selectedQuizDate || 'Chọn ngày')}
+                              {selectedQuizDateScope === 'all' && '🌐 Toàn bộ kho từ'}
+                              {selectedQuizDateScope === 'today' && '⚡ Hôm nay'}
+                              {selectedQuizDateScope === 'yesterday' && '🕒 Hôm qua'}
+                              {selectedQuizDateScope === 'last_7_days' && '🔥 7 ngày qua'}
+                              {selectedQuizDateScope === 'specific' && (
+                                selectedQuizDates.length === 1 
+                                  ? `📅 ${selectedQuizDates[0]}` 
+                                  : `📅 Đã chọn ${selectedQuizDates.length} ngày`
+                              )}
                             </Text>
                           </View>
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+
+                          {/* Quick Presets */}
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                             {[
                               { id: 'all', label: 'Toàn bộ' },
                               { id: 'today', label: 'Hôm nay' },
                               { id: 'yesterday', label: 'Hôm qua' },
-                              { id: 'last_7_days', label: '7 ngày qua' },
-                              { id: 'specific', label: 'Theo ngày' }
+                              { id: 'last_7_days', label: '7 ngày qua' }
                             ].map((s) => {
-                              const isSelected = selectedQuizDateScope === s.id;
+                              const isSelected = selectedQuizDateScope === s.id && selectedQuizDates.length === 0;
                               return (
                                 <TouchableOpacity
                                   key={s.id}
@@ -6169,7 +6197,10 @@ function MainApp() {
                                     styles.filterChip,
                                     { backgroundColor: isSelected ? theme.accent : theme.innerCard, borderColor: isSelected ? theme.accent : theme.cardBorder, paddingVertical: 6, paddingHorizontal: 10 }
                                   ]}
-                                  onPress={() => setSelectedQuizDateScope(s.id)}
+                                  onPress={() => {
+                                    setSelectedQuizDateScope(s.id);
+                                    setSelectedQuizDates([]);
+                                  }}
                                 >
                                   <Text style={[styles.filterChipText, { color: isSelected ? '#ffffff' : theme.textSecondary, fontWeight: isSelected ? '800' : '600', fontSize: 11 }]}>
                                     {s.label}{isSelected ? ' ✓' : ''}
@@ -6179,40 +6210,51 @@ function MainApp() {
                             })}
                           </View>
 
-                          {selectedQuizDateScope === 'specific' && (
-                            <View style={{ backgroundColor: theme.innerCard, borderWidth: 1, borderColor: theme.accent, borderRadius: 12, padding: 10, marginTop: 4 }}>
-                              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textPrimary, marginBottom: 6 }}>
-                                📅 Chọn ngày đã nạp từ vựng:
+                          {/* Always Available Specific Date Chips */}
+                          <View style={{ backgroundColor: theme.innerCard, borderWidth: selectedQuizDates.length > 0 ? 1.5 : 1, borderColor: selectedQuizDates.length > 0 ? theme.accent : theme.cardBorder, borderRadius: 14, padding: 10 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: theme.textPrimary }}>
+                                🎯 Chọn theo từng ngày học (Có thể chọn nhiều ngày):
                               </Text>
-                              {quizDates.length === 0 ? (
-                                <Text style={{ fontSize: 11, color: theme.textSecondary }}>Chưa có danh sách ngày nào.</Text>
-                              ) : (
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                                  {quizDates.map((qd) => {
-                                    const isPicked = selectedQuizDate === qd.date;
-                                    return (
-                                      <TouchableOpacity
-                                        key={qd.date}
-                                        style={{
-                                          paddingVertical: 5,
-                                          paddingHorizontal: 8,
-                                          borderRadius: 8,
-                                          backgroundColor: isPicked ? theme.accent : theme.cardBackground,
-                                          borderWidth: 1,
-                                          borderColor: isPicked ? theme.accent : theme.cardBorder
-                                        }}
-                                        onPress={() => setSelectedQuizDate(qd.date)}
-                                      >
-                                        <Text style={{ fontSize: 11, fontWeight: isPicked ? '800' : '600', color: isPicked ? '#ffffff' : theme.textPrimary }}>
-                                          {qd.label} ({selectedQuizCategory === 'pattern' ? `${qd.patterns_count} câu` : `${qd.words_count} từ`})
-                                        </Text>
-                                      </TouchableOpacity>
-                                    );
-                                  })}
-                                </View>
+                              {selectedQuizDates.length > 0 && (
+                                <TouchableOpacity onPress={() => { setSelectedQuizDates([]); setSelectedQuizDateScope('all'); }}>
+                                  <Text style={{ fontSize: 10, color: theme.accent, fontWeight: '700' }}>Bỏ chọn</Text>
+                                </TouchableOpacity>
                               )}
                             </View>
-                          )}
+
+                            {quizDates.length === 0 ? (
+                              <Text style={{ fontSize: 11, color: theme.textSecondary }}>Chưa có danh sách ngày nào.</Text>
+                            ) : (
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                                {quizDates.map((qd) => {
+                                  const isPicked = selectedQuizDates.includes(qd.date);
+                                  return (
+                                    <TouchableOpacity
+                                      key={qd.date}
+                                      style={{
+                                        paddingVertical: 6,
+                                        paddingHorizontal: 10,
+                                        borderRadius: 10,
+                                        backgroundColor: isPicked ? theme.accent : theme.cardBackground,
+                                        borderWidth: 1.5,
+                                        borderColor: isPicked ? theme.accent : theme.cardBorder,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 4
+                                      }}
+                                      onPress={() => toggleMobileQuizDate(qd.date)}
+                                    >
+                                      <Text style={{ fontSize: 11, fontWeight: isPicked ? '800' : '600', color: isPicked ? '#ffffff' : theme.textPrimary }}>
+                                        {qd.label} ({selectedQuizCategory === 'pattern' ? `${qd.patterns_count} câu` : `${qd.words_count} từ`})
+                                      </Text>
+                                      {isPicked && <Text style={{ color: '#ffffff', fontWeight: '900', fontSize: 11 }}>✓</Text>}
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            )}
+                          </View>
                         </View>
 
                         {/* Step 2: Choose Topic / Tone */}

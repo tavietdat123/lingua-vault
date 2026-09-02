@@ -47,6 +47,36 @@ const autoSaveQuizToHistory = ({ title, type = 'vocab', is_ai = 1, topic = 'All'
   }
 };
 
+const formatDateTag = (date_scope, date, start_date, end_date) => {
+  if (date_scope === 'today') return ' [Hôm nay]';
+  if (date_scope === 'yesterday') return ' [Hôm qua]';
+  if (date_scope === 'last_7_days') return ' [7 ngày qua]';
+  if (date_scope === 'last_30_days') return ' [30 ngày qua]';
+  if (date_scope === 'range' && (start_date || end_date)) {
+    return ` [${start_date || '...'} -> ${end_date || '...'}]`;
+  }
+  if (Array.isArray(date) && date.length > 0) {
+    if (date.length === 1) {
+      try {
+        const [y, m, d] = date[0].split('-');
+        return ` [${d}/${m}/${y}]`;
+      } catch (e) {
+        return ` [${date[0]}]`;
+      }
+    }
+    return ` [${date.length} ngày đã chọn]`;
+  }
+  if (date) {
+    try {
+      const [y, m, d] = String(date).split('-');
+      return ` [${d}/${m}/${y}]`;
+    } catch (e) {
+      return ` [${date}]`;
+    }
+  }
+  return '';
+};
+
 export const quizController = {
   // GET /api/quiz/topics
   getTopics: (req, res) => {
@@ -74,24 +104,12 @@ export const quizController = {
   generateQuiz: async (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { topic = 'All', count = 5, mode = 'mixed', use_ai = false, level = 'all', date_scope = 'all', date = null } = req.body;
+      const { topic = 'All', count = 5, mode = 'mixed', use_ai = false, level = 'all', date_scope = 'all', date = null, start_date = null, end_date = null } = req.body;
       const topicLabel = Array.isArray(topic) ? topic.join(', ') : String(topic || 'All');
-      
-      let dateTag = '';
-      if (date_scope === 'today') dateTag = ' [Hôm nay]';
-      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
-      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
-      else if (date) {
-        try {
-          const [y, m, d] = String(date).split('-');
-          dateTag = ` [${d}/${m}/${y}]`;
-        } catch (e) {
-          dateTag = ` [${date}]`;
-        }
-      }
+      const dateTag = formatDateTag(date_scope, date, start_date, end_date);
 
       if (use_ai) {
-        const quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, level, mode, date_scope, date });
+        const quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, level, mode, date_scope, date, start_date, end_date });
         const finalTopic = quiz.topic || `${topicLabel}${dateTag}`;
         const historyId = autoSaveQuizToHistory({
           title: `✨ Đề AI Từ Vựng: ${finalTopic} (${quiz.questions?.length || count} câu)`,
@@ -103,9 +121,9 @@ export const quizController = {
           questions: quiz.questions,
           userId
         });
-        return res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
+        return res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date, start_date, end_date } });
       }
-      const quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, date_scope, date, userId });
+      const quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, date_scope, date, start_date, end_date, userId });
       const finalTopic = quiz.topic || `${topicLabel}${dateTag}`;
       const historyId = autoSaveQuizToHistory({
         title: `🎯 Đề Từ Vựng: ${finalTopic} (${quiz.questions?.length || count} câu)`,
@@ -117,7 +135,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date, start_date, end_date } });
     } catch (err) {
       console.error('generateQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });
@@ -128,28 +146,16 @@ export const quizController = {
   generateAIQuiz: async (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { topic = 'All', count = 5, words = [], level = 'all', mode = 'mixed', date_scope = 'all', date = null } = req.body;
+      const { topic = 'All', count = 5, words = [], level = 'all', mode = 'mixed', date_scope = 'all', date = null, start_date = null, end_date = null } = req.body;
       let quiz;
       try {
-        quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, words, level, mode, date_scope, date });
+        quiz = await generateAIQuiz({ topic, count: parseInt(count, 10) || 5, words, level, mode, date_scope, date, start_date, end_date });
       } catch (aiErr) {
         console.warn('[AI Quiz Fallback] Gemini call failed, using high-quality local generator:', aiErr.message);
-        quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, date_scope, date, userId });
+        quiz = quizService.generateQuiz({ topic, count: parseInt(count, 10) || 5, mode, level, date_scope, date, start_date, end_date, userId });
       }
 
-      let dateTag = '';
-      if (date_scope === 'today') dateTag = ' [Hôm nay]';
-      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
-      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
-      else if (date) {
-        try {
-          const [y, m, d] = String(date).split('-');
-          dateTag = ` [${d}/${m}/${y}]`;
-        } catch (e) {
-          dateTag = ` [${date}]`;
-        }
-      }
-
+      const dateTag = formatDateTag(date_scope, date, start_date, end_date);
       const topicLabel = Array.isArray(topic) ? topic.join(', ') : (quiz.topic || `${String(topic || 'All')}${dateTag}`);
       const historyId = autoSaveQuizToHistory({
         title: `✨ Đề AI Từ Vựng: ${topicLabel} (${quiz.questions?.length || count} câu)`,
@@ -161,7 +167,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date, start_date, end_date } });
     } catch (err) {
       console.error('generateAIQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });
@@ -172,22 +178,9 @@ export const quizController = {
   generatePatternQuiz: (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null } = req.body;
-      const quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, date_scope, date, userId });
-      
-      let dateTag = '';
-      if (date_scope === 'today') dateTag = ' [Hôm nay]';
-      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
-      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
-      else if (date) {
-        try {
-          const [y, m, d] = String(date).split('-');
-          dateTag = ` [${d}/${m}/${y}]`;
-        } catch (e) {
-          dateTag = ` [${date}]`;
-        }
-      }
-
+      const { category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, start_date = null, end_date = null } = req.body;
+      const quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, date_scope, date, start_date, end_date, userId });
+      const dateTag = formatDateTag(date_scope, date, start_date, end_date);
       const categoryLabel = Array.isArray(category) ? category.join(', ') : `${String(category || 'Tất cả')}${dateTag}`;
       const historyId = autoSaveQuizToHistory({
         title: `🧩 Đề Mẫu Câu: ${categoryLabel} (${quiz.questions?.length || count} câu)`,
@@ -199,7 +192,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date, start_date, end_date } });
     } catch (err) {
       console.error('generatePatternQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });
@@ -210,28 +203,16 @@ export const quizController = {
   generateAIPatternQuiz: async (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const { category = 'all', tone = 'all', count = 5, level = 'all', mode = 'mixed', date_scope = 'all', date = null } = req.body;
+      const { category = 'all', tone = 'all', count = 5, level = 'all', mode = 'mixed', date_scope = 'all', date = null, start_date = null, end_date = null } = req.body;
       let quiz;
       try {
-        quiz = await generateAIPatternQuiz({ category, tone, count: parseInt(count, 10) || 5, level, mode, date_scope, date });
+        quiz = await generateAIPatternQuiz({ category, tone, count: parseInt(count, 10) || 5, level, mode, date_scope, date, start_date, end_date });
       } catch (aiErr) {
         console.warn('[AI Pattern Quiz Fallback] Gemini call failed, using high-quality local generator:', aiErr.message);
-        quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, date_scope, date });
+        quiz = quizService.generatePatternQuiz({ category, tone, count: parseInt(count, 10) || 5, mode, level, date_scope, date, start_date, end_date });
       }
 
-      let dateTag = '';
-      if (date_scope === 'today') dateTag = ' [Hôm nay]';
-      else if (date_scope === 'yesterday') dateTag = ' [Hôm qua]';
-      else if (date_scope === 'last_7_days') dateTag = ' [7 ngày qua]';
-      else if (date) {
-        try {
-          const [y, m, d] = String(date).split('-');
-          dateTag = ` [${d}/${m}/${y}]`;
-        } catch (e) {
-          dateTag = ` [${date}]`;
-        }
-      }
-
+      const dateTag = formatDateTag(date_scope, date, start_date, end_date);
       const categoryLabel = Array.isArray(category) ? category.join(', ') : `${String(category || 'Tất cả')}${dateTag}`;
       const historyId = autoSaveQuizToHistory({
         title: `✨ Đề AI Mẫu Câu: ${categoryLabel} (${quiz.questions?.length || count} câu)`,
@@ -243,7 +224,7 @@ export const quizController = {
         questions: quiz.questions,
         userId
       });
-      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date } });
+      res.json({ success: true, data: { ...quiz, history_id: historyId, date_scope, date, start_date, end_date } });
     } catch (err) {
       console.error('generateAIPatternQuiz error:', err);
       res.status(400).json({ success: false, error: err.message });

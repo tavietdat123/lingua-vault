@@ -34,8 +34,11 @@ export default function QuizCenter({ onOpenReview }) {
   const [topics, setTopics] = useState([]);
   const [patternCategories, setPatternCategories] = useState([]);
   const [quizDates, setQuizDates] = useState([]);
-  const [dateScope, setDateScope] = useState('all'); // 'all' | 'today' | 'yesterday' | 'last_7_days' | 'specific'
-  const [selectedDate, setSelectedDate] = useState('');
+  const [dateScope, setDateScope] = useState('all'); // 'all' | 'today' | 'yesterday' | 'last_7_days' | 'specific' | 'range'
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [customCalendarDate, setCustomCalendarDate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [selectedTopics, setSelectedTopics] = useState(['All']);
   const [selectedPatternCategory, setSelectedPatternCategory] = useState('all');
   const [selectedLevel, setSelectedLevel] = useState('all');
@@ -149,50 +152,81 @@ export default function QuizCenter({ onOpenReview }) {
     setSelectedTopics(updated);
   };
 
+  const toggleDate = (dateStr) => {
+    if (dateStr === 'all') {
+      setDateScope('all');
+      setSelectedDates([]);
+      return;
+    }
+
+    let updated;
+    if (selectedDates.includes(dateStr)) {
+      updated = selectedDates.filter(d => d !== dateStr);
+    } else {
+      updated = [...selectedDates, dateStr];
+    }
+    setSelectedDates(updated);
+    if (updated.length > 0) {
+      setDateScope('specific');
+    } else {
+      setDateScope('all');
+    }
+  };
+
+  const handleCustomCalendarChange = (val) => {
+    setCustomCalendarDate(val);
+    if (val) {
+      setSelectedDates([val]);
+      setDateScope('specific');
+    }
+  };
+
   const handleStartQuiz = async (useAi = false) => {
     setLoading(true);
     try {
       let res;
-      const targetDate = dateScope === 'specific' ? selectedDate : null;
+      let targetDate = null;
+      if (dateScope === 'specific') {
+        targetDate = selectedDates.length === 1 ? selectedDates[0] : (selectedDates.length > 1 ? selectedDates : null);
+        if (!targetDate) {
+          alert('Vui lòng chọn ít nhất 1 ngày cụ thể trong danh sách hoặc qua ô chọn ngày!');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const queryParams = {
+        count: questionCount,
+        level: selectedLevel,
+        mode: quizMode,
+        date_scope: dateScope,
+        date: targetDate,
+        start_date: dateScope === 'range' ? startDate : null,
+        end_date: dateScope === 'range' ? endDate : null
+      };
 
       if (quizCategory === 'pattern') {
         if (useAi) {
           res = await api.generateAIPatternQuiz({
             category: selectedPatternCategory,
-            count: questionCount,
-            level: selectedLevel,
-            mode: quizMode,
-            date_scope: dateScope,
-            date: targetDate
+            ...queryParams
           });
         } else {
           res = await api.generatePatternQuiz({
             category: selectedPatternCategory,
-            count: questionCount,
-            mode: quizMode,
-            level: selectedLevel,
-            date_scope: dateScope,
-            date: targetDate
+            ...queryParams
           });
         }
       } else {
         if (useAi) {
           res = await api.generateAIQuiz({
             topic: selectedTopics,
-            count: questionCount,
-            level: selectedLevel,
-            mode: quizMode,
-            date_scope: dateScope,
-            date: targetDate
+            ...queryParams
           });
         } else {
           res = await api.generateQuiz({
             topic: selectedTopics,
-            count: questionCount,
-            mode: quizMode,
-            level: selectedLevel,
-            date_scope: dateScope,
-            date: targetDate
+            ...queryParams
           });
         }
       }
@@ -906,33 +940,42 @@ export default function QuizCenter({ onOpenReview }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Calendar size={18} color="var(--accent-primary)" />
-                <span>1. Phạm Vi Ngày Nạp Từ Vựng</span>
+                <span>1. Chọn Ngày Nạp Từ Vựng Cụ Thể (Daily Scope)</span>
               </h3>
               <span style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: '700' }}>
-                {dateScope === 'all' && 'Toàn bộ kho từ'}
-                {dateScope === 'today' && 'Từ vựng nạp Hôm nay'}
-                {dateScope === 'yesterday' && 'Từ vựng nạp Hôm qua'}
-                {dateScope === 'last_7_days' && '7 ngày gần nhất'}
-                {dateScope === 'specific' && (selectedDate ? `Ngày ${selectedDate}` : 'Chọn ngày cụ thể')}
+                {dateScope === 'all' && '🌐 Toàn bộ kho từ'}
+                {dateScope === 'today' && '⚡ Từ vựng nạp Hôm nay'}
+                {dateScope === 'yesterday' && '🕒 Từ vựng nạp Hôm qua'}
+                {dateScope === 'last_7_days' && '🔥 7 ngày gần nhất'}
+                {dateScope === 'range' && `🗓️ Từ ${startDate || '...'} đến ${endDate || '...'}`}
+                {dateScope === 'specific' && (
+                  selectedDates.length === 1 
+                    ? `📅 Ngày ${selectedDates[0]}` 
+                    : `📅 Đã chọn ${selectedDates.length} ngày (${selectedDates.map(d => { try { const [y,m,day]=d.split('-'); return `${day}/${m}`; } catch(e){return d;} }).join(', ')})`
+                )}
               </span>
             </div>
 
-            <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            {/* Quick Scope Presets */}
+            <div className="count-selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', marginBottom: '0.85rem' }}>
               {[
                 { id: 'all', label: 'Toàn Bộ Thời Gian', icon: Sparkles, desc: 'Tất cả các từ' },
                 { id: 'today', label: 'Hôm Nay', icon: Clock, desc: 'Từ nạp hôm nay' },
                 { id: 'yesterday', label: 'Hôm Qua', icon: Clock, desc: 'Từ nạp hôm qua' },
-                { id: 'last_7_days', label: '7 Ngày Gần Nhất', icon: Flame, desc: 'Tuần qua' },
-                { id: 'specific', label: 'Theo Từng Ngày', icon: Calendar, desc: 'Chọn ngày cụ thể' }
+                { id: 'last_7_days', label: '7 Ngày Qua', icon: Flame, desc: '1 tuần gần nhất' },
+                { id: 'range', label: 'Khoảng Ngày', icon: Calendar, desc: 'Từ ngày... đến ngày...' }
               ].map(scope => {
-                const isSelected = dateScope === scope.id;
+                const isSelected = dateScope === scope.id && (scope.id !== 'all' || selectedDates.length === 0);
                 const IconComp = scope.icon;
                 return (
                   <button
                     key={scope.id}
                     className={`count-pill-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => setDateScope(scope.id)}
-                    style={{ textAlign: 'left', padding: '0.65rem 0.8rem', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                    onClick={() => {
+                      setDateScope(scope.id);
+                      if (scope.id !== 'specific') setSelectedDates([]);
+                    }}
+                    style={{ textAlign: 'left', padding: '0.6rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '2px' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <IconComp size={14} color={isSelected ? 'var(--accent-primary)' : 'var(--text-muted)'} />
@@ -944,81 +987,149 @@ export default function QuizCenter({ onOpenReview }) {
               })}
             </div>
 
-            {/* If Specific Date is chosen: show available dates list and custom date picker */}
-            {dateScope === 'specific' && (
+            {/* Date Range Mode Inputs */}
+            {dateScope === 'range' && (
               <div style={{
                 background: 'var(--bg-secondary)',
                 border: '1.5px solid var(--accent-primary)',
                 borderRadius: 'var(--radius-md)',
                 padding: '0.85rem 1rem',
-                marginTop: '0.5rem',
-                animation: 'fadeIn 0.2s ease'
+                marginBottom: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                flexWrap: 'wrap'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    📅 Danh Sách Các Ngày Đã Nạp Từ Vựng / Mẫu Câu:
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Hoặc chọn ngày:</span>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      style={{
-                        padding: '0.3rem 0.6rem',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.82rem',
-                        fontWeight: 700
-                      }}
-                    />
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Từ ngày:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    style={{
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 700
+                    }}
+                  />
                 </div>
-
-                {quizDates.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>Chưa có dữ liệu ngày nào.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
-                    {quizDates.map(qd => {
-                      const isPicked = selectedDate === qd.date;
-                      return (
-                        <button
-                          key={qd.date}
-                          onClick={() => setSelectedDate(qd.date)}
-                          style={{
-                            padding: '0.4rem 0.85rem',
-                            borderRadius: '12px',
-                            border: isPicked ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                            background: isPicked ? 'var(--accent-primary)' : 'var(--bg-card)',
-                            color: isPicked ? '#ffffff' : 'var(--text-primary)',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <span>{qd.label}</span>
-                          <span style={{
-                            background: isPicked ? 'rgba(255,255,255,0.25)' : 'var(--bg-tertiary)',
-                            color: isPicked ? '#ffffff' : 'var(--text-secondary)',
-                            padding: '1px 6px',
-                            borderRadius: '10px',
-                            fontSize: '0.72rem'
-                          }}>
-                            {quizCategory === 'pattern' ? `${qd.patterns_count} câu` : `${qd.words_count} từ`}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Đến ngày:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    style={{
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 700
+                    }}
+                  />
+                </div>
               </div>
             )}
+
+            {/* Direct Specific Dates Selector Card */}
+            <div style={{
+              background: 'var(--bg-secondary)',
+              border: selectedDates.length > 0 ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.85rem 1rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    🎯 Chọn theo từng ngày học (Có thể chọn nhiều ngày cùng lúc):
+                  </span>
+                  {selectedDates.length > 0 && (
+                    <button
+                      onClick={() => { setSelectedDates([]); setDateScope('all'); }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--accent-primary)',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Bỏ chọn (Về tất cả)
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Chọn ngày bất kỳ:</span>
+                  <input
+                    type="date"
+                    value={customCalendarDate}
+                    onChange={(e) => handleCustomCalendarChange(e.target.value)}
+                    style={{
+                      padding: '0.3rem 0.6rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 700
+                    }}
+                  />
+                </div>
+              </div>
+
+              {quizDates.length === 0 ? (
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>Chưa có dữ liệu ngày nào.</p>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {quizDates.map(qd => {
+                    const isPicked = selectedDates.includes(qd.date);
+                    return (
+                      <button
+                        key={qd.date}
+                        onClick={() => toggleDate(qd.date)}
+                        style={{
+                          padding: '0.45rem 0.9rem',
+                          borderRadius: '12px',
+                          border: isPicked ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                          background: isPicked ? 'var(--accent-primary)' : 'var(--bg-card)',
+                          color: isPicked ? '#ffffff' : 'var(--text-primary)',
+                          fontSize: '0.85rem',
+                          fontWeight: isPicked ? 800 : 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isPicked ? '0 2px 8px rgba(99, 102, 241, 0.3)' : 'none'
+                        }}
+                      >
+                        <span>{qd.label}</span>
+                        <span style={{
+                          background: isPicked ? 'rgba(255,255,255,0.25)' : 'var(--bg-tertiary)',
+                          color: isPicked ? '#ffffff' : 'var(--text-secondary)',
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700
+                        }}>
+                          {quizCategory === 'pattern' ? `${qd.patterns_count} câu` : `${qd.words_count} từ`}
+                        </span>
+                        {isPicked && <span style={{ fontWeight: 900, color: '#ffffff' }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.25rem 0 0.5rem 0' }} />

@@ -50,8 +50,8 @@ export function resolveTopics(db, topicInput) {
   };
 }
 
-// Helper to filter items by Date Scope
-export function filterItemsByDate(items, dateScope = 'all', specificDate = null) {
+// Helper to filter items by Date Scope (Single date, Array of dates, or Date range)
+export function filterItemsByDate(items, dateScope = 'all', specificDate = null, startDate = null, endDate = null) {
   if (!items || items.length === 0) return [];
   if (!dateScope || dateScope === 'all') return items;
 
@@ -81,11 +81,21 @@ export function filterItemsByDate(items, dateScope = 'all', specificDate = null)
   if (dateScope === 'last_30_days') {
     return items.filter(i => (i.created_at || '').substring(0, 10) >= d30Str);
   }
-  if (dateScope === 'custom' || dateScope === 'specific') {
-    if (Array.isArray(specificDate)) {
-      return items.filter(i => specificDate.includes((i.created_at || '').substring(0, 10)));
+  if (dateScope === 'range' && (startDate || endDate)) {
+    return items.filter(i => {
+      const d = (i.created_at || '').substring(0, 10);
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+      return true;
+    });
+  }
+  if (dateScope === 'custom' || dateScope === 'specific' || Array.isArray(specificDate) || (typeof specificDate === 'string' && specificDate.length > 0)) {
+    const datesArray = Array.isArray(specificDate) 
+      ? specificDate.filter(Boolean)
+      : (specificDate && specificDate.includes(',') ? specificDate.split(',').map(s => s.trim()).filter(Boolean) : (specificDate ? [specificDate] : []));
+    if (datesArray.length > 0) {
+      return items.filter(i => datesArray.includes((i.created_at || '').substring(0, 10)));
     }
-    return items.filter(i => (i.created_at || '').substring(0, 10) === specificDate);
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateScope)) {
     return items.filter(i => (i.created_at || '').substring(0, 10) === dateScope);
@@ -254,7 +264,7 @@ export const quizService = {
   },
 
   // 2. Generate a Quiz based on Topics, Date Scope, Count and IELTS Level
-  generateQuiz: ({ topic = 'All', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, userId = 'admin_master_user_id' }) => {
+  generateQuiz: ({ topic = 'All', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, start_date = null, end_date = null, userId = 'admin_master_user_id' }) => {
     const db = getDb();
     let words = db.prepare(`
       SELECT * FROM words 
@@ -268,14 +278,23 @@ export const quizService = {
     const targetCount = Math.max(1, parseInt(count, 10) || 5);
 
     // 1. Filter by Date Scope if specified
-    let candidateWords = filterItemsByDate(words, date_scope, date);
+    let candidateWords = filterItemsByDate(words, date_scope, date, start_date, end_date);
     if (candidateWords.length === 0) {
       let dateLabel = date_scope;
       if (date_scope === 'today') dateLabel = 'Hôm nay';
       else if (date_scope === 'yesterday') dateLabel = 'Hôm qua';
       else if (date_scope === 'last_7_days') dateLabel = '7 ngày gần nhất';
       else if (date_scope === 'last_30_days') dateLabel = '30 ngày gần nhất';
-      else if (date) {
+      else if (date_scope === 'range' && (start_date || end_date)) {
+        dateLabel = `Từ ${start_date || '...'} đến ${end_date || '...'}`;
+      } else if (Array.isArray(date) && date.length > 0) {
+        dateLabel = date.map(d => {
+          try {
+            const [y, m, day] = d.split('-');
+            return `${day}/${m}`;
+          } catch(e) { return d; }
+        }).join(', ');
+      } else if (date) {
         try {
           const [y, m, d] = String(date).split('-');
           dateLabel = `Ngày ${d}/${m}/${y}`;
@@ -579,7 +598,7 @@ export const quizService = {
   },
 
   // 4. Generate Sentence Pattern Quiz
-  generatePatternQuiz: ({ category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, userId = 'admin_master_user_id' }) => {
+  generatePatternQuiz: ({ category = 'all', tone = 'all', count = 5, mode = 'mixed', level = 'all', date_scope = 'all', date = null, start_date = null, end_date = null, userId = 'admin_master_user_id' }) => {
     const db = getDb();
     let patterns = db.prepare(`
       SELECT * FROM patterns 
@@ -593,13 +612,23 @@ export const quizService = {
     const targetCount = Math.max(1, parseInt(count, 10) || 5);
 
     // Filter by Date Scope if specified
-    let candidatePatterns = filterItemsByDate(patterns, date_scope, date);
+    let candidatePatterns = filterItemsByDate(patterns, date_scope, date, start_date, end_date);
     if (candidatePatterns.length === 0) {
       let dateLabel = date_scope;
       if (date_scope === 'today') dateLabel = 'Hôm nay';
       else if (date_scope === 'yesterday') dateLabel = 'Hôm qua';
       else if (date_scope === 'last_7_days') dateLabel = '7 ngày gần nhất';
-      else if (date) {
+      else if (date_scope === 'last_30_days') dateLabel = '30 ngày gần nhất';
+      else if (date_scope === 'range' && (start_date || end_date)) {
+        dateLabel = `Từ ${start_date || '...'} đến ${end_date || '...'}`;
+      } else if (Array.isArray(date) && date.length > 0) {
+        dateLabel = date.map(d => {
+          try {
+            const [y, m, day] = d.split('-');
+            return `${day}/${m}`;
+          } catch(e) { return d; }
+        }).join(', ');
+      } else if (date) {
         try {
           const [y, m, d] = String(date).split('-');
           dateLabel = `Ngày ${d}/${m}/${y}`;
