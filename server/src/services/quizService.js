@@ -115,6 +115,46 @@ const EASY_DISTRACTORS = [
   { word: 'sunshine', meaning_vi: 'Ánh nắng mặt trời ấm áp' }
 ];
 
+export const CURATED_POS_DISTRACTORS = {
+  adj: [
+    { word: 'polite', meaning_vi: 'Lịch sự, nhã nhặn' },
+    { word: 'gentle', meaning_vi: 'Dịu dàng, hòa nhã' },
+    { word: 'careful', meaning_vi: 'Cẩn thận, chu đáo' },
+    { word: 'honest', meaning_vi: 'Trung thực, chân thật' },
+    { word: 'friendly', meaning_vi: 'Thân thiện, cởi mở' },
+    { word: 'patient', meaning_vi: 'Kiên nhẫn, nhẫn nại' },
+    { word: 'calm', meaning_vi: 'Bình tĩnh, điềm đạm' },
+    { word: 'clever', meaning_vi: 'Khéo léo, thông minh' },
+    { word: 'resilient', meaning_vi: 'Kiên cường, bền bỉ' },
+    { word: 'meticulous', meaning_vi: 'Tỉ mỉ, cẩn trọng' },
+    { word: 'eloquent', meaning_vi: 'Lưu loát, hùng biện' },
+    { word: 'proactive', meaning_vi: 'Chủ động tiên phong' }
+  ],
+  verb: [
+    { word: 'avoid', meaning_vi: 'Tránh, né tránh' },
+    { word: 'delegate', meaning_vi: 'Ủy quyền, giao phó' },
+    { word: 'leverage', meaning_vi: 'Tận dụng đòn bẩy' },
+    { word: 'pivot', meaning_vi: 'Chuyển hướng chiến lược' },
+    { word: 'escalate', meaning_vi: 'Chuyển tiếp lên cấp trên' },
+    { word: 'prioritize', meaning_vi: 'Sắp xếp thứ tự ưu tiên' },
+    { word: 'facilitate', meaning_vi: 'Tạo điều kiện thuận lợi' },
+    { word: 'implement', meaning_vi: 'Triển khai thực hiện' },
+    { word: 'optimize', meaning_vi: 'Tối ưu hóa quy trình' },
+    { word: 'coordinate', meaning_vi: 'Điều phối hoạt động' }
+  ],
+  noun: [
+    { word: 'milestone', meaning_vi: 'Cột mốc quan trọng' },
+    { word: 'deliverable', meaning_vi: 'Kết quả bàn giao' },
+    { word: 'priority', meaning_vi: 'Sự ưu tiên hàng đầu' },
+    { word: 'bottleneck', meaning_vi: 'Điểm nghẽn tiến độ' },
+    { word: 'stakeholder', meaning_vi: 'Bên liên quan dự án' },
+    { word: 'strategy', meaning_vi: 'Chiến lược dài hạn' },
+    { word: 'decision', meaning_vi: 'Quyết định quan trọng' },
+    { word: 'resource', meaning_vi: 'Nguồn lực cần thiết' },
+    { word: 'schedule', meaning_vi: 'Tiến độ, lịch trình' }
+  ]
+};
+
 export const IRREGULAR_VERBS = {
   be: { s: 'is', past: 'was', pp: 'been', ing: 'being' },
   have: { s: 'has', past: 'had', pp: 'had', ing: 'having' },
@@ -247,167 +287,205 @@ export function generateGrammarClozeQuestion({
   const forms = inflectEnglishWord(targetWord.word, pos);
   const isVerb = pos.includes('verb') || ['avoid', 'delegate', 'leverage', 'implement', 'facilitate', 'mitigate', 'articulate', 'pivot', 'escalate', 'reach', 'prioritize', 'benchmark'].includes(targetWord.word.toLowerCase());
   const isNoun = pos.includes('noun') || ['milestone', 'deliverable', 'constraint', 'strategy', 'criterion', 'analysis', 'contingency plan', 'bandwidth', 'bottleneck', 'priority'].includes(targetWord.word.toLowerCase());
-  const isAdj = pos.includes('adj') || ['resilient', 'meticulous', 'articulate', 'eloquent', 'ubiquitous', 'innovative', 'adaptable'].includes(targetWord.word.toLowerCase());
+  const isAdj = pos.includes('adj') || ['resilient', 'meticulous', 'articulate', 'eloquent', 'ubiquitous', 'innovative', 'adaptable', 'rude'].includes(targetWord.word.toLowerCase());
 
   let questionText = '';
   let promptSubtitle = '';
   let correctAnswer = targetWord.word;
   let explanation = '';
-  let grammarOptions = [];
+
+  // =========================================================================
+  // ƯU TIÊN 1: Trích xuất câu từ ví dụ thực tế của chính từ đó (Authentic Context)
+  // =========================================================================
+  let matchedSentence = '';
+  let matchedWord = '';
+
+  const candidateForms = [
+    forms.base,
+    forms.sForm,
+    forms.edForm,
+    forms.ingForm,
+    forms.plural,
+    forms.advForm,
+    forms.past,
+    forms.pp
+  ].filter(Boolean);
+
+  if (Array.isArray(examples) && examples.length > 0) {
+    for (const ex of examples) {
+      const raw = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
+      if (!raw) continue;
+      // Loại bỏ phần dịch nghĩa tiếng Việt trong ngoặc đơn nếu có
+      const englishOnly = raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+      for (const form of candidateForms) {
+        const regex = new RegExp(`\\b${form}\\b`, 'i');
+        if (regex.test(englishOnly)) {
+          matchedSentence = englishOnly.replace(regex, '_______');
+          matchedWord = form;
+          break;
+        }
+      }
+      if (matchedSentence) break;
+    }
+  }
+
+  if (matchedSentence) {
+    questionText = matchedSentence;
+    correctAnswer = matchedWord;
+
+    if (correctAnswer === forms.sForm && forms.sForm !== forms.base) {
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chia động từ ở thì Hiện tại đơn - Ngôi thứ 3 số ít (${validTargetMeaning} - Thêm -s/-es):`
+        : `Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít +s/es):`;
+      explanation = `Chủ ngữ ngôi thứ 3 số ít ở thì Hiện tại đơn đòi hỏi động từ thêm đuôi "-s/-es" ➔ Đáp án chính xác là "${correctAnswer}".`;
+    } else if ((correctAnswer === forms.edForm || correctAnswer === forms.past) && correctAnswer !== forms.base) {
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chia động từ ở thì Quá khứ đơn (${validTargetMeaning} - Dạng quá khứ):`
+        : `Chia động từ ở thì Quá khứ đơn (-ed / V2):`;
+      explanation = `Ngữ cảnh diễn ra trong quá khứ đòi hỏi động từ chia ở thì Quá khứ đơn (V-ed / V2) ➔ Đáp án chính xác là "${correctAnswer}".`;
+    } else if (correctAnswer === forms.ingForm && forms.ingForm !== forms.base) {
+      promptSubtitle = `Chọn dạng danh động từ thích hợp (${validTargetMeaning} - V-ing):`;
+      explanation = `Vị trí sau giới từ hoặc làm chủ ngữ đòi hỏi dạng danh động từ (Gerund V-ing) ➔ Đáp án chính xác là "${correctAnswer}".`;
+    } else if (correctAnswer === forms.plural && forms.plural !== forms.base) {
+      promptSubtitle = `Chọn dạng danh từ số nhiều thích hợp (${validTargetMeaning} - Thêm -s/-es):`;
+      explanation = `Ngữ cảnh số nhiều đòi hỏi danh từ đếm được ở dạng số nhiều (-s/-es) ➔ Đáp án chính xác là "${correctAnswer}".`;
+    } else if (correctAnswer === forms.advForm && forms.advForm !== forms.base) {
+      promptSubtitle = `Chọn trạng từ (-ly) thích hợp để bổ nghĩa (${validTargetMeaning}):`;
+      explanation = `Vị trí bổ nghĩa cho động từ/tính từ đòi hỏi trạng từ (Adverb -ly) ➔ Đáp án chính xác là "${correctAnswer}".`;
+    } else {
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Điền từ thích hợp vào chỗ trống (${validTargetMeaning}):`
+        : `Điền từ thích hợp vào ngữ cảnh câu:`;
+      explanation = `Điền từ "${correctAnswer}" (${validTargetMeaning}) để hoàn chỉnh câu: "${questionText.replace(/_______/g, correctAnswer)}".`;
+    }
+  } else {
+    // =========================================================================
+    // ƯU TIÊN 2 (FALLBACK): Khi không có ví dụ mẫu, dùng các mẫu câu phổ quát tự nhiên
+    // =========================================================================
+    if (isVerb) {
+      const verbCycle = questionIndex % 3;
+      if (verbCycle === 0) {
+        correctAnswer = forms.sForm;
+        const templates = [
+          `She consistently _______ to ensure the best outcome for the entire team.`,
+          `Our manager carefully _______ each request before making a final decision.`,
+          `Every specialist regularly _______ all important steps to guarantee quality.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = qDifficulty === 'easy'
+          ? `Chia động từ ở thì Hiện tại đơn - Ngôi thứ 3 số ít (${validTargetMeaning} - Thêm -s/-es):`
+          : `Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít "She / He / Manager" + V-s/es):`;
+        explanation = `Chủ ngữ "She / Our manager" là ngôi thứ 3 số ít ở thì Hiện tại đơn, do đó động từ bắt buộc phải thêm đuôi "-s/-es" ➔ Đáp án chính xác là "${correctAnswer}".`;
+      } else if (verbCycle === 1) {
+        correctAnswer = forms.edForm;
+        const templates = [
+          `During yesterday's meeting, she _______ her perspective with great clarity.`,
+          `Last week, the team successfully _______ all pending action items.`,
+          `In the previous session, the committee _______ the revised proposal.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = qDifficulty === 'easy'
+          ? `Chia động từ ở thì Quá khứ đơn (${validTargetMeaning} - Thêm -ed / V2):`
+          : `Chia động từ ở thì Quá khứ đơn (Dấu hiệu "Yesterday / Last week"):`;
+        explanation = `Trạng từ thời gian trong quá khứ ("Yesterday / Last week") đòi hỏi động từ chia ở thì Quá khứ đơn (V-ed / V2) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      } else {
+        correctAnswer = forms.ingForm;
+        const templates = [
+          `They achieved excellent results by _______ the most effective method early.`,
+          `She improved productivity by _______ routine tasks in an organized way.`,
+          `After _______ the situation thoroughly, everyone reached a mutual agreement.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = `Chọn dạng danh động từ thích hợp sau giới từ ("By / After" + V-ing - ${validTargetMeaning}):`;
+        explanation = `Đứng sau các giới từ như "By", "After", "Without", động từ phải ở dạng danh động từ (Gerund V-ing) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      }
+    } else if (isNoun) {
+      const nounCycle = questionIndex % 2;
+      if (nounCycle === 0) {
+        correctAnswer = forms.plural;
+        const templates = [
+          `The committee evaluated several important _______ before granting final approval.`,
+          `There are multiple strategic _______ that the team must achieve by the end of this month.`,
+          `Several critical _______ were reviewed carefully during the planning phase.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = `Chọn dạng danh từ số nhiều thích hợp sau lượng từ ("several / multiple" - ${validTargetMeaning}):`;
+        explanation = `Các từ chỉ số lượng ("several / multiple") đòi hỏi danh từ đếm được phải ở dạng số nhiều (-s/-es) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      } else {
+        correctAnswer = forms.base;
+        const templates = [
+          `Achieving this objective represents an essential _______ for our long-term plan.`,
+          `The coordinator identified an unexpected _______ during the review process.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = `Điền danh từ thích hợp vào chỗ trống (sau mạo từ "a / an" - ${validTargetMeaning}):`;
+        explanation = `Vị trí sau mạo từ "a / an" đòi hỏi danh từ đếm được ở dạng số ít ➔ Đáp án chính xác là "${correctAnswer}".`;
+      }
+    } else if (isAdj) {
+      const adjCycle = questionIndex % 2;
+      if (adjCycle === 0) {
+        correctAnswer = targetWord.word;
+        const templates = [
+          `It is important to avoid being _______ when communicating with colleagues or clients.`,
+          `Her response was considered quite _______ by everyone present in the room.`,
+          `The speaker gave a very _______ presentation that kept the entire audience engaged.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = qDifficulty === 'easy'
+          ? `Chọn tính từ thích hợp bổ nghĩa cho ngữ cảnh câu (${validTargetMeaning}):`
+          : `Chọn tính từ phù hợp với ngữ cảnh câu:`;
+        explanation = `Vị trí sau "being / quite / very" đòi hỏi một tính từ (Adjective) để bổ nghĩa ➔ "${correctAnswer}".`;
+      } else {
+        correctAnswer = forms.advForm || (targetWord.word + 'ly');
+        const templates = [
+          `The team handled the unexpected inquiry _______ and professionally.`,
+          `She addressed the audience's concerns _______ during the session.`
+        ];
+        questionText = templates[questionIndex % templates.length];
+        promptSubtitle = `Chọn trạng từ (-ly) thích hợp bổ nghĩa cho động từ (${validTargetMeaning}):`;
+        explanation = `Vị trí bổ nghĩa cho động từ đòi hỏi một trạng từ (Adverb -ly) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      }
+    } else {
+      correctAnswer = targetWord.word;
+      questionText = `In everyday communication, it is helpful to _______ in a clear and constructive manner.`;
+      promptSubtitle = `Điền từ vựng thích hợp vào ngữ cảnh câu (${validTargetMeaning}):`;
+      explanation = `Điền từ "${targetWord.word}" (${validTargetMeaning}) để hoàn chỉnh câu chuẩn xác.`;
+    }
+  }
+
+  // =========================================================================
+  // XÂY DỰNG PHƯƠNG ÁN TRẮC NGHIỆM (4 OPTIONS) CHUẨN NGỮ PHÁP CÙNG TỪ LOẠI
+  // =========================================================================
+  const tricky = generateTrickyWordFamily(targetWord.word);
+  let options = [correctAnswer];
 
   if (isVerb) {
-    // === CHẾ ĐỘ ĐỘNG TỪ (VERB): Luân phiên 3rd person -s/-es, Quá khứ -ed, và Danh động từ V-ing ===
-    const verbCycle = questionIndex % 3;
-
-    if (verbCycle === 0) {
-      // 1. Hiện tại đơn ngôi thứ 3 số ít (+s / +es)
-      correctAnswer = forms.sForm;
-      const templates = [
-        `She consistently _______ taking unnecessary risks during high-stakes project phases.`,
-        `Our lead architect effectively _______ key responsibilities across the engineering squads.`,
-        `The product owner regularly _______ available analytics to guide strategic roadmap decisions.`,
-        `Every senior specialist carefully _______ each implementation detail prior to release.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = qDifficulty === 'easy'
-        ? `Chia động từ ở thì Hiện tại đơn - Ngôi thứ 3 số ít "She / He / Lead" (${validTargetMeaning} - Thêm -s/-es):`
-        : (qDifficulty === 'hard'
-          ? `Phân tích chủ ngữ ngôi thứ 3 số ít và ngữ pháp thì hiện tại đơn để chọn dạng động từ chính xác:`
-          : `Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít "She / Lead" + V-s/es):`);
-      explanation = `Chủ ngữ "She / Our lead / Every specialist" là ngôi thứ 3 số ít ở thì Hiện tại đơn, do đó động từ bắt buộc phải thêm đuôi "-s/-es" ➔ Đáp án chính xác là "${correctAnswer}".`;
-      grammarOptions = [forms.sForm, forms.base, forms.ingForm, forms.edForm];
-    } else if (verbCycle === 1) {
-      // 2. Quá khứ đơn (-ed / V2)
-      correctAnswer = forms.edForm;
-      const templates = [
-        `Last quarter, our engineering division successfully _______ all critical bottlenecks before launch.`,
-        `During yesterday's retrospective, she _______ her architectural decisions with precision.`,
-        `In the previous sprint, the core infrastructure team _______ all major performance hurdles.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = qDifficulty === 'easy'
-        ? `Chia động từ ở thì Quá khứ đơn ("Last quarter / Yesterday" - ${validTargetMeaning}):`
-        : `Chia động từ ở thì Quá khứ đơn (Dấu hiệu "Last quarter / Yesterday"):`;
-      explanation = `Trạng ngữ chỉ thời gian trong quá khứ ("Last quarter / Yesterday") đòi hỏi động từ chia ở thì Quá khứ đơn (V-ed / V2) ➔ Đáp án chính xác là "${correctAnswer}".`;
-      grammarOptions = [forms.edForm, forms.base, forms.sForm, forms.ingForm];
-    } else {
-      // 3. Danh động từ sau giới từ (V-ing)
-      correctAnswer = forms.ingForm;
-      const templates = [
-        `The organization achieved high stability by _______ common operational oversights early.`,
-        `He greatly accelerated delivery by _______ routine administrative chores across members.`,
-        `After _______ the initial hurdles, the development squad reached peak productivity.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = qDifficulty === 'easy'
-        ? `Chọn dạng danh động từ thích hợp sau giới từ "By / After" (${validTargetMeaning}):`
-        : `Chọn dạng từ thích hợp đứng sau giới từ ("By / After / Without" + V-ing):`;
-      explanation = `Đứng sau các giới từ như "By", "After", "Without", động từ phải ở dạng danh động từ (Gerund V-ing) ➔ Đáp án chính xác là "${correctAnswer}".`;
-      grammarOptions = [forms.ingForm, forms.base, forms.sForm, forms.edForm];
-    }
-  } else if (isNoun) {
-    // === CHẾ ĐỘ DANH TỪ (NOUN): Luân phiên Danh từ số nhiều (-s/-es) và Danh từ số ít ===
-    const nounCycle = questionIndex % 2;
-
-    if (nounCycle === 0) {
-      // 1. Danh từ số nhiều (-s / -es)
-      correctAnswer = forms.plural;
-      const templates = [
-        `The steering committee evaluated all project _______ before granting release approval.`,
-        `There are multiple strategic _______ that the team must achieve by the end of this sprint.`,
-        `Several critical _______ were delivered on time despite severe deadline pressure.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = qDifficulty === 'easy'
-        ? `Chọn dạng danh từ số nhiều thích hợp ("all / multiple / several" - ${validTargetMeaning}):`
-        : `Chọn dạng danh từ số nhiều thích hợp sau lượng từ ("all / multiple / several"):`;
-      explanation = `Các từ chỉ số lượng ("all / multiple / several") đòi hỏi danh từ đếm được phải ở dạng số nhiều (-s/-es) ➔ Đáp án chính xác là "${correctAnswer}".`;
-      grammarOptions = [forms.plural, forms.base, forms.base + "'s", forms.ingForm || forms.base + 'ing'];
-    } else {
-      // 2. Danh từ số ít
-      correctAnswer = forms.base;
-      const templates = [
-        `Achieving this core objective represents a major _______ for the entire engineering department.`,
-        `The architect identified an unexpected _______ in the third-party payment integration.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = `Điền danh từ thích hợp vào chỗ trống trong câu (sau mạo từ "a / an"):`;
-      explanation = `Vị trí sau mạo từ "a / an" đòi hỏi danh từ đếm được ở dạng số ít ➔ Đáp án chính xác là "${correctAnswer}".`;
-      grammarOptions = [forms.base, forms.plural, forms.base + "'s", forms.ingForm || forms.base + 'ing'];
-    }
+    options.push(forms.base, forms.sForm, forms.edForm, forms.ingForm);
   } else if (isAdj) {
-    // === CHẾ ĐỘ TÍNH TỪ (ADJECTIVE): Luân phiên Tính từ và Trạng từ (-ly) ===
-    const adjCycle = questionIndex % 2;
-
-    if (adjCycle === 0) {
-      // 1. Tính từ bổ nghĩa cho danh từ hoặc sau to be
-      correctAnswer = targetWord.word;
-      const templates = [
-        `The engineering team demonstrated a remarkably _______ approach to resolving system outages.`,
-        `Our senior leaders are exceptionally _______ in their strategic market planning.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = qDifficulty === 'easy'
-        ? `Chọn tính từ thích hợp bổ nghĩa cho danh từ (${validTargetMeaning}):`
-        : `Chọn tính từ phù hợp với ngữ cảnh câu:`;
-      explanation = `Vị trí trước danh từ hoặc đứng sau trạng từ đòi hỏi một tính từ (Adjective) để bổ nghĩa ➔ "${correctAnswer}".`;
-      const tricky = generateTrickyWordFamily(targetWord.word);
-      grammarOptions = [targetWord.word, forms.advForm || (targetWord.word + 'ly'), ...tricky].slice(0, 4);
-    } else {
-      // 2. Trạng từ (-ly) bổ nghĩa cho động từ
-      correctAnswer = forms.advForm || (targetWord.word + 'ly');
-      const templates = [
-        `The senior architects worked _______ to eliminate all critical security bottlenecks.`,
-        `The keynote speaker presented the technical findings _______ to the entire audience.`
-      ];
-      questionText = templates[questionIndex % templates.length];
-      promptSubtitle = `Chọn trạng từ thích hợp bổ nghĩa cho động từ hành động ("worked / presented _______"):`;
-      explanation = `Vị trí bổ nghĩa cho động từ hành động đòi hỏi một trạng từ (Adverb -ly) ➔ Đáp án chính xác là "${correctAnswer}".`;
-      const tricky = generateTrickyWordFamily(targetWord.word);
-      grammarOptions = [correctAnswer, targetWord.word, ...tricky].slice(0, 4);
-    }
-  } else {
-    // === CÁC TỪ LOẠI KHÁC (Phrase / Idiom / Adverb) ===
-    correctAnswer = targetWord.word;
-    questionText = `In modern business environments, it is crucial to _______ to achieve maximum productivity.`;
-    promptSubtitle = `Điền từ vựng thích hợp vào ngữ cảnh câu:`;
-    explanation = `Điền từ "${targetWord.word}" (${validTargetMeaning}) để hoàn chỉnh câu chuẩn xác.`;
-    grammarOptions = [targetWord.word, forms.sForm, forms.edForm, forms.ingForm];
+    options.push(forms.base, forms.advForm || (targetWord.word + 'ly'), ...tricky);
+  } else if (isNoun) {
+    options.push(forms.base, forms.plural);
   }
 
-  // Phương án trắc nghiệm (Options)
-  let options = [];
-  if (qDifficulty === 'easy') {
-    const easyPool = EASY_DISTRACTORS.filter(ed => ed.word !== targetWord.word.toLowerCase()).sort(() => 0.5 - Math.random());
-    options = [correctAnswer, ...easyPool.slice(0, 3).map(e => e.word)];
-  } else if (qDifficulty === 'hard') {
-    const trickyForms = [
-      ...grammarOptions.filter(g => g && g.toLowerCase() !== correctAnswer.toLowerCase()),
-      ...generateTrickyWordFamily(targetWord.word),
-      ...otherWords.map(w => w.word)
-    ].filter(f => f && f.toLowerCase() !== correctAnswer.toLowerCase());
-    options = [correctAnswer, ...trickyForms.slice(0, 3)];
-  } else {
-    options = grammarOptions.filter(Boolean);
-    while (options.length < 4) {
-      const extra = otherWords.find(w => !options.includes(w.word));
-      if (extra) options.push(extra.word);
-      else break;
-    }
-  }
+  options = [...new Set(options.filter(Boolean))];
 
-  options = [...new Set(options)];
-  if (!options.includes(correctAnswer)) {
-    options.unshift(correctAnswer);
-  }
+  // Bổ sung các phương án gây nhiễu cùng từ loại (Same Part of Speech Distractors)
+  const posKey = isAdj ? 'adj' : (isVerb ? 'verb' : (isNoun ? 'noun' : null));
+  const samePosFromWords = otherWords
+    .filter(w => {
+      const wPos = (w.part_of_speech || '').toLowerCase();
+      if (isAdj) return wPos.includes('adj');
+      if (isVerb) return wPos.includes('verb');
+      if (isNoun) return wPos.includes('noun');
+      return false;
+    })
+    .map(w => w.word);
 
-  const fallbackPool = [
-    ...otherWords.map(w => w.word),
-    ...HIGH_QUALITY_DISTRACTORS.map(d => d.word),
-    ...EASY_DISTRACTORS.map(e => e.word)
-  ];
+  const curatedPosPool = (posKey && CURATED_POS_DISTRACTORS[posKey]) ? CURATED_POS_DISTRACTORS[posKey].map(d => d.word) : [];
+  const candidatePool = [...samePosFromWords, ...curatedPosPool, ...HIGH_QUALITY_DISTRACTORS.map(d => d.word)];
 
-  for (const item of fallbackPool) {
+  for (const item of candidatePool) {
     if (options.length >= 4) break;
     if (item && !options.includes(item) && item.toLowerCase() !== correctAnswer.toLowerCase()) {
       options.push(item);
@@ -447,11 +525,16 @@ export function generateTrickyWordFamily(word) {
     forms.add(w.slice(0, -3) + 'ion');
     forms.add(w.slice(0, -3) + 'ively');
   } else {
-    forms.add(w + 'ing');
-    forms.add(w + 'ed');
-    forms.add(w + 'ment');
-    forms.add(w + 'ness');
-    forms.add(w + 'ly');
+    if (w.endsWith('e')) {
+      forms.add(w + 'ness');
+      forms.add(w + 'ly');
+      forms.add(w + 'r');
+    } else {
+      forms.add(w + 'ness');
+      forms.add(w + 'ly');
+      forms.add(w + 'ing');
+      forms.add(w + 'ed');
+    }
   }
   return [...forms].filter(f => f !== w && f.length > 2);
 }
