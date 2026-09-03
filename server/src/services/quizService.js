@@ -115,6 +115,298 @@ const EASY_DISTRACTORS = [
   { word: 'sunshine', meaning_vi: 'Ánh nắng mặt trời ấm áp' }
 ];
 
+export const IRREGULAR_VERBS = {
+  be: { s: 'is', past: 'was', pp: 'been', ing: 'being' },
+  have: { s: 'has', past: 'had', pp: 'had', ing: 'having' },
+  do: { s: 'does', past: 'did', pp: 'done', ing: 'doing' },
+  go: { s: 'goes', past: 'went', pp: 'gone', ing: 'going' },
+  make: { s: 'makes', past: 'made', pp: 'made', ing: 'making' },
+  take: { s: 'takes', past: 'took', pp: 'taken', ing: 'taking' },
+  give: { s: 'gives', past: 'gave', pp: 'given', ing: 'giving' },
+  lead: { s: 'leads', past: 'led', pp: 'led', ing: 'leading' },
+  build: { s: 'builds', past: 'built', pp: 'built', ing: 'building' },
+  understand: { s: 'understands', past: 'understood', pp: 'understood', ing: 'understanding' },
+  choose: { s: 'chooses', past: 'chose', pp: 'chosen', ing: 'choosing' },
+  speak: { s: 'speaks', past: 'spoke', pp: 'spoken', ing: 'speaking' },
+  find: { s: 'finds', past: 'found', pp: 'found', ing: 'finding' },
+  bring: { s: 'brings', past: 'brought', pp: 'brought', ing: 'bringing' },
+  keep: { s: 'keeps', past: 'kept', pp: 'kept', ing: 'keeping' },
+  set: { s: 'sets', past: 'set', pp: 'set', ing: 'setting' },
+  think: { s: 'thinks', past: 'thought', pp: 'thought', ing: 'thinking' },
+  seek: { s: 'seeks', past: 'sought', pp: 'sought', ing: 'seeking' },
+  run: { s: 'runs', past: 'ran', pp: 'run', ing: 'running' },
+  become: { s: 'becomes', past: 'became', pp: 'become', ing: 'becoming' },
+  begin: { s: 'begins', past: 'began', pp: 'begun', ing: 'beginning' }
+};
+
+export const IRREGULAR_NOUNS = {
+  criterion: 'criteria',
+  analysis: 'analyses',
+  hypothesis: 'hypotheses',
+  thesis: 'theses',
+  phenomenon: 'phenomena',
+  datum: 'data',
+  person: 'people',
+  child: 'children',
+  man: 'men',
+  woman: 'women'
+};
+
+export function inflectEnglishWord(word, partOfSpeech = '') {
+  const raw = (word || '').toLowerCase().trim();
+  const parts = raw.split(/\s+/);
+  const mainWord = parts[0];
+  const rest = parts.slice(1).join(' ');
+  const suffix = rest ? ' ' + rest : '';
+
+  const irregularV = IRREGULAR_VERBS[mainWord];
+  const irregularN = IRREGULAR_NOUNS[mainWord];
+
+  // 1. Third-person singular (-s / -es / -ies)
+  let sForm = '';
+  if (irregularV) {
+    sForm = irregularV.s + suffix;
+  } else if (/(?:s|sh|ch|x|z|o)$/.test(mainWord)) {
+    sForm = mainWord + 'es' + suffix;
+  } else if (/[^aeiou]y$/.test(mainWord)) {
+    sForm = mainWord.slice(0, -1) + 'ies' + suffix;
+  } else {
+    sForm = mainWord + 's' + suffix;
+  }
+
+  // 2. Past tense & past participle (-ed / -d / -ied / irregular)
+  let edForm = '';
+  if (irregularV) {
+    edForm = irregularV.past + suffix;
+  } else if (mainWord.endsWith('e')) {
+    edForm = mainWord + 'd' + suffix;
+  } else if (/[^aeiou]y$/.test(mainWord)) {
+    edForm = mainWord.slice(0, -1) + 'ied' + suffix;
+  } else if (/[^aeiou][aeiou][^aeiouwxy]$/.test(mainWord) && mainWord.length <= 5) {
+    edForm = mainWord + mainWord.slice(-1) + 'ed' + suffix;
+  } else {
+    edForm = mainWord + 'ed' + suffix;
+  }
+
+  // 3. Gerund / Present participle (-ing)
+  let ingForm = '';
+  if (irregularV) {
+    ingForm = irregularV.ing + suffix;
+  } else if (mainWord.endsWith('ie')) {
+    ingForm = mainWord.slice(0, -2) + 'ying' + suffix;
+  } else if (mainWord.endsWith('e') && !mainWord.endsWith('ee')) {
+    ingForm = mainWord.slice(0, -1) + 'ing' + suffix;
+  } else if (/[^aeiou][aeiou][^aeiouwxy]$/.test(mainWord) && mainWord.length <= 5) {
+    ingForm = mainWord + mainWord.slice(-1) + 'ing' + suffix;
+  } else {
+    ingForm = mainWord + 'ing' + suffix;
+  }
+
+  // 4. Plural form for nouns (e.g. 'contingency plan' -> 'contingency plans', 'scope creep' -> 'scope creeps')
+  let plural = '';
+  if (parts.length > 1 && (partOfSpeech.includes('noun') || !partOfSpeech.includes('verb'))) {
+    const lastWord = parts[parts.length - 1];
+    const irregularLastN = IRREGULAR_NOUNS[lastWord];
+    let lastPlural = irregularLastN || (/(?:s|sh|ch|x|z)$/.test(lastWord) ? lastWord + 'es' : (/[^aeiou]y$/.test(lastWord) ? lastWord.slice(0, -1) + 'ies' : lastWord + 's'));
+    plural = [...parts.slice(0, -1), lastPlural].join(' ');
+  } else {
+    plural = irregularN ? irregularN + suffix : sForm;
+  }
+
+  // 5. Adverb form for adjectives
+  let advForm = '';
+  if (mainWord.endsWith('ic')) {
+    advForm = mainWord + 'ally' + suffix;
+  } else if (mainWord.endsWith('le')) {
+    advForm = mainWord.slice(0, -1) + 'y' + suffix;
+  } else if (mainWord.endsWith('y')) {
+    advForm = mainWord.slice(0, -1) + 'ily' + suffix;
+  } else if (!mainWord.endsWith('ly')) {
+    advForm = mainWord + 'ly' + suffix;
+  }
+
+  return {
+    base: raw,
+    sForm,
+    edForm,
+    ingForm,
+    plural,
+    advForm
+  };
+}
+
+export function generateGrammarClozeQuestion({
+  targetWord,
+  validTargetMeaning,
+  examples = [],
+  qDifficulty = 'medium',
+  questionIndex = 0,
+  otherWords = []
+}) {
+  const pos = (targetWord.part_of_speech || '').toLowerCase();
+  const forms = inflectEnglishWord(targetWord.word, pos);
+  const isVerb = pos.includes('verb') || ['avoid', 'delegate', 'leverage', 'implement', 'facilitate', 'mitigate', 'articulate', 'pivot', 'escalate', 'reach', 'prioritize', 'benchmark'].includes(targetWord.word.toLowerCase());
+  const isNoun = pos.includes('noun') || ['milestone', 'deliverable', 'constraint', 'strategy', 'criterion', 'analysis', 'contingency plan', 'bandwidth', 'bottleneck', 'priority'].includes(targetWord.word.toLowerCase());
+  const isAdj = pos.includes('adj') || ['resilient', 'meticulous', 'articulate', 'eloquent', 'ubiquitous', 'innovative', 'adaptable'].includes(targetWord.word.toLowerCase());
+
+  let questionText = '';
+  let promptSubtitle = '';
+  let correctAnswer = targetWord.word;
+  let explanation = '';
+  let grammarOptions = [];
+
+  if (isVerb) {
+    // === CHẾ ĐỘ ĐỘNG TỪ (VERB): Luân phiên 3rd person -s/-es, Quá khứ -ed, và Danh động từ V-ing ===
+    const verbCycle = questionIndex % 3;
+
+    if (verbCycle === 0) {
+      // 1. Hiện tại đơn ngôi thứ 3 số ít (+s / +es)
+      correctAnswer = forms.sForm;
+      const templates = [
+        `She consistently _______ taking unnecessary risks during high-stakes project phases.`,
+        `Our lead architect effectively _______ key responsibilities across the engineering squads.`,
+        `The product owner regularly _______ available analytics to guide strategic roadmap decisions.`,
+        `Every senior specialist carefully _______ each implementation detail prior to release.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chia động từ ở thì Hiện tại đơn - Ngôi thứ 3 số ít "She / He / Lead" (${validTargetMeaning} - Thêm -s/-es):`
+        : (qDifficulty === 'hard'
+          ? `Phân tích chủ ngữ ngôi thứ 3 số ít và ngữ pháp thì hiện tại đơn để chọn dạng động từ chính xác:`
+          : `Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít "She / Lead" + V-s/es):`);
+      explanation = `Chủ ngữ "She / Our lead / Every specialist" là ngôi thứ 3 số ít ở thì Hiện tại đơn, do đó động từ bắt buộc phải thêm đuôi "-s/-es" ➔ Đáp án chính xác là "${correctAnswer}".`;
+      grammarOptions = [forms.sForm, forms.base, forms.ingForm, forms.edForm];
+    } else if (verbCycle === 1) {
+      // 2. Quá khứ đơn (-ed / V2)
+      correctAnswer = forms.edForm;
+      const templates = [
+        `Last quarter, our engineering division successfully _______ all critical bottlenecks before launch.`,
+        `During yesterday's retrospective, she _______ her architectural decisions with precision.`,
+        `In the previous sprint, the core infrastructure team _______ all major performance hurdles.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chia động từ ở thì Quá khứ đơn ("Last quarter / Yesterday" - ${validTargetMeaning}):`
+        : `Chia động từ ở thì Quá khứ đơn (Dấu hiệu "Last quarter / Yesterday"):`;
+      explanation = `Trạng ngữ chỉ thời gian trong quá khứ ("Last quarter / Yesterday") đòi hỏi động từ chia ở thì Quá khứ đơn (V-ed / V2) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      grammarOptions = [forms.edForm, forms.base, forms.sForm, forms.ingForm];
+    } else {
+      // 3. Danh động từ sau giới từ (V-ing)
+      correctAnswer = forms.ingForm;
+      const templates = [
+        `The organization achieved high stability by _______ common operational oversights early.`,
+        `He greatly accelerated delivery by _______ routine administrative chores across members.`,
+        `After _______ the initial hurdles, the development squad reached peak productivity.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chọn dạng danh động từ thích hợp sau giới từ "By / After" (${validTargetMeaning}):`
+        : `Chọn dạng từ thích hợp đứng sau giới từ ("By / After / Without" + V-ing):`;
+      explanation = `Đứng sau các giới từ như "By", "After", "Without", động từ phải ở dạng danh động từ (Gerund V-ing) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      grammarOptions = [forms.ingForm, forms.base, forms.sForm, forms.edForm];
+    }
+  } else if (isNoun) {
+    // === CHẾ ĐỘ DANH TỪ (NOUN): Luân phiên Danh từ số nhiều (-s/-es) và Danh từ số ít ===
+    const nounCycle = questionIndex % 2;
+
+    if (nounCycle === 0) {
+      // 1. Danh từ số nhiều (-s / -es)
+      correctAnswer = forms.plural;
+      const templates = [
+        `The steering committee evaluated all project _______ before granting release approval.`,
+        `There are multiple strategic _______ that the team must achieve by the end of this sprint.`,
+        `Several critical _______ were delivered on time despite severe deadline pressure.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chọn dạng danh từ số nhiều thích hợp ("all / multiple / several" - ${validTargetMeaning}):`
+        : `Chọn dạng danh từ số nhiều thích hợp sau lượng từ ("all / multiple / several"):`;
+      explanation = `Các từ chỉ số lượng ("all / multiple / several") đòi hỏi danh từ đếm được phải ở dạng số nhiều (-s/-es) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      grammarOptions = [forms.plural, forms.base, forms.base + "'s", forms.ingForm || forms.base + 'ing'];
+    } else {
+      // 2. Danh từ số ít
+      correctAnswer = forms.base;
+      const templates = [
+        `Achieving this core objective represents a major _______ for the entire engineering department.`,
+        `The architect identified an unexpected _______ in the third-party payment integration.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = `Điền danh từ thích hợp vào chỗ trống trong câu (sau mạo từ "a / an"):`;
+      explanation = `Vị trí sau mạo từ "a / an" đòi hỏi danh từ đếm được ở dạng số ít ➔ Đáp án chính xác là "${correctAnswer}".`;
+      grammarOptions = [forms.base, forms.plural, forms.base + "'s", forms.ingForm || forms.base + 'ing'];
+    }
+  } else if (isAdj) {
+    // === CHẾ ĐỘ TÍNH TỪ (ADJECTIVE): Luân phiên Tính từ và Trạng từ (-ly) ===
+    const adjCycle = questionIndex % 2;
+
+    if (adjCycle === 0) {
+      // 1. Tính từ bổ nghĩa cho danh từ hoặc sau to be
+      correctAnswer = targetWord.word;
+      const templates = [
+        `The engineering team demonstrated a remarkably _______ approach to resolving system outages.`,
+        `Our senior leaders are exceptionally _______ in their strategic market planning.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = qDifficulty === 'easy'
+        ? `Chọn tính từ thích hợp bổ nghĩa cho danh từ (${validTargetMeaning}):`
+        : `Chọn tính từ phù hợp với ngữ cảnh câu:`;
+      explanation = `Vị trí trước danh từ hoặc đứng sau trạng từ đòi hỏi một tính từ (Adjective) để bổ nghĩa ➔ "${correctAnswer}".`;
+      const tricky = generateTrickyWordFamily(targetWord.word);
+      grammarOptions = [targetWord.word, forms.advForm || (targetWord.word + 'ly'), ...tricky].slice(0, 4);
+    } else {
+      // 2. Trạng từ (-ly) bổ nghĩa cho động từ
+      correctAnswer = forms.advForm || (targetWord.word + 'ly');
+      const templates = [
+        `The senior architects worked _______ to eliminate all critical security bottlenecks.`,
+        `The keynote speaker presented the technical findings _______ to the entire audience.`
+      ];
+      questionText = templates[questionIndex % templates.length];
+      promptSubtitle = `Chọn trạng từ thích hợp bổ nghĩa cho động từ hành động ("worked / presented _______"):`;
+      explanation = `Vị trí bổ nghĩa cho động từ hành động đòi hỏi một trạng từ (Adverb -ly) ➔ Đáp án chính xác là "${correctAnswer}".`;
+      const tricky = generateTrickyWordFamily(targetWord.word);
+      grammarOptions = [correctAnswer, targetWord.word, ...tricky].slice(0, 4);
+    }
+  } else {
+    // === CÁC TỪ LOẠI KHÁC (Phrase / Idiom / Adverb) ===
+    correctAnswer = targetWord.word;
+    questionText = `In modern business environments, it is crucial to _______ to achieve maximum productivity.`;
+    promptSubtitle = `Điền từ vựng thích hợp vào ngữ cảnh câu:`;
+    explanation = `Điền từ "${targetWord.word}" (${validTargetMeaning}) để hoàn chỉnh câu chuẩn xác.`;
+    grammarOptions = [targetWord.word, forms.sForm, forms.edForm, forms.ingForm];
+  }
+
+  // Phương án trắc nghiệm (Options)
+  let options = [];
+  if (qDifficulty === 'easy') {
+    const easyPool = EASY_DISTRACTORS.filter(ed => ed.word !== targetWord.word.toLowerCase()).sort(() => 0.5 - Math.random());
+    options = [correctAnswer, ...easyPool.slice(0, 3).map(e => e.word)];
+  } else if (qDifficulty === 'hard') {
+    const trickyForms = [
+      ...grammarOptions.filter(g => g && g.toLowerCase() !== correctAnswer.toLowerCase()),
+      ...generateTrickyWordFamily(targetWord.word),
+      ...otherWords.map(w => w.word)
+    ].filter(f => f && f.toLowerCase() !== correctAnswer.toLowerCase());
+    options = [correctAnswer, ...trickyForms.slice(0, 3)];
+  } else {
+    options = grammarOptions.filter(Boolean);
+    while (options.length < 4) {
+      const extra = otherWords.find(w => !options.includes(w.word));
+      if (extra) options.push(extra.word);
+      else break;
+    }
+  }
+
+  options = [...new Set(options)].sort(() => 0.5 - Math.random());
+
+  return {
+    questionText,
+    promptSubtitle,
+    correctAnswer,
+    options,
+    explanation
+  };
+}
+
 export function generateTrickyWordFamily(word) {
   const w = (word || '').toLowerCase().trim();
   const forms = new Set();
@@ -427,6 +719,7 @@ export const quizService = {
       let promptSubtitle = '';
       let correctAnswer = '';
       let options = [];
+      let grammarExplanation = '';
 
       if (qDifficulty === 'easy') {
         // === MỨC DỄ: Câu hỏi trực quan, có gợi ý rõ ràng, đáp án gây nhiễu khác biệt dễ loại trừ ===
@@ -451,28 +744,19 @@ export const quizService = {
           options = [targetWord.word, ...easyPool.slice(0, 3).map(e => e.word)];
           options = [...new Set(options)].sort(() => 0.5 - Math.random());
         } else if (qType === 'cloze_blank') {
-          let cleanSentence = '';
-          if (examples.length > 0) {
-            for (const ex of examples) {
-              const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
-              if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
-                const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
-                cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
-                break;
-              }
-            }
-          }
-          if (!cleanSentence) {
-            cleanSentence = `Please remember to _______ when handling this process.`;
-          }
-          questionText = cleanSentence;
-          promptSubtitle = `Điền từ thích hợp vào chỗ trống (Gợi ý: "${validTargetMeaning}" - Bắt đầu bằng "${targetWord.word[0].toUpperCase()}..."):`;
-          correctAnswer = targetWord.word;
-
-          const easyPool = EASY_DISTRACTORS.filter(ed => ed.word !== targetWord.word.toLowerCase());
-          easyPool.sort(() => 0.5 - Math.random());
-          options = [targetWord.word, ...easyPool.slice(0, 3).map(e => e.word)];
-          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+          const grammarQ = generateGrammarClozeQuestion({
+            targetWord,
+            validTargetMeaning,
+            examples,
+            qDifficulty,
+            questionIndex: index,
+            otherWords: words
+          });
+          questionText = grammarQ.questionText;
+          promptSubtitle = grammarQ.promptSubtitle;
+          correctAnswer = grammarQ.correctAnswer;
+          options = grammarQ.options;
+          grammarExplanation = grammarQ.explanation;
         }
       } else if (qDifficulty === 'hard') {
         // === MỨC KHÓ: Đánh đố cao, bẫy họ từ (Word Forms), bẫy từ gần nghĩa, không có gợi ý ===
@@ -502,29 +786,19 @@ export const quizService = {
           options = [targetWord.word, ...wordFamily.slice(0, 2), ...otherWords.slice(0, 3)].slice(0, 4);
           options = [...new Set(options)].sort(() => 0.5 - Math.random());
         } else if (qType === 'cloze_blank') {
-          let cleanSentence = '';
-          if (examples.length > 0) {
-            for (const ex of examples) {
-              const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
-              if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
-                const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
-                cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
-                break;
-              }
-            }
-          }
-          if (!cleanSentence) {
-            cleanSentence = `In professional environments, one must demonstrate great _______ to overcome obstacles.`;
-          }
-          questionText = cleanSentence;
-          promptSubtitle = 'Phân tích cấu trúc ngữ pháp và ngữ cảnh để chọn từ/dạng từ chính xác nhất:';
-          correctAnswer = targetWord.word;
-
-          // TRICKY BẪY TỪ LOẠI (Word Family Traps: e.g. resilient vs resilience vs resiliently)
-          const trickyForms = generateTrickyWordFamily(targetWord.word);
-          const otherWordList = words.filter(w => w.id !== targetWord.id).map(w => w.word).sort(() => 0.5 - Math.random());
-          options = [targetWord.word, ...trickyForms.slice(0, 2), ...otherWordList.slice(0, 2)].slice(0, 4);
-          options = [...new Set(options)].sort(() => 0.5 - Math.random());
+          const grammarQ = generateGrammarClozeQuestion({
+            targetWord,
+            validTargetMeaning,
+            examples,
+            qDifficulty,
+            questionIndex: index,
+            otherWords: words
+          });
+          questionText = grammarQ.questionText;
+          promptSubtitle = grammarQ.promptSubtitle;
+          correctAnswer = grammarQ.correctAnswer;
+          options = grammarQ.options;
+          grammarExplanation = grammarQ.explanation;
         }
       } else {
         // === MỨC TRUNG BÌNH: Tiêu chuẩn, đọc hiểu ngữ cảnh câu, phương án cùng từ loại, không gợi ý lộ liễu ===
@@ -567,29 +841,19 @@ export const quizService = {
           ];
           options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
         } else if (qType === 'cloze_blank') {
-          let cleanSentence = '';
-          if (examples.length > 0) {
-            for (const ex of examples) {
-              const str = typeof ex === 'string' ? ex : (ex?.en || ex?.sentence || '');
-              if (str && new RegExp(`\\b${targetWord.word}\\b`, 'i').test(str)) {
-                const englishOnly = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
-                cleanSentence = englishOnly.replace(new RegExp(`\\b${targetWord.word}\\b`, 'gi'), '_______');
-                break;
-              }
-            }
-          }
-          if (!cleanSentence) {
-            cleanSentence = `The company is seeking a team member who is _______ in their work.`;
-          }
-          questionText = cleanSentence;
-          promptSubtitle = 'Điền từ vựng thích hợp vào chỗ trống trong câu sau:';
-          correctAnswer = targetWord.word;
-
-          const rawOptions = [
-            targetWord.word,
-            ...distractors.map(d => d.word)
-          ];
-          options = [...new Set(rawOptions)].sort(() => 0.5 - Math.random());
+          const grammarQ = generateGrammarClozeQuestion({
+            targetWord,
+            validTargetMeaning,
+            examples,
+            qDifficulty,
+            questionIndex: index,
+            otherWords: words
+          });
+          questionText = grammarQ.questionText;
+          promptSubtitle = grammarQ.promptSubtitle;
+          correctAnswer = grammarQ.correctAnswer;
+          options = grammarQ.options;
+          grammarExplanation = grammarQ.explanation;
         }
       }
 
@@ -619,8 +883,8 @@ export const quizService = {
         explanation = `Định nghĩa "${validTargetMeaning}" trong tiếng Anh tương ứng với từ "${targetWord.word}". ${targetWord.phonetic ? `Phiên âm IPA: /${targetWord.phonetic.replace(/\//g, '')}/.` : ''} ${targetWord.meaning_en ? `Định nghĩa: ${targetWord.meaning_en}.` : ''}`;
         translation = cleanExString ? `Ví dụ thực tế: "${cleanExString}"` : `Ý nghĩa: ${validTargetMeaning}`;
       } else if (qType === 'cloze_blank') {
-        const completedSentence = questionText.replace(/_______/g, targetWord.word);
-        explanation = `Điền từ "${targetWord.word}" (${validTargetMeaning}) để hoàn chỉnh câu: "${completedSentence}". ${targetWord.phonetic ? `Phiên âm: /${targetWord.phonetic.replace(/\//g, '')}/.` : ''}`;
+        const completedSentence = questionText.replace(/_______/g, correctAnswer);
+        explanation = grammarExplanation || `Điền dạng từ "${correctAnswer}" (${validTargetMeaning}) để hoàn chỉnh câu: "${completedSentence}". ${targetWord.phonetic ? `Phiên âm: /${targetWord.phonetic.replace(/\//g, '')}/.` : ''}`;
         translation = `Câu hoàn chỉnh: "${completedSentence}"`;
       }
 

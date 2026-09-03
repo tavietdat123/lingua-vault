@@ -761,12 +761,20 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
 
   const modeInstructions = {
     'cloze_blank': `
-🎯 YÊU CẦU CHẾ ĐỘ: "Điền vào câu (Cloze Blank)"
+🎯 YÊU CẦU CHẾ ĐỘ: "Điền vào câu (Cloze Blank) & Đa dạng Ngữ Pháp (Tenses & Inflections)"
 - Mọi câu hỏi đều là câu văn ngữ cảnh thực tế chứa chỗ trống "_______" tương ứng với từ mục tiêu.
-- questionText: Câu tiếng Anh có chỗ trống _______
-- promptSubtitle: "Điền từ vựng thích hợp vào ngữ cảnh:"
-- options: 4 từ vựng tiếng Anh (1 từ đúng và 3 từ gây nhiễu cùng từ loại).
-- correctAnswer: Từ vựng tiếng Anh chính xác.
+- ĐA DẠNG HÓA CÁC THÌ & DẠNG TỪ (BẮT BUỘC):
+  + TUYỆT ĐỐI KHÔNG CHỈ hỏi từ ở dạng nguyên mẫu (bare infinitive)!
+  + Hãy linh hoạt tạo các câu hỏi kiểm tra:
+    * Động từ thêm "-s" hoặc "-es" khi đi với chủ ngữ ngôi thứ 3 số ít ở hiện tại đơn (ví dụ: "She consistently avoids...", "Our lead delegates...").
+    * Động từ chia quá khứ đơn (-ed hoặc bất quy tắc) với mốc thời gian quá khứ (ví dụ: "Last month, the team achieved...", "Yesterday she articulated...").
+    * Danh động từ V-ing đứng sau giới từ (ví dụ: "By avoiding...", "After delegating...").
+    * Thể bị động (was/were + V3/ed, ví dụ: "All tasks were delegated...").
+    * Danh từ số nhiều (-s/-es) đi sau all / several / multiple (ví dụ: "all project deliverables / milestones").
+- options: 4 lựa chọn tiếng Anh. Trong đó phải có các bẫy ngữ pháp tương ứng giữa các dạng từ (ví dụ: avoids vs avoid vs avoided vs avoiding).
+- correctAnswer: Dạng từ ngữ pháp chính xác để điền vào câu (ví dụ: 'avoids', 'avoided', 'avoiding', 'milestones').
+- promptSubtitle: Nêu rõ yêu cầu ngữ pháp (ví dụ: "Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít):" hoặc "Chia động từ ở thì Quá khứ đơn:").
+- explanation: Phải giải thích rõ quy tắc ngữ pháp (tại sao phải thêm -s/-es, tại sao chia quá khứ, tại sao V-ing sau giới từ).
 - type: "cloze_blank"
 `,
     'meaning_vi': `
@@ -797,7 +805,7 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
     'mixed': `
 🎯 YÊU CẦU CHẾ ĐỘ: "Hỗn Hợp Đa Dạng (Mixed Modes)"
 - Hãy đan xen luân phiên các dạng câu hỏi giữa các câu:
-  + Dạng cloze_blank: Câu tiếng Anh có chỗ trống _______, options là 4 từ tiếng Anh.
+  + Dạng cloze_blank: Câu tiếng Anh có chỗ trống _______, options là 4 từ tiếng Anh (bắt buộc đa dạng thì: hiện tại đơn -s/-es, quá khứ -ed, V-ing, số nhiều -s/-es).
   + Dạng meaning_vi: Câu tiếng Anh hoàn chỉnh in đậm **từ vựng**, options là 4 nghĩa tiếng Việt theo ngữ cảnh.
   + Dạng reverse_en: Định nghĩa tình huống bằng tiếng Việt, options là 4 từ tiếng Anh.
   + Dạng listening: Luyện nghe phát âm từ vựng, options là 4 nghĩa tiếng Việt.
