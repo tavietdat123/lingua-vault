@@ -294,27 +294,36 @@ export function initializeDatabase() {
     `);
   } catch (e) {}
 
-  // Pre-populate Default Curated Topics if table is empty
-  const topicsCount = db.prepare('SELECT COUNT(*) as count FROM topics').get();
-  if (!topicsCount || topicsCount.count === 0) {
-    const defaultTopics = [
-      { id: 'work', name: 'Công việc & Sự nghiệp', emoji: '💼', color: '#0284c7', description: 'Từ vựng đàm phán, phỏng vấn, email công việc và quản lý dự án' },
-      { id: 'tech', name: 'Công nghệ & Kỹ thuật', emoji: '💻', color: '#8b5cf6', description: 'Thuật ngữ IT, lập trình, trí tuệ nhân tạo và chuyển đổi số' },
-      { id: 'ielts', name: 'Học thuật & IELTS', emoji: '🎓', color: '#ec4899', description: 'Từ vựng Band 7.0-8.5+, bài luận học thuật và viết thư' },
-      { id: 'daily', name: 'Giao tiếp Hàng ngày', emoji: '☕', color: '#10b981', description: 'Từ ngữ đời sống, giao tiếp tự nhiên, quán xá và sinh hoạt' },
-      { id: 'travel', name: 'Du lịch & Văn hóa', emoji: '✈️', color: '#f59e0b', description: 'Hàng không, khách sạn, ẩm thực và khám phá thế giới' },
-      { id: 'mindset', name: 'Tâm lý & Tư duy', emoji: '🧠', color: '#06b6d4', description: 'Phát triển bản thân, triết học, tư duy phản biện và cảm xúc' }
-    ];
+  // Pre-populate & Auto-sync Default Curated Topics
+  const defaultTopics = [
+    { id: 'work', name: 'Công việc & Sự nghiệp', emoji: '💼', color: '#0284c7', description: 'Từ vựng đàm phán, phỏng vấn, email công việc và quản lý dự án' },
+    { id: 'tech', name: 'Công nghệ & Kỹ thuật', emoji: '💻', color: '#8b5cf6', description: 'Thuật ngữ IT, lập trình, trí tuệ nhân tạo và chuyển đổi số' },
+    { id: 'ielts', name: 'Học thuật & IELTS', emoji: '🎓', color: '#ec4899', description: 'Từ vựng Band 7.0-8.5+, bài luận học thuật và viết thư' },
+    { id: 'daily', name: 'Giao tiếp Hàng ngày', emoji: '☕', color: '#10b981', description: 'Từ ngữ đời sống, giao tiếp tự nhiên, quán xá và sinh hoạt' },
+    { id: 'travel', name: 'Du lịch & Văn hóa', emoji: '✈️', color: '#f59e0b', description: 'Hàng không, khách sạn, ẩm thực và khám phá thế giới' },
+    { id: 'mindset', name: 'Tâm lý & Tư duy', emoji: '🧠', color: '#06b6d4', description: 'Phát triển bản thân, triết học, tư duy phản biện và cảm xúc' },
+    { id: 'finance', name: 'Tài chính & Đầu tư', emoji: '💰', color: '#10b981', description: 'Thuật ngữ ngân hàng, chứng khoán, đầu tư, ngân sách và phân tích tài chính' },
+    { id: 'business', name: 'Kinh doanh & Khởi nghiệp', emoji: '🚀', color: '#f97316', description: 'Thương trường, gọi vốn, mô hình kinh doanh, tiếp thị và tăng trưởng doanh nghiệp' },
+    { id: 'marketing', name: 'Marketing & Truyền thông', emoji: '📢', color: '#eab308', description: 'Quảng cáo, xây dựng thương hiệu, sáng tạo nội dung và truyền thông số' },
+    { id: 'health', name: 'Sức khỏe & Y tế', emoji: '🩺', color: '#ef4444', description: 'Dinh dưỡng, y học, thể lực, thể chất và lối sống lành mạnh' },
+    { id: 'legal', name: 'Pháp lý & Hợp đồng', emoji: '⚖️', color: '#64748b', description: 'Điều khoản hợp đồng, sở hữu trí tuệ, luật pháp và quy định tuân thủ' },
+    { id: 'environment', name: 'Môi trường & Sinh thái', emoji: '🌱', color: '#22c55e', description: 'Biến đổi khí hậu, năng lượng tái tạo, bảo tồn sinh thái và lối sống xanh' },
+    { id: 'science', name: 'Khoa học & Không gian', emoji: '🔬', color: '#3b82f6', description: 'Vật lý, sinh học, vũ trụ, nghiên cứu học thuật và phát minh khoa học' },
+    { id: 'art', name: 'Nghệ thuật & Thiết kế', emoji: '🎨', color: '#d946ef', description: 'Hội họa, kiến trúc, thiết kế đồ họa/UI-UX, nhiếp ảnh và thẩm mỹ' },
+    { id: 'food', name: 'Ẩm thực & Nhà hàng', emoji: '🍽️', color: '#f43f5e', description: 'Món ăn, đồ uống, kỹ thuật nấu nướng và văn hóa ẩm thực thế giới' },
+    { id: 'education', name: 'Giáo dục & Kỹ năng', emoji: '📚', color: '#6366f1', description: 'Phương pháp học tập, đàm phán, thuyết trình và giải quyết vấn đề' },
+    { id: 'sports', name: 'Thể thao & Thể hình', emoji: '⚽', color: '#14b8a6', description: 'Các môn thể thao, thi đấu, luyện tập thể thao và giải đấu quốc tế' },
+    { id: 'social', name: 'Mối quan hệ & Xã hội', emoji: '🤝', color: '#a855f7', description: 'Tình bạn, gia đình, giao tiếp xã hội, cảm xúc và ứng xử cộng đồng' }
+  ];
 
-    const now = new Date().toISOString();
-    const insertTopic = db.prepare(`
-      INSERT INTO topics (id, name, emoji, color, description, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+  const now = new Date().toISOString();
+  const insertTopic = db.prepare(`
+    INSERT OR IGNORE INTO topics (id, name, emoji, color, description, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
 
-    for (const t of defaultTopics) {
-      insertTopic.run(t.id, t.name, t.emoji, t.color, t.description, now, now);
-    }
+  for (const t of defaultTopics) {
+    insertTopic.run(t.id, t.name, t.emoji, t.color, t.description, now, now);
   }
 
   // Pre-populate Default Master Admin User if users table is empty

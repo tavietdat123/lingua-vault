@@ -11,7 +11,8 @@
     "app:mac": "npm --prefix desktop run start",
     "app:mobile": "npm --prefix desktop run mobile",
     "build:web": "npm --prefix web run build",
-    "test:all": "node server/test-all-features.js"
+    "test:all": "node server/test-all-features.js",
+    "seed:topics": "node server/src/scripts/seedTopics.js"
   },
   "keywords": [
     "english",
