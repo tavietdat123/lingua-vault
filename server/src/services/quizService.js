@@ -396,7 +396,25 @@ export function generateGrammarClozeQuestion({
     }
   }
 
-  options = [...new Set(options)].sort(() => 0.5 - Math.random());
+  options = [...new Set(options)];
+  if (!options.includes(correctAnswer)) {
+    options.unshift(correctAnswer);
+  }
+
+  const fallbackPool = [
+    ...otherWords.map(w => w.word),
+    ...HIGH_QUALITY_DISTRACTORS.map(d => d.word),
+    ...EASY_DISTRACTORS.map(e => e.word)
+  ];
+
+  for (const item of fallbackPool) {
+    if (options.length >= 4) break;
+    if (item && !options.includes(item) && item.toLowerCase() !== correctAnswer.toLowerCase()) {
+      options.push(item);
+    }
+  }
+
+  options = options.slice(0, 4).sort(() => 0.5 - Math.random());
 
   return {
     questionText,
