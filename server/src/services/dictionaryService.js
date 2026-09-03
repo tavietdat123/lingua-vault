@@ -11,31 +11,111 @@ export function inferTopic(word, partOfSpeech = '', meaningVi = '') {
   const w = (word || '').toLowerCase();
   const m = (meaningVi || '').toLowerCase();
 
-  // Tech & Engineering
-  if (/^(code|tech|data|software|cloud|api|dev|ai|scale|async|bug|server|cyber|network|crypto|algorithm|pipeline|deploy|refactor|idempotent|latency|deprecated|telemetry|robust|seamless)/i.test(w) ||
-      /(lập trình|mã nguồn|máy tính|dữ liệu|hạ tầng|thuật toán|phần mềm|công nghệ|mạng|đám mây)/i.test(m)) {
+  // 1. AI & Machine Learning
+  if (/^(ai|llm|gpt|neural|tensor|prompt|transformer|model|embedding|inference|hallucination|agentic|rag|deep learning)/i.test(w) ||
+      /(trí tuệ nhân tạo|học máy|học sâu|mô hình ngôn ngữ|mạng nơ-ron|thị giác máy tính|prompt)/i.test(m)) {
+    return 'ai';
+  }
+
+  // 2. Cybersecurity
+  if (/^(cyber|security|firewall|vulnerability|exploit|penetration|pentest|zero trust|encryption|decrypt|malware|ransomware|phishing|token|auth)/i.test(w) ||
+      /(an ninh mạng|bảo mật|lỗ hổng|mật mã|tường lửa|mã độc|tấn công mạng|xác thực)/i.test(m)) {
+    return 'cybersecurity';
+  }
+
+  // 3. Cloud & DevOps
+  if (/^(cloud|devops|docker|kubernetes|k8s|container|ci|cd|pipeline|deploy|aws|azure|gcp|iac|terraform|ansible|cluster|microservice)/i.test(w) ||
+      /(đám mây|hạ tầng|triển khai|vận hành|vùng chứa|tự động hóa hạ tầng)/i.test(m)) {
+    return 'devops';
+  }
+
+  // 4. Data & Analytics
+  if (/^(data|warehouse|lakehouse|etl|sql|analytics|spark|hadoop|bi|metric|visualization|query|aggregate)/i.test(w) ||
+      /(dữ liệu lớn|kho dữ liệu|truy vấn|phân tích dữ liệu|trực quan hóa|thống kê)/i.test(m)) {
+    return 'data';
+  }
+
+  // 5. Database Systems
+  if (/^(database|postgres|mysql|nosql|mongodb|redis|indexing|transaction|acid|sharding|replication|deadlock)/i.test(w) ||
+      /(cơ sở dữ liệu|chỉ mục|giao dịch|bảng dữ liệu|khóa chính|khóa ngoại)/i.test(m)) {
+    return 'database_systems';
+  }
+
+  // 6. Web & Frontend
+  if (/^(web|frontend|react|vue|angular|html|css|dom|responsive|nextjs|tailwind|ui|ux|component|bundle)/i.test(w) ||
+      /(lập trình web|giao diện|trang web|thành phần giao diện|hiển thị|thiết kế web)/i.test(m)) {
+    return 'web_dev';
+  }
+
+  // 7. Mobile Development
+  if (/^(mobile|android|ios|swift|kotlin|flutter|react native|touch|gesture|app store|play store)/i.test(w) ||
+      /(ứng dụng di động|điện thoại|cảm ứng|hệ điều hành di động)/i.test(m)) {
+    return 'mobile_dev';
+  }
+
+  // 8. Blockchain & Web3
+  if (/^(blockchain|web3|crypto|bitcoin|ethereum|smart contract|solidity|defi|ledger|consensus|mint|nft)/i.test(w) ||
+      /(chuỗi khối|tiền mã hóa|hợp đồng thông minh|sổ cái|phi tập trung)/i.test(m)) {
+    return 'blockchain';
+  }
+
+  // 9. QA & Software Testing
+  if (/^(qa|testing|assertion|mock|stub|unit test|integration test|selenium|cypress|regression|bug|defect)/i.test(w) ||
+      /(kiểm thử|đảm bảo chất lượng|quản lý lỗi|tự động hóa kiểm thử)/i.test(m)) {
+    return 'qa_testing';
+  }
+
+  // 10. Software Engineering & Architecture
+  if (/^(code|refactor|design pattern|architecture|oop|class|inheritance|polymorphism|interface|clean code|algorithm|async|sync|concurrency|mutex)/i.test(w) ||
+      /(kỹ nghệ phần mềm|kiến trúc phần mềm|tái cấu trúc|thuật toán|lập trình hướng đối tượng|đa luồng)/i.test(m)) {
+    return 'software_eng';
+  }
+
+  // 11. B2 Topics (Debate, Negotiation, Global Issues)
+  if (/^(debate|persuade|convince|counter|rebuttal|dispute|consensus|compromise)/i.test(w) ||
+      /(tranh biện|thuyết phục|phản biện|lập luận)/i.test(m)) {
+    return 'b2_debate_persuasion';
+  }
+  if (/^(negotiate|concession|bargain|leverage|settlement|terms|clause)/i.test(w) ||
+      /(đàm phán|thương thuyết|nhượng bộ|thỏa hiệp)/i.test(m)) {
+    return 'b2_business_negotiation';
+  }
+
+  // 12. B1 Topics (Workplace, Daily Life, Travel)
+  if (/^(colleague|office|schedule|routine|task|meeting|boss|cubicle|shift)/i.test(w) ||
+      /(đồng nghiệp|văn phòng|lịch trình|ca làm|cuộc họp công sở)/i.test(m)) {
+    return 'b1_workplace';
+  }
+  if (/^(rent|house|apartment|chore|furniture|appliance|bill|utility|grocery)/i.test(w) ||
+      /(thuê nhà|việc nhà|nội thất|hóa đơn điện nước|sinh hoạt)/i.test(m)) {
+    return 'b1_daily_life';
+  }
+
+  // 13. General Tech
+  if (/^(tech|software|api|server|network|pipeline)/i.test(w) ||
+      /(công nghệ|máy tính|hệ thống|mạng)/i.test(m)) {
     return 'tech';
   }
 
-  // Work & Career
-  if (/^(work|job|career|business|market|lead|manage|leverage|streamline|delegate|prioritize|collaborate|facilitate|synergy|benchmark|deliverable|stakeholder|bottleneck|deadline|bandwidth|consensus|optimize|implement|negotiate|revenue|executive)/i.test(w) ||
-      /(công việc|sự nghiệp|kinh doanh|doanh nghiệp|lãnh đạo|quản lý|dự án|đàm phán|khách hàng|hợp đồng)/i.test(m)) {
+  // 14. Work & Career
+  if (/^(work|job|career|business|market|lead|manage|leverage|streamline|delegate|prioritize|collaborate|facilitate|synergy|benchmark|deliverable|stakeholder|bottleneck|deadline|bandwidth|optimize|implement|revenue|executive)/i.test(w) ||
+      /(công việc|sự nghiệp|kinh doanh|doanh nghiệp|lãnh đạo|quản lý|dự án|khách hàng|hợp đồng)/i.test(m)) {
     return 'work';
   }
 
-  // Academic & IELTS
+  // 15. Academic & IELTS
   if (/^(academic|ielts|essay|scrutiny|paradigm|cogent|esoteric|ubiquitous|procrastinate|conundrum|ameliorate|mitigate|eloquent|superfluous|versatile|vulnerable|ambiguous|comprehensive|indispensable|inevitable|feasible|prevalent|ephemeral|phenomenon|hypothesis)/i.test(w) ||
       /(học thuật|nghiên cứu|luận văn|khảo sát|giả thuyết|phân tích sâu|hiện tượng|chứng minh)/i.test(m)) {
     return 'ielts';
   }
 
-  // Mindset & Psychology
+  // 16. Mindset & Psychology
   if (/^(mindset|psych|resilient|serendipity|mindful|stoic|grit|growth|discipline|cognitive|perseverance|empathy|emotion|habit|lucid|introspection|philosophy)/i.test(w) ||
       /(tư duy|tâm lý|cảm xúc|kiên cường|phát triển bản thân|thói quen|nhận thức|triết học|tinh thần)/i.test(m)) {
     return 'mindset';
   }
 
-  // Travel & Culture
+  // 17. Travel & Culture
   if (/^(travel|trip|tour|itinerary|wanderlust|hospitality|breathtaking|picturesque|souvenir|destination|excursion|heritage|flight|hotel|explore)/i.test(w) ||
       /(du lịch|khách sạn|chuyến bay|văn hóa|thắng cảnh|ẩm thực|hành trình|khám phá)/i.test(m)) {
     return 'travel';
@@ -402,6 +482,18 @@ export async function lookupDictionary(word) {
   // 3. If Gemini API Key exists -> Use Google Gemini AI (Pedagogical Excellence)
   if (geminiKey) {
     try {
+      let topicListPrompt = '';
+      try {
+        const activeTopics = db.prepare('SELECT id, name, description FROM topics').all();
+        if (activeTopics.length > 0) {
+          topicListPrompt = activeTopics.map(t => `   - "${t.id}" (${t.name}: ${t.description || ''})`).join('\n');
+        }
+      } catch (e) {}
+
+      if (!topicListPrompt) {
+        topicListPrompt = `   - "work" (Công việc)\n   - "tech" (Công nghệ)\n   - "ai" (Trí tuệ nhân tạo)\n   - "daily" (Đời sống hàng ngày)`;
+      }
+
       const prompt = `
 Bạn là một Chuyên gia Khảo thí Ngôn ngữ Học thuật Quốc tế và Từ điển học Tiếng Anh cao cấp (theo chuẩn Cambridge & Oxford Advanced Learner's Dictionary).
 Hãy biên soạn phân tích từ vựng CHUẨN MỰC, DỄ HIỂU NHẤT dành cho người học tiếng Anh đối với từ/cụm từ: "${cleanWord}".
@@ -414,13 +506,8 @@ YÊU CẦU BIÊN SOẠN CHUẨN XÁC:
 5. "collocations": 3-4 cụm từ / collocation tự nhiên, phổ biến nhất đi kèm với từ này. MỖI CỤM PHẢI KÈM NGHĨA TIẾNG VIỆT TRONG NGOẶC (Ví dụ: "resilient mindset (tư duy kiên cường)").
 6. "examples": Đúng 2 câu ví dụ thực tế trong đời sống/công việc/học thuật. MỖI CÂU VÍ DỤ PHẢI KÈM BẢN DỊCH TIẾNG VIỆT TỰ NHIÊN TRONG NGOẶC ĐƠN (Ví dụ: "She gave a lucid explanation. (Cô ấy đã đưa ra một lời giải thích sáng rõ.)").
 7. "level": Đánh giá cấp độ CEFR chuẩn xác (A1, A2, B1, B2, C1, hoặc C2).
-8. "topic_id": Chọn đúng 1 mã chủ đề phù hợp nhất trong 6 mã sau:
-   - "work" (Công việc, đàm phán, email, quản lý, nghề nghiệp)
-   - "tech" (Công nghệ, IT, phần mềm, dữ liệu, kỹ thuật)
-   - "ielts" (Học thuật, bài luận, IELTS Band cao, nghiên cứu)
-   - "daily" (Giao tiếp hàng ngày, đời sống, quán xá, sinh hoạt)
-   - "travel" (Du lịch, khách sạn, sân bay, văn hóa, ẩm thực)
-   - "mindset" (Tâm lý, tư duy, phát triển bản thân, triết học)
+8. "topic_id": Hãy chọn ĐÚNG 1 mã "id" chủ đề phù hợp nhất trong danh sách các chủ đề của hệ thống dưới đây:
+${topicListPrompt}
 
 Trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`json ngoài JSON):
 {

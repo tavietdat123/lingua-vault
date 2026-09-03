@@ -310,6 +310,26 @@ export function initializeDatabase() {
     { id: 'qa_testing', name: 'Kiểm thử & QA Software', emoji: '🧪', color: '#059669', description: 'Unit test, integration test, automated testing (Selenium/Cypress), regression test và quản lý lỗi bug' },
     { id: 'networking', name: 'Mạng Máy tính & Hạ tầng', emoji: '🖧', color: '#4f46e5', description: 'TCP/IP, DNS, định tuyến (Routing), băng thông (Bandwidth), độ trễ (Latency) và cân bằng tải' },
 
+    { id: 'database_systems', name: 'Cơ sở Dữ liệu & Tối ưu SQL', emoji: '🗄️', color: '#0284c7', description: 'PostgreSQL, MySQL, NoSQL, MongoDB, Redis, lập chỉ mục (Indexing), truy vấn và tối ưu hóa DB' },
+    { id: 'system_architecture', name: 'Hệ thống Phân tán & Vi dịch vụ', emoji: '🏗️', color: '#4f46e5', description: 'Kafka, RabbitMQ, Event-driven architecture, CAP theorem, sharding, replication và fault-tolerance' },
+    { id: 'backend_dev', name: 'Lập trình Backend & API', emoji: '💻', color: '#16a34a', description: 'Node.js, Go, Python, Java Spring, RESTful API, gRPC, JWT Authentication và bộ nhớ đệm Cache' },
+    { id: 'game_dev', name: 'Đồ họa & Lập trình Game', emoji: '🎮', color: '#d946ef', description: 'Unity, Unreal Engine, Rendering pipeline, Shader, vật lý game và mô hình không gian 3D' },
+    { id: 'embedded_firmware', name: 'Lập trình Nhúng & Vi mạch', emoji: '⚡', color: '#eab308', description: 'C/C++, Assembly, vi điều khiển ARM/RISC-V, RTOS, Driver phần cứng và giao tiếp SPI/I2C' },
+
+    // --- CHỦ ĐỀ CEFR B1 (INTERMEDIATE) ---
+    { id: 'b1_workplace', name: 'Giao tiếp Công sở B1', emoji: '💼', color: '#0284c7', description: 'Email công sở, trao đổi với đồng nghiệp, họp định kỳ và lập kế hoạch làm việc (Cấp độ B1)' },
+    { id: 'b1_daily_life', name: 'Đời sống & Nhà cửa B1', emoji: '🏠', color: '#10b981', description: 'Thuê nhà, việc nhà, mua sắm hàng ngày, hóa đơn và các tiện ích sinh hoạt (Cấp độ B1)' },
+    { id: 'b1_travel_leisure', name: 'Du lịch & Giải trí B1', emoji: '🧳', color: '#f59e0b', description: 'Đặt vé, hỏi đường, phương tiện công cộng, sở thích cuối tuần và giải trí (Cấp độ B1)' },
+    { id: 'b1_personal_relations', name: 'Tính cách & Bạn bè B1', emoji: '😊', color: '#ec4899', description: 'Mô tả ngoại hình, tính cách con người, kết bạn và duy trì mối quan hệ (Cấp độ B1)' },
+    { id: 'b1_shopping_services', name: 'Dịch vụ & Mua sắm B1', emoji: '🛍️', color: '#06b6d4', description: 'Đi chợ, thanh toán, đổi trả hàng, dịch vụ bảo hành và ăn uống tại quán (Cấp độ B1)' },
+
+    // --- CHỦ ĐỀ CEFR B2 (UPPER-INTERMEDIATE) ---
+    { id: 'b2_debate_persuasion', name: 'Tranh biện & Thuyết phục B2', emoji: '🗣️', color: '#8b5cf6', description: 'Lập luận, phản biện, diễn đạt quan điểm cá nhân, thuyết phục và thỏa hiệp (Cấp độ B2)' },
+    { id: 'b2_global_issues', name: 'Toàn cầu hóa & Xã hội B2', emoji: '🌍', color: '#3b82f6', description: 'Kinh tế thế giới, biến đổi xã hội, đô thị hóa, di cư và hội nhập văn hóa (Cấp độ B2)' },
+    { id: 'b2_media_tech_ethics', name: 'Truyền thông & Đạo đức B2', emoji: '📰', color: '#f97316', description: 'Báo chí, mạng xã hội, tin tức giả, quyền riêng tư và đạo đức công nghệ (Cấp độ B2)' },
+    { id: 'b2_academic_writing', name: 'Viết Học thuật & Báo cáo B2', emoji: '📝', color: '#a855f7', description: 'Cấu trúc bài luận, từ nối học thuật, phân tích biểu đồ và viết báo cáo chuyên sâu (Cấp độ B2)' },
+    { id: 'b2_business_negotiation', name: 'Đàm phán & Thương thuyết B2', emoji: '🤝', color: '#059669', description: 'Chiến lược thương thảo hợp đồng, giải quyết xung đột lợi ích và quản trị rủi ro (Cấp độ B2)' },
+
     // --- KINH DOANH, ĐỜI SỐNG & HỌC THUẬT ---
     { id: 'work', name: 'Công việc & Sự nghiệp', emoji: '💼', color: '#0284c7', description: 'Từ vựng đàm phán, phỏng vấn, email công việc và quản lý dự án' },
     { id: 'tech', name: 'Công nghệ & Kỹ thuật', emoji: '💻', color: '#8b5cf6', description: 'Thuật ngữ IT tổng hợp, lập trình, trí tuệ nhân tạo và chuyển đổi số' },
