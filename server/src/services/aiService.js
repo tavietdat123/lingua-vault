@@ -687,7 +687,7 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
   if (words && words.length > 0) {
     candidateWords = words;
   } else {
-    const allWords = db.prepare('SELECT id, word, meaning_vi, level, topic_id, created_at FROM words').all();
+    const allWords = db.prepare('SELECT id, word, meaning_vi, meaning_en, part_of_speech, examples, level, topic_id, created_at FROM words').all();
     const dateFiltered = filterItemsByDate(allWords, date_scope, date);
     const resolved = resolveTopics(db, topic);
     if (!resolved.isAll) {
@@ -763,6 +763,9 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
     'cloze_blank': `
 🎯 YÊU CẦU CHẾ ĐỘ: "Điền vào câu (Cloze Blank) & Đa dạng Ngữ Pháp (Tenses & Inflections)"
 - Mọi câu hỏi đều là câu văn ngữ cảnh thực tế chứa chỗ trống "_______" tương ứng với từ mục tiêu.
+- ĐẢM BẢO TÍNH LOGIC & NGỮ CẢNH TỰ NHIÊN (BẮT BUỘC):
+  + Tuyệt đối không tạo câu vô lý, gượng ép hoặc trái ngược tính chất của từ vựng. Ví dụ: từ tiêu cực như "rude" (thô lỗ), "toxic", "arrogant" TUYỆT ĐỐI KHÔNG đặt vào câu khen ngợi ("The engineering team demonstrated a remarkably rude approach"), mà phải là câu đúng ngữ cảnh xã giao ("It is very rude to interrupt someone when they are speaking").
+  + Hãy ưu tiên tham khảo câu ví dụ mẫu chuẩn được cung cấp bên dưới để tạo ngữ cảnh chuẩn mực nhất.
 - ĐA DẠNG HÓA CÁC THÌ & DẠNG TỪ (BẮT BUỘC):
   + TUYỆT ĐỐI KHÔNG CHỈ hỏi từ ở dạng nguyên mẫu (bare infinitive)!
   + Hãy linh hoạt tạo các câu hỏi kiểm tra:
@@ -771,10 +774,12 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
     * Danh động từ V-ing đứng sau giới từ (ví dụ: "By avoiding...", "After delegating...").
     * Thể bị động (was/were + V3/ed, ví dụ: "All tasks were delegated...").
     * Danh từ số nhiều (-s/-es) đi sau all / several / multiple (ví dụ: "all project deliverables / milestones").
-- options: 4 lựa chọn tiếng Anh. Trong đó phải có các bẫy ngữ pháp tương ứng giữa các dạng từ (ví dụ: avoids vs avoid vs avoided vs avoiding).
-- correctAnswer: Dạng từ ngữ pháp chính xác để điền vào câu (ví dụ: 'avoids', 'avoided', 'avoiding', 'milestones').
-- promptSubtitle: Nêu rõ yêu cầu ngữ pháp (ví dụ: "Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít):" hoặc "Chia động từ ở thì Quá khứ đơn:").
-- explanation: Phải giải thích rõ quy tắc ngữ pháp (tại sao phải thêm -s/-es, tại sao chia quá khứ, tại sao V-ing sau giới từ).
+- 4 PHƯƠNG ÁN (OPTIONS) BẮT BUỘC PHẢI CÙNG TỪ LOẠI:
+  + Nếu câu hỏi kiểm tra Tính từ (Adjective), 4 lựa chọn BẮT BUỘC phải là các Tính từ hoặc họ từ biến cách của từ đó (ví dụ: rude, rudely, rudeness, polite). TUYỆT ĐỐI KHÔNG trộn lẫn từ loại cọc cạch khác biệt như danh từ (sunshine, book) hay động từ (run) vào câu hỏi tính từ!
+  + Nếu câu hỏi kiểm tra Động từ chia thì: 4 lựa chọn là các dạng chia của động từ đó (ví dụ: avoids vs avoid vs avoided vs avoiding).
+- correctAnswer: Dạng từ ngữ pháp chính xác để điền vào câu (ví dụ: 'avoids', 'avoided', 'avoiding', 'milestones', 'rude').
+- promptSubtitle: Nêu rõ yêu cầu ngữ pháp (ví dụ: "Chia động từ ở thì Hiện tại đơn (Chủ ngữ ngôi thứ 3 số ít):" hoặc "Chọn tính từ phù hợp với ngữ cảnh câu:").
+- explanation: Phải giải thích rõ quy tắc ngữ pháp hoặc ngữ nghĩa (tại sao phải điền từ này vào câu).
 - type: "cloze_blank"
 `,
     'meaning_vi': `
@@ -790,7 +795,7 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
 🎯 YÊU CẦU CHẾ ĐỘ: "Chọn từ tiếng Anh theo định nghĩa & tình huống (Reverse English)"
 - questionText: Định nghĩa hoặc tình huống mô tả chi tiết bằng tiếng Việt (tuyệt đối không ghi từ tiếng Anh vào câu hỏi).
 - promptSubtitle: "Chọn từ vựng tiếng Anh chuẩn xác tương ứng với ngữ cảnh trên:"
-- options: 4 từ vựng tiếng Anh.
+- options: 4 từ vựng tiếng Anh (bắt buộc cùng từ loại).
 - correctAnswer: Từ tiếng Anh chính xác.
 - type: "reverse_en"
 `,
@@ -805,7 +810,7 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
     'mixed': `
 🎯 YÊU CẦU CHẾ ĐỘ: "Hỗn Hợp Đa Dạng (Mixed Modes)"
 - Hãy đan xen luân phiên các dạng câu hỏi giữa các câu:
-  + Dạng cloze_blank: Câu tiếng Anh có chỗ trống _______, options là 4 từ tiếng Anh (bắt buộc đa dạng thì: hiện tại đơn -s/-es, quá khứ -ed, V-ing, số nhiều -s/-es).
+  + Dạng cloze_blank: Câu tiếng Anh có chỗ trống _______, options là 4 từ tiếng Anh cùng từ loại (bắt buộc đa dạng thì: hiện tại đơn -s/-es, quá khứ -ed, V-ing, số nhiều -s/-es; tuyệt đối không tạo câu vô lý với từ).
   + Dạng meaning_vi: Câu tiếng Anh hoàn chỉnh in đậm **từ vựng**, options là 4 nghĩa tiếng Việt theo ngữ cảnh.
   + Dạng reverse_en: Định nghĩa tình huống bằng tiếng Việt, options là 4 từ tiếng Anh.
   + Dạng listening: Luyện nghe phát âm từ vựng, options là 4 nghĩa tiếng Việt.
@@ -814,7 +819,19 @@ export async function generateAIQuiz({ topic = 'All', count = 5, words = [], lev
   };
 
   const currentModeInstruction = modeInstructions[mode] || modeInstructions['mixed'];
-  const wordsInput = selected.map((w, idx) => `Câu ${idx + 1}: Mục tiêu từ "${w.word}" (nghĩa: ${w.meaning_vi || ''})`).join('\n');
+  const wordsInput = selected.map((w, idx) => {
+    const posInfo = w.part_of_speech ? ` | Từ loại: ${w.part_of_speech}` : '';
+    let exInfo = '';
+    if (w.examples) {
+      try {
+        const exList = typeof w.examples === 'string' ? JSON.parse(w.examples) : w.examples;
+        if (Array.isArray(exList) && exList.length > 0) {
+          exInfo = ` | Ví dụ mẫu thực tế: "${exList[0]}"`;
+        }
+      } catch (e) {}
+    }
+    return `Câu ${idx + 1}: Mục tiêu từ "${w.word}" (Nghĩa: ${w.meaning_vi || ''}${posInfo}${exInfo})`;
+  }).join('\n');
 
   const prompt = `
 Bạn là chuyên gia khảo thí tiếng Anh (IELTS/ETS). Hãy tạo đúng chính xác ${targetCount} câu hỏi trắc nghiệm tiếng Anh thông minh cho chủ đề "${topicDisplay}".
