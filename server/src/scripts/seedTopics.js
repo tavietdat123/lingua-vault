@@ -68,14 +68,7 @@ const allCuratedTopics = [
 
 const now = new Date().toISOString();
 const insert = db.prepare(`
-  INSERT INTO topics (id, name, emoji, color, description, created_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(id) DO UPDATE SET
-    name = excluded.name,
-    emoji = excluded.emoji,
-    color = excluded.color,
-    description = excluded.description,
-    updated_at = excluded.updated_at
+  INSERT OR IGNORE INTO topics (id, name, emoji, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
 let count = 0;
