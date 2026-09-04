@@ -693,6 +693,35 @@ export default function QuizCenter({ onOpenReview }) {
                     )}
                   </div>
                 )}
+
+                {/* Pronounce Word Action Button */}
+                {Boolean(currentQ?.word || currentQ?.correctAnswer) && (
+                  <div style={{ marginTop: '0.85rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary quiz-feedback-pronounce-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        borderRadius: '10px',
+                        fontSize: '0.88rem',
+                        fontWeight: 700,
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--accent-primary)',
+                        border: '1.5px solid var(--accent-primary)',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.15)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => audioService.speak(currentQ?.word || currentQ?.correctAnswer)}
+                      title="Nghe phát âm chuẩn của từ vựng này">
+                      <Volume2 size={18} />
+                      <span>Phát âm: <strong style={{ color: 'var(--text-primary)' }}>{currentQ?.word || currentQ?.correctAnswer}</strong> {currentQ?.phonetic ? <span style={{ fontFamily: 'monospace', opacity: 0.85 }}>({currentQ.phonetic})</span> : ''} 🔊</span>
+                    </button>
+                  </div>
+                )}
               </div>
               <button className="btn btn-primary next-quiz-btn" onClick={handleNextQuestion}>
                 <span>{currentIndex + 1 < quizData.questions.length ? 'Câu Tiếp Theo' : 'Xem Kết Quả Tổng Kết'}</span>

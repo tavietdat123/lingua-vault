@@ -5988,10 +5988,34 @@ function MainApp() {
                             </View>
                     }
 
+                          {/* Pronounce Word Action Button after answering */}
+                          {quizIsAnswered && Boolean(currentQ?.word || currentQ?.correctAnswer) && (
+                            <TouchableOpacity
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: theme.accentSoft || 'rgba(99, 102, 241, 0.12)',
+                                borderWidth: 1.5,
+                                borderColor: theme.accent,
+                                borderRadius: 14,
+                                paddingVertical: 12,
+                                paddingHorizontal: 16,
+                                marginTop: 14,
+                                gap: 8
+                              }}
+                              onPress={() => playMobileAudio(currentQ.word || currentQ.correctAnswer, mobileSpeed, mobileAccent)}>
+                              <IconVolume2 size={20} color={theme.accent} />
+                              <Text style={{ fontSize: 15, fontWeight: '800', color: theme.accent }}>
+                                Phát âm: "{currentQ.word || currentQ.correctAnswer}" {currentQ.phonetic ? `(${currentQ.phonetic})` : ''} 🔊
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+
                           {/* Next Button */}
                           {quizIsAnswered &&
                     <TouchableOpacity
-                      style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 20 }]}
+                      style={[styles.primaryActionBtn, { backgroundColor: theme.btnPrimaryBg, marginTop: 14 }]}
                       onPress={handleNextQuizQuestion}>
                       
                               <Text style={styles.primaryActionBtnText}>
