@@ -7,8 +7,15 @@ import { verifyToken } from '../services/authService.js';
  */
 export function attachUser(req, res, next) {
   const header = req.headers.authorization;
+  let token = null;
   if (header && header.startsWith('Bearer ')) {
-    const decoded = verifyToken(header.slice(7).trim());
+    token = header.slice(7).trim();
+  } else if (req.query && req.query.token) {
+    token = String(req.query.token).trim();
+  }
+
+  if (token) {
+    const decoded = verifyToken(token);
     if (decoded && decoded.id) {
       req.user = decoded;
     }

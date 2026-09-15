@@ -377,8 +377,7 @@ export default function App() {
   // Export backup trigger
   const handleExportBackup = async () => {
     try {
-      const res = await fetch(api.exportDataUrl());
-      const blob = await res.blob();
+      const blob = await api.exportData();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -386,6 +385,7 @@ export default function App() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.URL.revokeObjectURL(url);
       addToast('Đã xuất file sao lưu JSON thành công!');
     } catch (err) {
       addToast('Lỗi xuất dữ liệu: ' + err.message, 'error');

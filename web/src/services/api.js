@@ -378,6 +378,15 @@ export const api = {
     return token ? `${API_BASE}/backup/export?token=${encodeURIComponent(token)}` : `${API_BASE}/backup/export`;
   },
 
+  exportData: async () => {
+    const res = await authFetch(`${API_BASE}/backup/export`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Lỗi tải file sao lưu (${res.status})`);
+    }
+    return res.blob();
+  },
+
   importData: async (data) => {
     const res = await authFetch(`${API_BASE}/backup/import`, {
       method: 'POST',

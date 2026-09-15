@@ -232,8 +232,7 @@ export default function SettingsModal({ onClose, onDataRestored }) {
 
   const handleExportBackup = async () => {
     try {
-      const res = await fetch(api.exportDataUrl());
-      const blob = await res.blob();
+      const blob = await api.exportData();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -241,6 +240,7 @@ export default function SettingsModal({ onClose, onDataRestored }) {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       alert('Lỗi xuất dữ liệu: ' + err.message);
     }
@@ -257,10 +257,10 @@ export default function SettingsModal({ onClose, onDataRestored }) {
       const text = await file.text();
       const json = JSON.parse(text);
 
-      const res = await api.importData(json.data || json);
+      const res = await api.importData(json);
       if (res.success) {
         setImportMessage(res.message);
-        onDataRestored();
+        if (onDataRestored) onDataRestored();
       } else {
         setImportMessage('Lỗi khôi phục: ' + res.error);
       }
@@ -268,6 +268,7 @@ export default function SettingsModal({ onClose, onDataRestored }) {
       setImportMessage('File JSON không hợp lệ: ' + err.message);
     } finally {
       setIsImporting(false);
+      if (e.target) e.target.value = '';
     }
   };
 

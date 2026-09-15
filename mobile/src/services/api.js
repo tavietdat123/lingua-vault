@@ -527,7 +527,16 @@ export const mobileApi = {
     });
   },
 
-  exportDataUrl: () => `${currentServerUrl}/api/backup/export`,
+  exportDataUrl: () => {
+    const token = getMobileAuthToken();
+    return token
+      ? `${currentServerUrl}/api/backup/export?token=${encodeURIComponent(token)}`
+      : `${currentServerUrl}/api/backup/export`;
+  },
+
+  exportData: async () => {
+    return await requestApi('/api/backup/export');
+  },
 
   importData: async (data) => {
     return await requestApi('/api/backup/import', {

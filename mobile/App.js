@@ -8504,20 +8504,63 @@ function MainApp() {
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                   <Text style={[styles.formTitle, { color: theme.textPrimary }]}>📦 Sao Lưu & Khôi Phục Dữ Liệu</Text>
                   <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
-                    Xuất file sao lưu JSON hoặc đồng bộ dữ liệu giữa Web và Thiết bị Di động.
+                    Xuất file sao lưu JSON hoặc khôi phục đồng bộ dữ liệu giữa Web và Thiết bị Di động.
                   </Text>
+                  
+                  {/* Export Button */}
                   <TouchableOpacity
-                style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, marginTop: 12 }]}
-                onPress={() => {
-                  if (typeof window !== 'undefined') {
-                    window.open(mobileApi.exportDataUrl(), '_blank');
-                  } else {
-                    Alert.alert('Sao Lưu', `Tải file sao lưu tại: ${mobileApi.exportDataUrl()}`);
-                  }
-                }}>
-                
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: theme.cardBorder, marginTop: 12 }]}
+                    onPress={() => {
+                      const url = mobileApi.exportDataUrl();
+                      if (typeof window !== 'undefined' && window.document) {
+                        const a = window.document.createElement('a');
+                        a.href = url;
+                        a.download = `lingua_vault_backup_${new Date().toISOString().split('T')[0]}.json`;
+                        window.document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        Alert.alert('Thành công 🎉', 'Đang tải file sao lưu JSON về máy!');
+                      } else {
+                        Alert.alert('Sao Lưu', `Mở liên kết sau để tải file: ${url}`);
+                      }
+                    }}>
                     <Text style={[styles.primaryActionBtnText, { color: theme.accent, fontSize: 13 }]}>
                       💾 Xuất File Sao Lưu JSON (Local DB)
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Import / Restore Button */}
+                  <TouchableOpacity
+                    style={[styles.primaryActionBtn, { backgroundColor: theme.drawerCardBg, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.4)', marginTop: 10 }]}
+                    onPress={() => {
+                      if (typeof window !== 'undefined' && window.document) {
+                        const input = window.document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.json,application/json';
+                        input.onchange = async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const text = await file.text();
+                            const json = JSON.parse(text);
+                            const res = await mobileApi.importData(json);
+                            if (res.success) {
+                              Alert.alert('Khôi Phục Thành Công 🎉', res.message || 'Đã khôi phục dữ liệu!');
+                              handleRefresh();
+                            } else {
+                              Alert.alert('Lỗi Khôi Phục', res.error || 'Dữ liệu sao lưu không hợp lệ.');
+                            }
+                          } catch (err) {
+                            Alert.alert('Lỗi File', 'File JSON không hợp lệ: ' + err.message);
+                          }
+                        };
+                        input.click();
+                      } else {
+                        Alert.alert('Khôi Phục', 'Bạn có thể tải file sao lưu trực tiếp trên Web hoặc ứng dụng để khôi phục.');
+                      }
+                    }}>
+                    <Text style={[styles.primaryActionBtnText, { color: '#10b981', fontSize: 13 }]}>
+                      📥 Khôi Phục Dữ Liệu Từ File JSON
                     </Text>
                   </TouchableOpacity>
                 </View>
