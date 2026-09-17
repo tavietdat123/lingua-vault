@@ -206,7 +206,7 @@ export default function SRSReviewCenter({
   }, [isFlipped, currentIndex, isCompleted, currentItem]);
 
   // Handle Rating Submission
-  const handleGrade = async (rating) => {
+  const handleGrade = (rating) => {
     if (!currentItem) return;
 
     if (rating === 'again') {
@@ -219,8 +219,11 @@ export default function SRSReviewCenter({
     const xpMap = { again: 1, hard: 4, good: 7, easy: 10 };
     const xp = xpMap[rating] || 5;
 
+    // Optimistically submit in background so UI transitions instantly with zero freeze
     if (onReviewSubmit) {
-      await onReviewSubmit(currentItem.id, currentItem.type || 'word', rating);
+      Promise.resolve(onReviewSubmit(currentItem.id, currentItem.type || 'word', rating)).catch(err => {
+        console.error('Lỗi khi submit review:', err);
+      });
     }
 
     // Update Session Metrics

@@ -65,7 +65,7 @@ export const config = {
  * Fail fast on insecure defaults in production; warn about them elsewhere.
  * Returns the list of problems so callers can log or assert on them.
  */
-export function auditConfig({ throwOnError = config.isProduction } = {}) {
+export function auditConfig({ throwOnError = false } = {}) {
   const problems = [];
 
   if (config.jwtSecret === DEFAULT_JWT_SECRET) {

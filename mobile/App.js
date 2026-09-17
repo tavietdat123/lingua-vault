@@ -1832,9 +1832,11 @@ function MainApp() {
       toValue: 0,
       duration: 160,
       useNativeDriver: Platform.OS !== 'web'
-    })]
-    ).start(async () => {
-      await mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating);
+    })
+  ]).start(() => {
+      mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating).catch((err) => {
+        console.error('Lỗi submit review mobile:', err);
+      });
 
       let updatedActiveDeck = activeDeck;
       if (rating === 'again') {
