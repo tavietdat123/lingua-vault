@@ -47,7 +47,8 @@ export function formatIntervalText(days, isIntraDay = false) {
  * Previews what next interval would be for all 4 ratings
  */
 export function previewNextIntervals(item = {}) {
-  const rep = item.repetition || 0;
+  const isIntra = item.isIntraDay || item.repetition === 0 || item.interval === 0;
+  const rep = isIntra ? 0 : (item.repetition || 0);
   const ef = item.ease_factor || item.easeFactor || 2.5;
 
   // 1. Again
@@ -81,7 +82,8 @@ export function previewNextIntervals(item = {}) {
  * Calculates next review parameters based on current card state and user rating.
  */
 export function calculateNextSRS(item = {}, rating = null) {
-  let repetition = item.repetition || 0;
+  const isIntra = item.isIntraDay || item.repetition === 0 || item.interval === 0;
+  let repetition = isIntra ? 0 : (item.repetition || 0);
   let interval = item.interval || 0;
   let easeFactor = item.easeFactor || item.ease_factor || 2.5;
   const effectiveRating = (typeof rating === 'string' && rating) ? rating : (item?.rating || 'good');

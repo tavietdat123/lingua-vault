@@ -29,7 +29,8 @@ function getPreviewLabel(item, grade) {
   if (item?.previewIntervals?.[grade]?.text) {
     return item.previewIntervals[grade].text;
   }
-  const rep = (item?.isIntraDay || item?.repetition === 0) ? 0 : (item?.repetition || 0);
+  const isIntra = item?.isIntraDay || item?.repetition === 0 || item?.interval === 0;
+  const rep = isIntra ? 0 : (item?.repetition || 0);
   if (grade === 'again') return '< 10 phút';
   if (grade === 'hard') return rep === 0 ? '1 ngày' : rep === 1 ? '2 ngày' : rep === 2 ? '4 ngày' : '8 ngày';
   if (grade === 'good') return rep === 0 ? '3 ngày' : rep === 1 ? '7 ngày' : rep === 2 ? '14 ngày' : '30 ngày';
@@ -209,10 +210,14 @@ export default function SRSReviewCenter({
   const handleGrade = (rating) => {
     if (!currentItem) return;
 
-    if (rating === 'again') {
-      audioService.playWrongSound();
-    } else {
-      audioService.playCorrectSound();
+    try {
+      if (rating === 'again') {
+        audioService.playWrongSound();
+      } else {
+        audioService.playCorrectSound();
+      }
+    } catch (e) {
+      console.warn('Audio warning:', e);
     }
 
     // XP calculation
@@ -221,9 +226,13 @@ export default function SRSReviewCenter({
 
     // Optimistically submit in background so UI transitions instantly with zero freeze
     if (onReviewSubmit) {
-      Promise.resolve(onReviewSubmit(currentItem.id, currentItem.type || 'word', rating)).catch(err => {
-        console.error('Lỗi khi submit review:', err);
-      });
+      try {
+        Promise.resolve(onReviewSubmit(currentItem.id, currentItem.type || 'word', rating)).catch(err => {
+          console.error('Lỗi khi submit review:', err);
+        });
+      } catch (err) {
+        console.error('Submit review error:', err);
+      }
     }
 
     // Update Session Metrics
@@ -262,7 +271,9 @@ export default function SRSReviewCenter({
       setUserAnswer('');
       setIsAnswerChecked(false);
     } else {
-      audioService.playVictorySound();
+      try {
+        audioService.playVictorySound();
+      } catch (e) {}
       setIsCompleted(true);
     }
   };
@@ -304,8 +315,8 @@ export default function SRSReviewCenter({
     );
   }
 
-  // Case 2: Zero active items
-  if (activeItemsPool.length === 0) {
+  // Case 2: Zero active items (only if user has not reviewed anything yet)
+  if (activeItemsPool.length === 0 && sessionStats.reviewed === 0) {
     const totalVaultItems = (allWords?.length || 0) + (allPatterns?.length || 0);
 
     if (totalVaultItems > 0) {
@@ -452,7 +463,11 @@ export default function SRSReviewCenter({
           </div>
 
           {/* 3. 3D FLASHCARD DISPLAY CONTAINER */}
-          <div className="flashcard-container" onClick={() => (reviewMode === 'flashcard' || reviewMode === 'audio') && setIsFlipped(!isFlipped)}>
+          <div 
+            key={`${currentItem?.id || currentIndex}-${currentIndex}`} 
+            className="flashcard-container" 
+            onClick={() => (reviewMode === 'flashcard' || reviewMode === 'audio') && setIsFlipped(!isFlipped)}
+          >
             <div className={`flashcard-inner ${isFlipped ? 'flipped' : ''}`}>
               
               {/* FRONT FACE */}
@@ -601,22 +616,22 @@ export default function SRSReviewCenter({
           {/* 4. SUPERMEMO SM-2+ MULTI-MILESTONE RATING BUTTONS */}
           {isFlipped ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.85rem', marginTop: '1.25rem', position: 'relative', zIndex: 10 }}>
-              <button onClick={() => handleGrade('again')} style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1.5px solid #ef4444', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' }}>
+              <button onClick={(e) => { e.stopPropagation(); handleGrade('again'); }} style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1.5px solid #ef4444', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' }}>
                 <span style={{ fontSize: '0.98rem' }}>🔴 Quên</span>
                 <span style={{ fontSize: '0.78rem', opacity: 0.9, fontWeight: 700 }}>Mốc: &lt; 10 phút</span>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>[Phím 1]</span>
               </button>
-              <button onClick={() => handleGrade('hard')} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1.5px solid #f59e0b', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)' }}>
+              <button onClick={(e) => { e.stopPropagation(); handleGrade('hard'); }} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1.5px solid #f59e0b', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)' }}>
                 <span style={{ fontSize: '0.98rem' }}>🟡 Khó</span>
                 <span style={{ fontSize: '0.78rem', opacity: 0.9, fontWeight: 700 }}>Mốc: {getPreviewLabel(currentItem, 'hard')}</span>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>[Phím 2]</span>
               </button>
-              <button onClick={() => handleGrade('good')} style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', border: '1.5px solid #0284c7', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.15)' }}>
+              <button onClick={(e) => { e.stopPropagation(); handleGrade('good'); }} style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', border: '1.5px solid #0284c7', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.15)' }}>
                 <span style={{ fontSize: '0.98rem' }}>🟢 Nhớ tốt</span>
                 <span style={{ fontSize: '0.78rem', opacity: 0.9, fontWeight: 700 }}>Mốc: {getPreviewLabel(currentItem, 'good')}</span>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>[Phím 3]</span>
               </button>
-              <button onClick={() => handleGrade('easy')} style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1.5px solid #10b981', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)' }}>
+              <button onClick={(e) => { e.stopPropagation(); handleGrade('easy'); }} style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1.5px solid #10b981', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)' }}>
                 <span style={{ fontSize: '0.98rem' }}>💎 Dễ</span>
                 <span style={{ fontSize: '0.78rem', opacity: 0.9, fontWeight: 700 }}>Mốc: {getPreviewLabel(currentItem, 'easy')}</span>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>[Phím 4]</span>

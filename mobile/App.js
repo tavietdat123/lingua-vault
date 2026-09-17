@@ -1798,11 +1798,15 @@ function MainApp() {
     dueItems;
 
     const currentItem = activeDeck[reviewIndex];
-    if (rating === 'again') {
-      playQuizWrongSound();
-    } else {
-      playQuizCorrectSound();
-    }
+    if (!currentItem) return;
+
+    try {
+      if (rating === 'again') {
+        playQuizWrongSound();
+      } else {
+        playQuizCorrectSound();
+      }
+    } catch (e) {}
 
     const xpMap = { again: 1, hard: 4, good: 7, easy: 10 };
     const xp = xpMap[rating] || 7;
@@ -1834,9 +1838,11 @@ function MainApp() {
       useNativeDriver: Platform.OS !== 'web'
     })
   ]).start(() => {
-      mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating).catch((err) => {
-        console.error('Lỗi submit review mobile:', err);
-      });
+      try {
+        mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating).catch((err) => {
+          console.error('Lỗi submit review mobile:', err);
+        });
+      } catch (err) {}
 
       let updatedActiveDeck = activeDeck;
       if (rating === 'again') {
@@ -1855,6 +1861,8 @@ function MainApp() {
         };
         updatedActiveDeck = [...activeDeck, requeuedCard];
         setDueItems((prev) => [...prev, requeuedCard]);
+      } else {
+        setDueItems((prev) => prev.filter((item) => item.id !== currentItem?.id));
       }
 
       if (reviewIndex + 1 < updatedActiveDeck.length) {
