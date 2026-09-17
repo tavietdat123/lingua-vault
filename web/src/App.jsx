@@ -367,9 +367,7 @@ export default function App() {
   const handleReviewSubmit = async (id, type, rating) => {
     try {
       await api.submitReview(id, type, rating);
-      if (rating !== 'again') {
-        setDueItems(prev => prev.filter(item => item.id !== id));
-      }
+      setDueItems(prev => prev.filter(item => item.id !== id));
       const statsRes = await api.getStats();
       if (statsRes.success) setStats(statsRes.data);
     } catch (err) {

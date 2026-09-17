@@ -246,26 +246,7 @@ export default function SRSReviewCenter({
       earnedXp: prev.earnedXp + xp
     }));
 
-    let nextDeck = sessionDeck;
-    if (rating === 'again') {
-      // Re-queue card to end of session with reset repetition and intervals for immediate re-testing
-      const requeuedCard = {
-        ...currentItem,
-        repetition: 0,
-        interval: 0,
-        isIntraDay: true,
-        previewIntervals: {
-          again: { days: 0, text: '< 10 phút' },
-          hard: { days: 1, text: '1 ngày' },
-          good: { days: 3, text: '3 ngày' },
-          easy: { days: 7, text: '7 ngày' }
-        }
-      };
-      nextDeck = [...sessionDeck, requeuedCard];
-      setSessionDeck(nextDeck);
-    }
-
-    if (currentIndex + 1 < nextDeck.length) {
+    if (currentIndex + 1 < sessionDeck.length) {
       setCurrentIndex(prev => prev + 1);
       setIsFlipped(false);
       setUserAnswer('');
@@ -304,9 +285,38 @@ export default function SRSReviewCenter({
         <h3 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
           Hoàn Thành Phiên Ôn Tập Xuất Sắc!
         </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '2rem', maxWidth: '480px', margin: '0 auto 2rem auto' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '1.5rem', maxWidth: '480px', margin: '0 auto 1.5rem auto' }}>
           Bạn đã rèn giũa <b>{sessionStats.reviewed} lượt ôn tập</b> với thuật toán SuperMemo SM-2+. Toàn bộ chu kỳ vàng của trí nhớ đã được dời lịch tự động!
         </p>
+
+        {/* Breakdown Stats Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', maxWidth: '480px', margin: '0 auto 1.75rem auto' }}>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '0.85rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>ĐÃ NHỚ</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10b981', marginTop: '0.2rem' }}>
+              {sessionStats.goodCount + sessionStats.easyCount + sessionStats.hardCount}
+            </div>
+          </div>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '0.85rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>CẦN ÔN LẠI</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ef4444', marginTop: '0.2rem' }}>
+              {sessionStats.againCount}
+            </div>
+          </div>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '0.85rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>KINH NGHIỆM</span>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '0.2rem' }}>
+              +{sessionStats.earnedXp} XP
+            </div>
+          </div>
+        </div>
+
+        {sessionStats.againCount > 0 && (
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.75rem', background: 'rgba(239, 68, 68, 0.08)', padding: '0.65rem 1rem', borderRadius: '12px', display: 'inline-block' }}>
+            ℹ️ {sessionStats.againCount} thẻ chọn "Quên" đã được lưu mốc &lt; 10 phút và sẽ xuất hiện ở phiên ôn tiếp theo.
+          </p>
+        )}
+
         <button onClick={onFinishSession} className="btn-primary" style={{ padding: '0.9rem 2.5rem', fontSize: '1.05rem', margin: '0 auto', borderRadius: '14px' }}>
           <span>Trở Về Dashboard</span>
           <ArrowRight size={18} />
