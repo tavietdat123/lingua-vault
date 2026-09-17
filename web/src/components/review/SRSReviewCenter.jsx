@@ -29,7 +29,7 @@ function getPreviewLabel(item, grade) {
   if (item?.previewIntervals?.[grade]?.text) {
     return item.previewIntervals[grade].text;
   }
-  const rep = item?.repetition || 0;
+  const rep = (item?.isIntraDay || item?.repetition === 0) ? 0 : (item?.repetition || 0);
   if (grade === 'again') return '< 10 phút';
   if (grade === 'hard') return rep === 0 ? '1 ngày' : rep === 1 ? '2 ngày' : rep === 2 ? '4 ngày' : '8 ngày';
   if (grade === 'good') return rep === 0 ? '3 ngày' : rep === 1 ? '7 ngày' : rep === 2 ? '14 ngày' : '30 ngày';
@@ -83,22 +83,32 @@ export default function SRSReviewCenter({
   const wordsCount = useMemo(() => activeItemsPool.filter(i => (i?.type || 'word') === 'word').length, [activeItemsPool]);
   const patternsCount = useMemo(() => activeItemsPool.filter(i => i?.type === 'pattern').length, [activeItemsPool]);
 
-  // Dynamic session deck based on filter
-  const sessionDeck = useMemo(() => {
+  // Base items pool based on filter
+  const baseDeck = useMemo(() => {
     if (filterScope === 'words') return activeItemsPool.filter(i => (i?.type || 'word') === 'word');
     if (filterScope === 'patterns') return activeItemsPool.filter(i => i?.type === 'pattern');
     return activeItemsPool;
   }, [activeItemsPool, filterScope]);
 
+  // Session deck queue that dynamically re-queues cards graded 'again'
+  const [sessionDeck, setSessionDeck] = useState(baseDeck);
+
+  // Sync sessionDeck with baseDeck when starting or when base pool updates before reviews begin
+  useEffect(() => {
+    if (sessionStats.reviewed === 0) {
+      setSessionDeck(baseDeck);
+    }
+  }, [baseDeck, sessionStats.reviewed]);
+
   // Reset index safely if filter changes or deck is smaller than currentIndex
   useEffect(() => {
-    if (currentIndex >= sessionDeck.length && sessionDeck.length > 0) {
+    if (!isCompleted && currentIndex >= sessionDeck.length && sessionDeck.length > 0) {
       setCurrentIndex(0);
       setIsFlipped(false);
       setUserAnswer('');
       setIsAnswerChecked(false);
     }
-  }, [sessionDeck.length, currentIndex]);
+  }, [sessionDeck.length, currentIndex, isCompleted]);
 
   const handleFilterChange = (scope) => {
     setFilterScope(scope);
@@ -106,6 +116,10 @@ export default function SRSReviewCenter({
     setIsFlipped(false);
     setUserAnswer('');
     setIsAnswerChecked(false);
+    let newDeck = activeItemsPool;
+    if (scope === 'words') newDeck = activeItemsPool.filter(i => (i?.type || 'word') === 'word');
+    else if (scope === 'patterns') newDeck = activeItemsPool.filter(i => i?.type === 'pattern');
+    setSessionDeck(newDeck);
   };
 
   const filteredCategoryDeck = sessionDeck;
@@ -220,7 +234,26 @@ export default function SRSReviewCenter({
       earnedXp: prev.earnedXp + xp
     }));
 
-    if (currentIndex + 1 < sessionDeck.length) {
+    let nextDeck = sessionDeck;
+    if (rating === 'again') {
+      // Re-queue card to end of session with reset repetition and intervals for immediate re-testing
+      const requeuedCard = {
+        ...currentItem,
+        repetition: 0,
+        interval: 0,
+        isIntraDay: true,
+        previewIntervals: {
+          again: { days: 0, text: '< 10 phút' },
+          hard: { days: 1, text: '1 ngày' },
+          good: { days: 3, text: '3 ngày' },
+          easy: { days: 7, text: '7 ngày' }
+        }
+      };
+      nextDeck = [...sessionDeck, requeuedCard];
+      setSessionDeck(nextDeck);
+    }
+
+    if (currentIndex + 1 < nextDeck.length) {
       setCurrentIndex(prev => prev + 1);
       setIsFlipped(false);
       setUserAnswer('');

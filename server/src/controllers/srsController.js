@@ -83,7 +83,7 @@ export const srsController = {
         interval: item.interval,
         easeFactor: item.ease_factor,
         rating
-      });
+      }, rating);
 
       const now = new Date().toISOString();
 

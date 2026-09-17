@@ -234,19 +234,19 @@ async function runDeepVerification() {
   
   // Rating: Easy
   const stepEasy = calculateNextSRS(initialCard, GRADE.EASY);
-  check('Rating Easy: Tăng interval lên 4 ngày ngay lần đầu', stepEasy.interval === 4 && stepEasy.repetition === 1);
+  check('Rating Easy: Tăng interval lên 7 ngày ngay lần đầu', stepEasy.interval === 7 && stepEasy.repetition === 1);
 
   // Rating: Good -> Good -> Good (Mastery progression)
   let card = calculateNextSRS(initialCard, GRADE.GOOD);
-  check('Lần 1 Good: interval = 1 ngày', card.interval === 1 && card.repetition === 1);
+  check('Lần 1 Good: interval = 3 ngày', card.interval === 3 && card.repetition === 1);
   card = calculateNextSRS(card, GRADE.GOOD);
-  check('Lần 2 Good: interval = 4 ngày', card.interval === 4 && card.repetition === 2);
+  check('Lần 2 Good: interval = 7 ngày', card.interval === 7 && card.repetition === 2);
   card = calculateNextSRS(card, GRADE.GOOD);
-  check('Lần 3 Good: interval >= 8 ngày', card.interval >= 8 && card.repetition === 3);
+  check('Lần 3 Good: interval >= 14 ngày', card.interval >= 14 && card.repetition === 3);
 
   // Rating: Again (Forgetting curve reset)
   const resetCard = calculateNextSRS(card, GRADE.AGAIN);
-  check('Rating Again: Reset repetition về 0 và interval về 1', resetCard.repetition === 0 && resetCard.interval === 1);
+  check('Rating Again: Reset repetition về 0 và interval về 0', resetCard.repetition === 0 && resetCard.interval === 0 && resetCard.isIntraDay);
 
   // ---------------------------------------------------------------
   // MODULE 7: TELEGRAM BOT & DAILY GOAL SCHEDULER

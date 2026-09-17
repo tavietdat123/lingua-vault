@@ -80,11 +80,12 @@ export function previewNextIntervals(item = {}) {
 /**
  * Calculates next review parameters based on current card state and user rating.
  */
-export function calculateNextSRS(item = {}, rating = 'good') {
+export function calculateNextSRS(item = {}, rating = null) {
   let repetition = item.repetition || 0;
   let interval = item.interval || 0;
   let easeFactor = item.easeFactor || item.ease_factor || 2.5;
-  const q = GRADE_NUMERIC[rating] || 4;
+  const effectiveRating = (typeof rating === 'string' && rating) ? rating : (item?.rating || 'good');
+  const q = GRADE_NUMERIC[effectiveRating] || 4;
 
   // 1. Calculate new Ease Factor (EF)
   easeFactor = easeFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
@@ -96,12 +97,12 @@ export function calculateNextSRS(item = {}, rating = 'good') {
   if (q < 3) {
     // Failed recall (Again) -> Reset repetitions, queue for intra-day review
     repetition = 0;
-    interval = 0; // Due today / in same session
+    interval = 0; // Due today / in same session (< 10 phút)
     isIntraDay = true;
-  } else if (rating === GRADE.HARD) {
+  } else if (effectiveRating === GRADE.HARD) {
     interval = repetition < HARD_LADDER.length ? HARD_LADDER[repetition] : Math.round(interval * 1.2);
     repetition += 1;
-  } else if (rating === GRADE.EASY) {
+  } else if (effectiveRating === GRADE.EASY) {
     interval = repetition < EASY_LADDER.length ? EASY_LADDER[repetition] : Math.round(interval * easeFactor * 1.3);
     repetition += 1;
   } else {
@@ -115,14 +116,15 @@ export function calculateNextSRS(item = {}, rating = 'good') {
 
   // 3. Calculate Due Date (YYYY-MM-DD)
   const now = new Date();
-  let nextDate;
+  const todayStr = now.toISOString().split('T')[0];
+  let dueDate;
   if (interval === 0) {
-    // Same day review (e.g. 10 minutes later)
-    nextDate = new Date(now.getTime() + 10 * 60 * 1000);
+    // Same day review (intra-day recall < 10 minutes)
+    dueDate = todayStr;
   } else {
-    nextDate = new Date(now.getTime() + interval * 24 * 60 * 60 * 1000);
+    const nextDate = new Date(now.getTime() + interval * 24 * 60 * 60 * 1000);
+    dueDate = nextDate.toISOString().split('T')[0];
   }
-  const dueDate = nextDate.toISOString().split('T')[0];
 
   // 4. Determine Mastery Status based on Multi-Milestone Ladder
   let status = 'learning';

@@ -1836,13 +1836,27 @@ function MainApp() {
     ).start(async () => {
       await mobileApi.submitReview(currentItem.id, currentItem.type || 'word', rating);
 
+      let updatedActiveDeck = activeDeck;
       if (rating === 'again') {
-        // Re-queue card to end of session
-        setDueItems((prev) => [...prev, currentItem]);
+        // Re-queue card to end of session with reset repetition and intervals
+        const requeuedCard = {
+          ...currentItem,
+          repetition: 0,
+          interval: 0,
+          isIntraDay: true,
+          previewIntervals: {
+            again: { days: 0, text: '< 10 phút' },
+            hard: { days: 1, text: '1 ngày' },
+            good: { days: 3, text: '3 ngày' },
+            easy: { days: 7, text: '7 ngày' }
+          }
+        };
+        updatedActiveDeck = [...activeDeck, requeuedCard];
+        setDueItems((prev) => [...prev, requeuedCard]);
       }
 
-      if (reviewIndex + 1 < activeDeck.length) {
-        const nextItem = activeDeck[reviewIndex + 1];
+      if (reviewIndex + 1 < updatedActiveDeck.length) {
+        const nextItem = updatedActiveDeck[reviewIndex + 1];
         setReviewIndex((prev) => prev + 1);
         setIsFlipped(false);
         setClozeInput('');
