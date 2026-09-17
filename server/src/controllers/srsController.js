@@ -8,7 +8,8 @@ export const srsController = {
   getDueItems: (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const today = new Date().toISOString().split('T')[0];
+      const nowIso = new Date().toISOString();
+      const today = nowIso.split('T')[0];
 
       // Due words
       const wordsStmt = db.prepare(`
@@ -17,7 +18,7 @@ export const srsController = {
           AND (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
         ORDER BY status ASC, repetition ASC
       `);
-      let words = wordsStmt.all(today, userId, userId, userId);
+      let words = wordsStmt.all(nowIso, userId, userId, userId);
       words = words.map(w => ({
         ...w,
         type: 'word',
@@ -34,7 +35,7 @@ export const srsController = {
           AND (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
         ORDER BY status ASC, repetition ASC
       `);
-      let patterns = patternsStmt.all(today, userId, userId, userId);
+      let patterns = patternsStmt.all(nowIso, userId, userId, userId);
       patterns = patterns.map(p => ({
         ...p,
         type: 'pattern',
@@ -152,7 +153,8 @@ export const srsController = {
   getStats: (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
-      const today = new Date().toISOString().split('T')[0];
+      const nowIso = new Date().toISOString();
+      const today = nowIso.split('T')[0];
 
       // Total words & status count for specific user
       const wordsCountStmt = db.prepare(`
@@ -162,22 +164,22 @@ export const srsController = {
           SUM(CASE WHEN status = 'reviewing' THEN 1 ELSE 0 END) as reviewing,
           SUM(CASE WHEN status = 'learning' THEN 1 ELSE 0 END) as learning,
           SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
-          SUM(CASE WHEN due_date <= ? THEN 1 ELSE 0 END) as due_today
+          SUM(CASE WHEN (due_date <= ? OR due_date IS NULL) THEN 1 ELSE 0 END) as due_today
         FROM words
         WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
       `);
-      const wordStats = wordsCountStmt.get(today, userId, userId, userId) || {};
+      const wordStats = wordsCountStmt.get(nowIso, userId, userId, userId) || {};
 
       // Patterns stats for specific user
       const patternsCountStmt = db.prepare(`
         SELECT 
           COUNT(*) as total,
           SUM(CASE WHEN status = 'mastered' THEN 1 ELSE 0 END) as mastered,
-          SUM(CASE WHEN due_date <= ? THEN 1 ELSE 0 END) as due_today
+          SUM(CASE WHEN (due_date <= ? OR due_date IS NULL) THEN 1 ELSE 0 END) as due_today
         FROM patterns
         WHERE (user_id = ? OR (user_id IS NULL AND ? = 'admin_master_user_id') OR (user_id = 'admin_master_user_id' AND ? = 'admin_master_user_id'))
       `);
-      const patternStats = patternsCountStmt.get(today, userId, userId, userId) || {};
+      const patternStats = patternsCountStmt.get(nowIso, userId, userId, userId) || {};
 
       // Notes count for specific user
       const notesCountStmt = db.prepare(`

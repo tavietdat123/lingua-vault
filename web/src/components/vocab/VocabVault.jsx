@@ -275,7 +275,7 @@ export default function VocabVault({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             <Calendar size={13} />
-            <span>Ôn lại: {w.due_date || 'Hôm nay'}</span>
+            <span>Ôn lại: {w.due_date ? (w.due_date.includes('T') ? '< 10 phút' : w.due_date) : 'Hôm nay'}</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>

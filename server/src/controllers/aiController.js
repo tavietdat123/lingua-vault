@@ -67,9 +67,9 @@ export const aiController = {
       let wordsList = words;
       if (!wordsList || wordsList.length === 0) {
         // Fetch up to 6 words due today
-        const today = new Date().toISOString().split('T')[0];
-        const stmt = db.prepare('SELECT word FROM words WHERE due_date <= ? LIMIT 6');
-        wordsList = stmt.all(today).map(w => w.word);
+        const nowIso = new Date().toISOString();
+        const stmt = db.prepare('SELECT word FROM words WHERE (due_date <= ? OR due_date IS NULL) LIMIT 6');
+        wordsList = stmt.all(nowIso).map(w => w.word);
       }
 
       const result = await generateStoryAI(wordsList, key);

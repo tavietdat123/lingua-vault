@@ -116,13 +116,14 @@ export function calculateNextSRS(item = {}, rating = null) {
   // Clamp interval safely between 0 and 365 days
   interval = Math.min(365, Math.max(0, parseInt(interval, 10) || 0));
 
-  // 3. Calculate Due Date (YYYY-MM-DD)
+  // 3. Calculate Due Date (YYYY-MM-DD, or ISO timestamp for intra-day recall < 10 minutes)
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
   let dueDate;
-  if (interval === 0) {
-    // Same day review (intra-day recall < 10 minutes)
-    dueDate = todayStr;
+  if (interval === 0 || effectiveRating === GRADE.AGAIN) {
+    // Intra-day recall cooldown (< 10 minutes)
+    const nextMinutes = 10;
+    const dueTime = new Date(now.getTime() + nextMinutes * 60 * 1000);
+    dueDate = dueTime.toISOString();
   } else {
     const nextDate = new Date(now.getTime() + interval * 24 * 60 * 60 * 1000);
     dueDate = nextDate.toISOString().split('T')[0];

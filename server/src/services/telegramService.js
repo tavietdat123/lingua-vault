@@ -177,20 +177,21 @@ Hệ thống sẽ <b>nhắc nhở rung chuông liên tục mỗi 10 phút</b> ch
     const streak = streakRow ? parseInt(streakRow.value, 10) || 0 : 0;
 
     // Get Due Words for review
+    const nowIso = new Date().toISOString();
     const dueWords = db.prepare(`
       SELECT id, word, phonetic, part_of_speech, meaning_vi, examples, interval, repetition
       FROM words 
-      WHERE due_date <= ? 
+      WHERE (due_date <= ? OR due_date IS NULL)
       ORDER BY repetition ASC, due_date ASC
       LIMIT 5
-    `).all(todayStr).map(w => ({
+    `).all(nowIso).map(w => ({
       ...w,
       examples: JSON.parse(w.examples || '[]')
     }));
 
     const totalDueRow = db.prepare(`
-      SELECT COUNT(*) as count FROM words WHERE due_date <= ?
-    `).get(todayStr);
+      SELECT COUNT(*) as count FROM words WHERE (due_date <= ? OR due_date IS NULL)
+    `).get(nowIso);
 
     const totalStudiedToday = (studyLogRow?.reviews_count || 0) + (wordsAddedTodayRow?.count || 0);
 
