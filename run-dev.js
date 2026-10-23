@@ -11,8 +11,8 @@ console.log(`
 =====================================================
 `);
 
-// 1. Start Server API (Port 5001)
-const server = spawn('node', ['src/index.js'], {
+// 1. Start Server API with auto-watch (Port 5001)
+const server = spawn('node', ['--watch', 'src/index.js'], {
   cwd: path.join(__dirname, 'server'),
   stdio: 'inherit',
   shell: true

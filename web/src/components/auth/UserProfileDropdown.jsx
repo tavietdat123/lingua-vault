@@ -74,7 +74,7 @@ export default function UserProfileDropdown({
         </div>
 
         {/* User Info Text */}
-        <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
+        <div className="header-user-info-text" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1, maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {user.full_name || user.username}
           </span>

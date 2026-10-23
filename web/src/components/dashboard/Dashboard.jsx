@@ -51,7 +51,7 @@ export default function Dashboard({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* 1. HERO SRS REVIEW CALL-TO-ACTION PRO MAX */}
-      <div style={{
+      <div className="dashboard-hero-banner" style={{
         background: totalDue > 0 
           ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #075985 100%)'
           : 'linear-gradient(135deg, #10b981 0%, #047857 50%, #064e3b 100%)',
@@ -110,7 +110,7 @@ export default function Dashboard({
           </p>
         </div>
 
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div className="dashboard-hero-actions" style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {totalDue > 0 ? (
             <button
               onClick={onStartReview}
@@ -319,7 +319,7 @@ export default function Dashboard({
       )}
 
       {/* 2. PRO MAX STATS & LEVEL CARD */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+      <div className="dashboard-stats-grid">
         {/* Streak & Gamification Level Card */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -514,7 +514,7 @@ export default function Dashboard({
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+        <div className="words-grid">
           {recentWords.slice(0, 6).map(w => {
             const isPlaying = playingWordId === w.id;
 

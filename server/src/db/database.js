@@ -16,6 +16,23 @@ db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
 export const getDb = () => db;
 
+// Helper: Remove Vietnamese accents for fast unaccented search
+export const removeVietnameseTones = (str) => {
+  if (!str) return '';
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+};
+
+try {
+  db.function('unaccent', (str) => removeVietnameseTones(str));
+} catch (e) {
+  console.warn('[DB] unaccent function registration warning:', e.message);
+}
+
 /**
  * study_logs was created with `date TEXT UNIQUE`, which is a single-tenant
  * assumption: the second account to review on a given day hits a UNIQUE

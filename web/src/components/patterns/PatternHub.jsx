@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { playAudio } from '../../services/audioService';
 import { api } from '../../services/api';
+import Pagination from '../common/Pagination';
 import PatternCategoryModal from './PatternCategoryModal';
 import { DEFAULT_PATTERN_CATEGORIES } from '../../constants/patternCategories';
 
@@ -41,13 +42,72 @@ const removeVietnameseTones = (str) => {
 
 export default function PatternHub({ patterns = [], onAddPattern, onEditPattern, onDeletePattern }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [categories, setCategories] = useState(DEFAULT_PATTERN_CATEGORIES);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
+  // Pagination & Server State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [serverPatterns, setServerPatterns] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     loadCategories();
   }, []);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, categoryFilter]);
+
+  // Fetch patterns from BE
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoading(true);
+
+    const params = {
+      page: currentPage,
+      limit: pageSize
+    };
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    if (categoryFilter !== 'all') params.category = categoryFilter;
+
+    api.getPatterns(params)
+      .then(res => {
+        if (!isCurrent) return;
+        if (res && res.success) {
+          setServerPatterns(res.data || []);
+          setTotalItems(res.total ?? (res.data || []).length);
+        } else {
+          setServerPatterns([]);
+          setTotalItems(0);
+        }
+      })
+      .catch(err => {
+        if (!isCurrent) return;
+        console.error('Error fetching patterns:', err);
+        setServerPatterns([]);
+        setTotalItems(0);
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [currentPage, pageSize, debouncedSearch, categoryFilter, patterns]);
 
   const loadCategories = async () => {
     try {
@@ -60,36 +120,7 @@ export default function PatternHub({ patterns = [], onAddPattern, onEditPattern,
     }
   };
 
-  const filteredPatterns = patterns.filter(p => {
-    const q = searchTerm.toLowerCase().trim();
-    if (q) {
-      const qClean = removeVietnameseTones(q);
-      const name = (p.name || '').toLowerCase();
-      const formula = (p.formula || '').toLowerCase();
-      const meaningVi = (p.meaning_vi || '').toLowerCase();
-      const exp = (p.explanation || '').toLowerCase();
-      const example = (p.example_en || '').toLowerCase();
-
-      const matchDirect = 
-        name.includes(q) ||
-        formula.includes(q) ||
-        meaningVi.includes(q) ||
-        exp.includes(q) ||
-        example.includes(q);
-
-      const matchUnaccented =
-        removeVietnameseTones(name).includes(qClean) ||
-        removeVietnameseTones(meaningVi).includes(qClean) ||
-        removeVietnameseTones(exp).includes(qClean);
-
-      if (!matchDirect && !matchUnaccented) return false;
-    }
-
-    const pCat = p.category || 'emphasis';
-    const matchesCategory = categoryFilter === 'all' || pCat === categoryFilter;
-
-    return matchesCategory;
-  });
+  const displayPatterns = serverPatterns;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -149,8 +180,12 @@ export default function PatternHub({ patterns = [], onAddPattern, onEditPattern,
         </div>
       </div>
 
-      {/* 2. PATTERNS GRID */}
-      {filteredPatterns.length === 0 ? (
+      {/* 2. PATTERNS GRID & PAGINATION */}
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '0.9rem' }}>Đang tải danh sách mẫu câu từ máy chủ...</p>
+        </div>
+      ) : displayPatterns.length === 0 ? (
         <div style={{
           textAlign: 'center',
           padding: '4rem 2rem',
@@ -169,134 +204,183 @@ export default function PatternHub({ patterns = [], onAddPattern, onEditPattern,
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.25rem' }}>
-          {filteredPatterns.map(p => {
-            const catInfo = categories.find(c => c.id === p.category) || { name: 'Chức năng', emoji: '🧩', color: '#8b5cf6' };
-            return (
-              <div
-                key={p.id}
-                className="card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem'
-                }}
-              >
-                <div>
-                  {/* Header: Name + Category */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', gap: '8px' }}>
-                    <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--accent-primary)' }}>
-                      {p.name}
-                    </h4>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '0.25rem 0.65rem',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      background: `${catInfo.color || '#8b5cf6'}15`,
-                      color: catInfo.color || '#8b5cf6',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {catInfo.emoji || '🧩'} {catInfo.name}
-                    </span>
-                  </div>
-
-                {/* Formula Box */}
-                <div style={{
-                  background: 'var(--bg-tertiary)',
-                  padding: '0.75rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  marginBottom: '0.75rem',
-                  border: '1px dashed var(--border-color)'
-                }}>
-                  {p.formula}
-                </div>
-
-                {/* Meaning & Explanation */}
-                <p style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                  {p.meaning_vi}
-                </p>
-
-                {p.explanation && (
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', lineHeight: 1.4 }}>
-                    {p.explanation}
-                  </p>
-                )}
-
-                {/* Examples with Audio */}
-                {p.examples && p.examples.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      Ví dụ áp dụng:
-                    </span>
-                    {p.examples.map((ex, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          justifyContent: 'space-between',
-                          gap: '0.5rem',
-                          background: 'var(--bg-secondary)',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: '0.85rem',
-                          border: '1px solid var(--border-color)'
-                        }}
-                      >
-                        <span style={{ fontStyle: 'italic', flex: 1 }}>"{ex}"</span>
-                        <button
-                          onClick={() => playAudio(ex)}
-                          className="btn-icon"
-                          style={{ padding: '0.15rem', color: 'var(--accent-primary)', flexShrink: 0 }}
-                          title="Nghe phát âm cả câu"
-                        >
-                          <Volume2 size={15} />
-                        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="patterns-grid">
+            {displayPatterns.map(p => {
+              const catInfo = categories.find(c => c.id === p.category) || { name: 'Chức năng', emoji: '🧩', color: '#8b5cf6' };
+              return (
+                <div
+                  key={p.id}
+                  className="card"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '1rem'
+                  }}
+                >
+                  <div>
+                    {/* Header: Name + Category & Tone */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', gap: '8px' }}>
+                      <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--accent-primary)' }}>
+                        {p.name}
+                      </h4>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {p.tone && (
+                          <span style={{
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            background: 'var(--bg-tertiary)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-color)',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {p.tone}
+                          </span>
+                        )}
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '0.25rem 0.65rem',
+                          borderRadius: 'var(--radius-full)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: `${catInfo.color || '#8b5cf6'}15`,
+                          color: catInfo.color || '#8b5cf6',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {catInfo.emoji || '🧩'} {catInfo.name}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
 
-              {/* Footer: Actions */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid var(--border-color)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <button
-                    onClick={() => onEditPattern(p)}
-                    className="btn-icon"
-                    title="Chỉnh sửa mẫu câu"
-                    style={{ padding: '0.4rem' }}
-                  >
-                    <Edit3 size={15} />
-                  </button>
-                  <button
-                    onClick={() => onDeletePattern(p.id)}
-                    className="btn-icon"
-                    title="Xóa mẫu câu"
-                    style={{ padding: '0.4rem', color: 'var(--accent-danger)' }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                    {/* Formula Box */}
+                    <div style={{
+                      background: 'var(--bg-tertiary)',
+                      padding: '0.75rem 1rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.75rem',
+                      border: '1px dashed var(--border-color)'
+                    }}>
+                      {p.formula}
+                    </div>
+
+                    {/* Meaning */}
+                    <p style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.45rem', color: 'var(--text-primary)' }}>
+                      {p.meaning_vi}
+                    </p>
+
+                    {/* Detailed Explanation */}
+                    {p.explanation && (
+                      <div style={{
+                        background: 'var(--bg-tertiary)',
+                        borderRadius: '12px',
+                        padding: '0.75rem 0.9rem',
+                        marginBottom: '0.85rem',
+                        fontSize: '0.84rem',
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.55,
+                        borderLeft: '3px solid var(--accent-primary)'
+                      }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--accent-primary)', marginBottom: '0.25rem' }}>
+                          Chi tiết cách dùng & lưu ý:
+                        </div>
+                        <div style={{ whiteSpace: 'pre-line' }}>
+                          {p.explanation}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Examples with Audio */}
+                    {p.examples && p.examples.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Ví dụ áp dụng:
+                        </span>
+                        {p.examples.map((ex, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              justifyContent: 'space-between',
+                              gap: '0.5rem',
+                              background: 'var(--bg-secondary)',
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '0.85rem',
+                              border: '1px solid var(--border-color)'
+                            }}
+                          >
+                            <span style={{ fontStyle: 'italic', flex: 1 }}>"{ex}"</span>
+                            <button
+                              onClick={() => playAudio(ex)}
+                              className="btn-icon"
+                              style={{ padding: '0.15rem', color: 'var(--accent-primary)', flexShrink: 0 }}
+                              title="Nghe phát âm cả câu"
+                            >
+                              <Volume2 size={15} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer: Actions */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    paddingTop: '0.75rem',
+                    borderTop: '1px solid var(--border-color)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <button
+                        onClick={() => onEditPattern(p)}
+                        className="btn-icon"
+                        title="Chỉnh sửa mẫu câu"
+                        style={{ padding: '0.4rem' }}
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        onClick={() => onDeletePattern(p.id)}
+                        className="btn-icon"
+                        title="Xóa mẫu câu"
+                        style={{ padding: '0.4rem', color: 'var(--accent-danger)' }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            pageSizeOptions={[12, 24, 48]}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            itemLabel="mẫu câu"
+          />
         </div>
       )}
 

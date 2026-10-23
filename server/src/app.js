@@ -335,6 +335,7 @@ function buildProtectedRouter() {
   api.post('/topics/assign', topicController.assignWordTopic);
 
   // Sentence patterns
+  api.post('/patterns/analyze', patternController.analyzePattern);
   api.get('/patterns', patternController.getAllPatterns);
   api.get('/patterns/:id', patternController.getPatternById);
   api.post('/patterns', validateBody({

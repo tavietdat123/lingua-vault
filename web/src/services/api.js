@@ -83,6 +83,15 @@ export const api = {
       return await res.json();
     },
 
+    guestLogin: async () => {
+      const res = await authFetch(`${API_BASE}/auth/guest-login`, { method: 'POST' });
+      const json = await res.json();
+      if (json.success && json.data?.token) {
+        setAuthToken(json.data.token);
+      }
+      return json;
+    },
+
     logout: async () => {
       setAuthToken(null);
       try {
@@ -205,6 +214,14 @@ export const api = {
 
   deletePattern: async (id) => {
     const res = await authFetch(`${API_BASE}/patterns/${id}`, { method: 'DELETE' });
+    return res.json();
+  },
+
+  analyzePattern: async (sentence) => {
+    const res = await authFetch(`${API_BASE}/patterns/analyze`, {
+      method: 'POST',
+      body: JSON.stringify({ sentence })
+    });
     return res.json();
   },
 

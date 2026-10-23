@@ -54,6 +54,7 @@ export default function GlobalTimerBar() {
 
   return (
     <div
+      className="global-timer-bar"
       onClick={() => navigate('/timer')}
       style={{
         position: 'fixed',

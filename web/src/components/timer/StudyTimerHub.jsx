@@ -43,6 +43,7 @@ import { api } from '../../services/api';
 import { useStudyTimer, SOUND_OPTIONS, ACTIVITIES, getActivityMeta } from '../../context/StudyTimerContext';
 import StudyScheduleModal from './StudyScheduleModal';
 import ActivityHistoryChart from '../common/ActivityHistoryChart';
+import Pagination from '../common/Pagination';
 
 const ACTIVITY_ICONS = {
   coding: Code,
@@ -184,6 +185,8 @@ export default function StudyTimerHub({ onSessionFinished, onAddToast }) {
   const [totalSessionsCount, setTotalSessionsCount] = useState(0);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [sessionPage, setSessionPage] = useState(1);
+  const [sessionPageSize, setSessionPageSize] = useState(10);
   const [randomQuote] = useState(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
 
   const loadSchedules = async () => {
@@ -249,7 +252,7 @@ export default function StudyTimerHub({ onSessionFinished, onAddToast }) {
     try {
       const [statsRes, sessionsRes] = await Promise.all([
         api.getStudyTimerStats(),
-        api.getStudyTimerSessions({ limit: 50, activity_type: historyFilter })
+        api.getStudyTimerSessions({ page: sessionPage, limit: sessionPageSize, activity_type: historyFilter })
       ]);
 
       if (statsRes.success && statsRes.data) {
@@ -267,8 +270,12 @@ export default function StudyTimerHub({ onSessionFinished, onAddToast }) {
   };
 
   useEffect(() => {
-    loadStatsAndHistory();
+    setSessionPage(1);
   }, [historyFilter]);
+
+  useEffect(() => {
+    loadStatsAndHistory();
+  }, [sessionPage, sessionPageSize, historyFilter]);
 
   useEffect(() => {
     if (activeTab === 'stats' || lastSavedSession) {
@@ -2451,6 +2458,23 @@ export default function StudyTimerHub({ onSessionFinished, onAddToast }) {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {totalSessionsCount > 0 && (
+              <div style={{ marginTop: '1rem' }}>
+                <Pagination
+                  currentPage={sessionPage}
+                  totalItems={totalSessionsCount}
+                  pageSize={sessionPageSize}
+                  pageSizeOptions={[10, 20, 50]}
+                  onPageChange={setSessionPage}
+                  onPageSizeChange={(newSize) => {
+                    setSessionPageSize(newSize);
+                    setSessionPage(1);
+                  }}
+                  itemLabel="phiên học"
+                />
               </div>
             )}
           </div>

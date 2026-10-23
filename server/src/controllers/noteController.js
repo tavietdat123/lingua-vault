@@ -1,33 +1,53 @@
-import { db } from '../db/database.js';
+import { db, removeVietnameseTones } from '../db/database.js';
 import crypto from 'node:crypto';
 
 export const noteController = {
-  // 1. Get all notes for specific account
+  // 1. Get all notes with backend search, filtering, and pagination
   getAllNotes: (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
       const { search, topic } = req.query;
-      let query = `
-        SELECT * FROM notes 
-        WHERE (user_id = ? OR user_id IS NULL OR user_id = 'admin_master_user_id')
-      `;
+      const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : null;
+      const limit = req.query.limit ? Math.max(1, parseInt(req.query.limit, 10)) : null;
+
+      let whereClause = `WHERE (user_id = ? OR user_id IS NULL OR user_id = 'admin_master_user_id')`;
       const params = [userId];
 
-      if (search) {
-        query += ' AND (title LIKE ? OR content LIKE ?)';
-        const term = `%${search}%`;
-        params.push(term, term);
+      if (search && search.trim()) {
+        const q = search.trim();
+        const term = `%${q}%`;
+        const qClean = removeVietnameseTones(q);
+        const termClean = `%${qClean}%`;
+        whereClause += ` AND (
+          title LIKE ? OR content LIKE ?
+          OR unaccent(title) LIKE ? OR unaccent(content) LIKE ?
+        )`;
+        params.push(term, term, termClean, termClean);
       }
 
       if (topic && topic !== 'all') {
-        query += ' AND topic = ?';
+        whereClause += ' AND topic = ?';
         params.push(topic);
       }
 
-      query += ' ORDER BY created_at DESC';
+      // Total count calculation
+      const countSql = `SELECT COUNT(*) as count FROM notes ${whereClause}`;
+      const countStmt = db.prepare(countSql);
+      const { count: total } = countStmt.get(...params);
 
-      const stmt = db.prepare(query);
-      let notes = stmt.all(...params);
+      // Data query
+      let dataSql = `SELECT * FROM notes ${whereClause} ORDER BY created_at DESC`;
+      const dataParams = [...params];
+
+      if (limit) {
+        const currentPage = page || 1;
+        const offset = (currentPage - 1) * limit;
+        dataSql += ` LIMIT ? OFFSET ?`;
+        dataParams.push(limit, offset);
+      }
+
+      const stmt = db.prepare(dataSql);
+      let notes = stmt.all(...dataParams);
 
       notes = notes.map(n => ({
         ...n,
@@ -35,8 +55,23 @@ export const noteController = {
         linked_words: JSON.parse(n.linked_words || '[]')
       }));
 
-      res.json({ success: true, data: notes });
+      const currentPage = page || 1;
+      const currentLimit = limit || total;
+      const totalPages = limit ? Math.max(1, Math.ceil(total / limit)) : 1;
+
+      res.json({
+        success: true,
+        data: notes,
+        total,
+        pagination: {
+          page: currentPage,
+          limit: currentLimit,
+          total,
+          totalPages
+        }
+      });
     } catch (err) {
+      console.error('[NoteController getAllNotes Error]:', err);
       res.status(500).json({ success: false, error: err.message });
     }
   },

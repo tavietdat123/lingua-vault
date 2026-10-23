@@ -128,8 +128,9 @@ export const studyTimerController = {
     try {
       const db = getDb();
       const userId = req.user?.id || 'admin_master_user_id';
-      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
-      const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 10));
+      const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : 1;
+      const offset = req.query.offset ? Math.max(0, parseInt(req.query.offset, 10)) : (page - 1) * limit;
       const activityType = req.query.activity_type;
 
       let sql = `
@@ -164,6 +165,12 @@ export const studyTimerController = {
         success: true,
         data: sessions,
         total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        },
         limit,
         offset
       });

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
+import MobileBottomNav from './components/layout/MobileBottomNav';
 import CommandPalette from './components/layout/CommandPalette';
 import Toast from './components/common/Toast';
 import Dashboard from './components/dashboard/Dashboard';
@@ -95,6 +96,39 @@ export default function App() {
   const [levelUpData, setLevelUpData] = useState(null);
   const [gamificationProfile, setGamificationProfile] = useState(null);
   const [aiLabSentence, setAiLabSentence] = useState('');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 992 : false;
+  });
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        if (window.innerWidth < 768) {
+          setIsMobileOpen(prev => !prev);
+        } else {
+          setIsSidebarCollapsed(prev => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 992) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Toast notifications state
   const [toasts, setToasts] = useState([]);
@@ -187,7 +221,7 @@ export default function App() {
     setAuthChecking(true);
     try {
       const res = await api.auth.getMe();
-      if (res.success && res.data && res.data.role !== 'guest') {
+      if (res.success && res.data) {
         setCurrentUser(res.data);
       } else {
         setCurrentUser(null);
@@ -491,13 +525,20 @@ export default function App() {
       {/* 1. Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        setCurrentTab={handleNavigate}
+        setCurrentTab={(tab) => {
+          handleNavigate(tab);
+          setIsMobileOpen(false);
+        }}
         stats={stats}
         onOpenQuickAdd={handleAddWord}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onSharePublicStats={handleSharePublicStats}
         onOpenSupervisorPortal={handleOpenSupervisorPortal}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
+        isMobileOpen={isMobileOpen}
+        onClose={() => setIsMobileOpen(false)}
       />
 
       {/* 2. Main Content Area */}
@@ -516,6 +557,15 @@ export default function App() {
           onOpenProfileEdit={() => setIsProfileEditOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onLogout={handleLogout}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebar={() => {
+            if (window.innerWidth < 768) {
+              setIsMobileOpen(prev => !prev);
+            } else {
+              setIsSidebarCollapsed(prev => !prev);
+            }
+          }}
+          onToggleMobileMenu={() => setIsMobileOpen(prev => !prev)}
         />
 
         <div className="app-content">
@@ -655,6 +705,14 @@ export default function App() {
 
       {/* Persistent Floating Active Study Timer Bar */}
       <GlobalTimerBar />
+
+      {/* 2b. Mobile Bottom Navigation Bar (< 768px) */}
+      <MobileBottomNav
+        currentTab={currentTab}
+        dueCount={stats?.total_due_today || 0}
+        vocabCount={stats?.words?.total || 0}
+        onOpenMenu={() => setIsMobileOpen(true)}
+      />
 
       {/* 3. Global Command Palette (Cmd + K) */}
       <CommandPalette

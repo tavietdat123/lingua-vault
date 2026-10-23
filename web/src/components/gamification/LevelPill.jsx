@@ -55,7 +55,7 @@ export default function LevelPill({ profile, onOpenReport }) {
         </div>
 
         {/* Title & XP Progress */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+        <div className="level-pill-details" style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {title}

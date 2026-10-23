@@ -625,7 +625,7 @@ export default function SRSReviewCenter({
 
           {/* 4. SUPERMEMO SM-2+ MULTI-MILESTONE RATING BUTTONS */}
           {isFlipped ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.85rem', marginTop: '1.25rem', position: 'relative', zIndex: 10 }}>
+            <div className="srs-rating-buttons-grid">
               <button onClick={(e) => { e.stopPropagation(); handleGrade('again'); }} style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1.5px solid #ef4444', padding: '1rem 0.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s ease', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' }}>
                 <span style={{ fontSize: '0.98rem' }}>🔴 Quên</span>
                 <span style={{ fontSize: '0.78rem', opacity: 0.9, fontWeight: 700 }}>Mốc: &lt; 10 phút</span>

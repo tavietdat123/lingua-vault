@@ -231,7 +231,7 @@ export default function SmartReader({
   const readingTime = Math.max(1, Math.ceil(wordCount / 180));
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '1.5rem', minHeight: '700px' }}>
+    <div className="smart-reader-layout">
       {/* 1. LEFT COLUMN: NOTES LIST */}
       <div style={{
         background: 'var(--bg-secondary)',

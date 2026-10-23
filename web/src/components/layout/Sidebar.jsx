@@ -11,16 +11,29 @@ import {
   Flame,
   Plus,
   Command,
-  TrendingUp,
   Target,
   Mic,
   Timer,
-  Globe,
   ShieldCheck,
-  Eye
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 
-export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickAdd, onOpenSettings, onOpenCommandPalette, onSharePublicStats, onOpenSupervisorPortal }) {
+export default function Sidebar({ 
+  currentTab, 
+  setCurrentTab, 
+  stats, 
+  onOpenQuickAdd, 
+  onOpenSettings, 
+  onOpenCommandPalette, 
+  onSharePublicStats, 
+  onOpenSupervisorPortal,
+  isCollapsed = false,
+  onToggleCollapse,
+  isMobileOpen = false,
+  onClose = () => {}
+}) {
   const navItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { 
@@ -83,250 +96,201 @@ export default function Sidebar({ currentTab, setCurrentTab, stats, onOpenQuickA
   ];
 
   const streak = stats?.streak || 0;
-  const mastered = stats?.words?.mastered || 0;
 
   return (
-    <aside className="app-sidebar">
-      {/* Brand Header */}
-      <NavLink 
-        to="/" 
-        style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0 0.4rem', textDecoration: 'none', color: 'inherit' }}
-      >
-        <div style={{ 
-          background: 'linear-gradient(135deg, #0284c7, #38bdf8)', 
-          width: '40px', 
-          height: '40px', 
-          borderRadius: '12px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          color: '#ffffff',
-          boxShadow: '0 6px 16px rgba(56, 189, 248, 0.35)'
-        }}>
-          <BookOpen size={22} />
-        </div>
-        <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
-            LinguaVault
-          </h1>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Pro Max Hub</span>
-        </div>
-      </NavLink>
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isMobileOpen && (
+        <div 
+          className="sidebar-mobile-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Quick Add Action Button */}
-      <button 
-        onClick={onOpenQuickAdd}
-        className="btn-primary glow-hover" 
-        style={{ width: '100%', justifyContent: 'center', padding: '0.85rem 1rem', fontSize: '0.95rem' }}
-      >
-        <Plus size={19} />
-        <span>Thêm Nhanh (1-Click)</span>
-      </button>
+      <aside className={`app-sidebar ${isCollapsed && !isMobileOpen ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+        {/* Brand Header */}
+        <div className="sidebar-brand-row">
+          <NavLink 
+            to="/" 
+            onClick={() => { if (onClose) onClose(); }}
+            className="sidebar-brand-link"
+            title="LinguaVault Pro Max Hub"
+          >
+            <div className="sidebar-brand-icon">
+              <BookOpen size={20} />
+            </div>
+            <div className="sidebar-brand-text">
+              <h1 className="sidebar-brand-title">LinguaVault</h1>
+              <span className="sidebar-brand-sub">Pro Max Hub</span>
+            </div>
+          </NavLink>
 
-      {/* Navigation List */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
-        {navItems.map(item => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id || (item.id === 'dashboard' && currentTab === '');
+          {/* Close button on mobile drawer */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-icon sidebar-mobile-close-btn"
+            title="Đóng menu"
+            aria-label="Đóng menu"
+          >
+            <X size={20} />
+          </button>
 
-          return (
-            <NavLink
-              key={item.id}
-              to={item.path}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.95rem',
-                borderRadius: 'var(--radius-lg)',
-                backgroundColor: isActive ? 'var(--accent-primary-light)' : 'transparent',
-                color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.92rem',
-                transition: 'all var(--transition-fast)',
-                border: isActive ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid transparent',
-                textDecoration: 'none'
-              }}
+          {/* Toggle Collapse Button on desktop */}
+          {onToggleCollapse && !isMobileOpen && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="sidebar-collapse-toggle-btn"
+              title={isCollapsed ? "Phóng to / Mở rộng thanh bên" : "Thu gọn thanh bên"}
+              aria-label={isCollapsed ? "Phóng to / Mở rộng thanh bên" : "Thu gọn thanh bên"}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Icon size={19} style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)' }} />
-                <span>{item.label}</span>
-              </div>
-
-              {item.dueCount > 0 && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '22px',
-                    height: '20px',
-                    padding: '0 6px',
-                    background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
-                    color: '#ffffff',
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    borderRadius: '10px',
-                    lineHeight: 1,
-                    boxShadow: '0 2px 8px rgba(225, 29, 72, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    letterSpacing: '-0.2px'
-                  }}
-                >
-                  {item.dueCount}
-                </span>
-              )}
-
-              {item.count !== undefined && !item.dueCount && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '20px',
-                    height: '18px',
-                    padding: '0 6px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--bg-tertiary)',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    border: '1px solid var(--border-color)'
-                  }}
-                >
-                  {item.count}
-                </span>
-              )}
-
-              {item.isNew && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2px 7px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.25))',
-                    color: '#10b981',
-                    fontSize: '0.68rem',
-                    fontWeight: 800,
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    lineHeight: 1
-                  }}
-                >
-                  MỚI
-                </span>
-              )}
-
-              {item.isAi && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2px 7px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(168, 85, 247, 0.25))',
-                    color: '#a855f7',
-                    fontSize: '0.68rem',
-                    fontWeight: 800,
-                    border: '1px solid rgba(168, 85, 247, 0.3)',
-                    lineHeight: 1
-                  }}
-                >
-                  AI ⚡
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Footer Info, XP Bar & Settings */}
-      <div style={{ 
-        borderTop: '1px solid var(--border-color)', 
-        paddingTop: '1.1rem', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '0.85rem' 
-      }}>
-        {/* Streak Pill */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          background: 'var(--bg-tertiary)',
-          padding: '0.65rem 0.9rem',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-color)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Flame size={19} style={{ color: 'var(--accent-warning)' }} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Daily Streak</span>
-          </div>
-          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-warning)' }}>
-            {streak} ngày
-          </span>
+              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={16} />}
+            </button>
+          )}
         </div>
 
-        {/* Command Palette Trigger in Sidebar */}
+        {/* Quick Add Action Button */}
         <button 
-          onClick={onOpenCommandPalette}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.55rem 0.85rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-tertiary)',
-            color: 'var(--text-muted)',
-            fontSize: '0.8rem'
+          onClick={() => {
+            if (onClose) onClose();
+            onOpenQuickAdd();
           }}
+          className="btn-primary glow-hover sidebar-quick-add-btn" 
+          title="Thêm Nhanh (1-Click)"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Command size={14} />
-            <span>Tìm kiếm nhanh</span>
-          </div>
-          <div style={{ display: 'flex', gap: '2px' }}>
-            <span className="kbd-pill">⌘</span>
-            <span className="kbd-pill">K</span>
-          </div>
+          <Plus size={18} className="sidebar-btn-icon" />
+          <span className="sidebar-text-label">Thêm Nhanh</span>
         </button>
 
-        {/* Public stats portfolio share button */}
-        {/* Cổng Giám Sát Học Tập */}
-        <button 
-          onClick={onOpenSupervisorPortal || (() => {
-            const url = `${window.location.origin}/giam-sat`;
-            window.open(url, '_blank');
+        {/* Navigation List */}
+        <nav className="sidebar-nav">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            const isActive = currentTab === item.id || (item.id === 'dashboard' && currentTab === '');
+
+            return (
+              <NavLink
+                key={item.id}
+                to={item.path}
+                onClick={() => { if (onClose) onClose(); }}
+                className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                title={item.label}
+              >
+                <div className="sidebar-nav-item-content">
+                  <div className="sidebar-icon-wrapper">
+                    <Icon size={19} className="sidebar-nav-icon" />
+                    {item.dueCount > 0 && isCollapsed && !isMobileOpen && (
+                      <span className="sidebar-dot-badge-due">
+                        {item.dueCount > 99 ? '99+' : item.dueCount}
+                      </span>
+                    )}
+                    {item.isAi && isCollapsed && !isMobileOpen && !item.dueCount && (
+                      <span className="sidebar-dot-badge-ai">⚡</span>
+                    )}
+                  </div>
+                  <span className="sidebar-text-label">{item.label}</span>
+                </div>
+
+                {/* Badges when expanded */}
+                <div className="sidebar-badges-group">
+                  {item.dueCount > 0 && (
+                    <span className="sidebar-badge-due">
+                      {item.dueCount}
+                    </span>
+                  )}
+
+                  {item.count !== undefined && !item.dueCount && (
+                    <span className="sidebar-badge-count">
+                      {item.count}
+                    </span>
+                  )}
+
+                  {item.isNew && (
+                    <span className="sidebar-badge-new">
+                      MỚI
+                    </span>
+                  )}
+
+                  {item.isAi && (
+                    <span className="sidebar-badge-ai">
+                      AI ⚡
+                    </span>
+                  )}
+                </div>
+              </NavLink>
+            );
           })}
-          className="btn-secondary glow-hover" 
-          style={{ 
-            width: '100%', 
-            justifyContent: 'flex-start', 
-            padding: '0.65rem 0.95rem',
-            borderColor: 'rgba(2, 132, 199, 0.35)',
-            background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.1) 0%, rgba(56, 189, 248, 0.08) 100%)'
-          }}
-          title="Mở Cổng Giám Sát Học Tập để xem trực tiếp giao diện người ngoài nhìn thấy"
-        >
-          <ShieldCheck size={17} style={{ color: 'var(--accent-primary)' }} />
-          <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>Cổng Giám Sát (UI)</span>
-        </button>
+        </nav>
 
-        {/* Settings button */}
-        <button 
-          onClick={onOpenSettings}
-          className="btn-secondary" 
-          style={{ width: '100%', justifyContent: 'flex-start', padding: '0.65rem 0.95rem' }}
-        >
-          <Settings size={17} />
-          <span style={{ fontSize: '0.88rem' }}>Cài đặt & Sao lưu</span>
-        </button>
-      </div>
-    </aside>
+        {/* Footer Info, Streak & Settings */}
+        <div className="sidebar-footer">
+          {/* Streak Pill */}
+          <div className="sidebar-streak-pill" title={`Daily Streak: ${streak} ngày liên tục`}>
+            <div className="sidebar-streak-left">
+              <Flame size={18} style={{ color: 'var(--accent-warning)', flexShrink: 0 }} />
+              <span className="sidebar-text-label sidebar-streak-label">Daily Streak</span>
+            </div>
+            <span className="sidebar-streak-value">
+              {streak} <span className="sidebar-text-label">ngày</span>
+            </span>
+          </div>
+
+          {/* Command Palette Trigger */}
+          <button 
+            onClick={() => {
+              if (onClose) onClose();
+              onOpenCommandPalette();
+            }}
+            className="sidebar-footer-btn"
+            title="Tìm kiếm nhanh (Cmd + K)"
+          >
+            <div className="sidebar-footer-btn-content">
+              <Command size={16} />
+              <span className="sidebar-text-label">Tìm nhanh</span>
+            </div>
+            <div className="sidebar-text-label kbd-combo">
+              <span className="kbd-pill">⌘K</span>
+            </div>
+          </button>
+
+          {/* Cổng Giám Sát Học Tập */}
+          <button 
+            onClick={() => {
+              if (onClose) onClose();
+              if (onOpenSupervisorPortal) {
+                onOpenSupervisorPortal();
+              } else {
+                const url = `${window.location.origin}/giam-sat`;
+                window.open(url, '_blank');
+              }
+            }}
+            className="sidebar-footer-btn supervisor-btn" 
+            title="Cổng Giám Sát Học Tập (UI)"
+          >
+            <div className="sidebar-footer-btn-content">
+              <ShieldCheck size={16} style={{ color: 'var(--accent-primary)' }} />
+              <span className="sidebar-text-label">Cổng Giám Sát</span>
+            </div>
+          </button>
+
+          {/* Settings button */}
+          <button 
+            onClick={() => {
+              if (onClose) onClose();
+              onOpenSettings();
+            }}
+            className="sidebar-footer-btn" 
+            title="Cài đặt & Sao lưu"
+          >
+            <div className="sidebar-footer-btn-content">
+              <Settings size={16} />
+              <span className="sidebar-text-label">Cài đặt</span>
+            </div>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

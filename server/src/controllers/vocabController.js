@@ -1,45 +1,72 @@
-import { db } from '../db/database.js';
+import { db, removeVietnameseTones } from '../db/database.js';
 import crypto from 'node:crypto';
 import { lookupDictionary } from '../services/dictionaryService.js';
 import { gamificationService } from '../services/gamificationService.js';
 
 export const vocabController = {
-  // 1. Get all words with search & filtering for specific account
+  // 1. Get all words with backend search, filtering, and pagination
   getAllWords: (req, res) => {
     try {
       const userId = req.user?.id || 'admin_master_user_id';
       const { search, tag, status, level, topic_id } = req.query;
-      let query = `
-        SELECT * FROM words 
-        WHERE (user_id = ? OR user_id IS NULL OR user_id = 'admin_master_user_id')
-      `;
+      const page = req.query.page ? Math.max(1, parseInt(req.query.page, 10)) : null;
+      const limit = req.query.limit ? Math.max(1, parseInt(req.query.limit, 10)) : null;
+
+      let whereClause = `WHERE (user_id = ? OR user_id IS NULL OR user_id = 'admin_master_user_id')`;
       const params = [userId];
 
-      if (search) {
-        query += ' AND (word LIKE ? OR meaning_vi LIKE ? OR meaning_en LIKE ?)';
-        const term = `%${search}%`;
-        params.push(term, term, term);
+      if (search && search.trim()) {
+        const q = search.trim();
+        const term = `%${q}%`;
+        const qClean = removeVietnameseTones(q);
+        const termClean = `%${qClean}%`;
+        whereClause += ` AND (
+          word LIKE ? OR meaning_vi LIKE ? OR meaning_en LIKE ? OR phonetic LIKE ? 
+          OR collocations LIKE ? OR examples LIKE ? OR tags LIKE ?
+          OR unaccent(word) LIKE ? OR unaccent(meaning_vi) LIKE ? OR unaccent(meaning_en) LIKE ?
+          OR unaccent(collocations) LIKE ? OR unaccent(examples) LIKE ? OR unaccent(tags) LIKE ?
+        )`;
+        params.push(term, term, term, term, term, term, term, termClean, termClean, termClean, termClean, termClean, termClean);
       }
 
       if (status && status !== 'all') {
-        query += ' AND status = ?';
+        whereClause += ' AND status = ?';
         params.push(status);
       }
 
       if (level && level !== 'all') {
-        query += ' AND level = ?';
+        whereClause += ' AND level = ?';
         params.push(level);
       }
 
       if (topic_id && topic_id !== 'all') {
-        query += ' AND topic_id = ?';
+        whereClause += ' AND topic_id = ?';
         params.push(topic_id);
       }
 
-      query += ' ORDER BY created_at DESC';
+      if (tag && tag !== 'all') {
+        whereClause += ' AND (tags LIKE ? OR topic_id = ?)';
+        params.push(`%"${tag}"%`, tag);
+      }
 
-      const stmt = db.prepare(query);
-      let words = stmt.all(...params);
+      // Total count calculation
+      const countSql = `SELECT COUNT(*) as count FROM words ${whereClause}`;
+      const countStmt = db.prepare(countSql);
+      const { count: total } = countStmt.get(...params);
+
+      // Data fetch query
+      let dataSql = `SELECT * FROM words ${whereClause} ORDER BY created_at DESC`;
+      const dataParams = [...params];
+
+      if (limit) {
+        const currentPage = page || 1;
+        const offset = (currentPage - 1) * limit;
+        dataSql += ` LIMIT ? OFFSET ?`;
+        dataParams.push(limit, offset);
+      }
+
+      const stmt = db.prepare(dataSql);
+      let words = stmt.all(...dataParams);
 
       // Parse JSON fields
       words = words.map(w => ({
@@ -50,13 +77,23 @@ export const vocabController = {
         tags: JSON.parse(w.tags || '[]')
       }));
 
-      // Filter by tag if provided
-      if (tag && tag !== 'all') {
-        words = words.filter(w => w.tags.includes(tag) || w.topic_id === tag);
-      }
+      const currentPage = page || 1;
+      const currentLimit = limit || total;
+      const totalPages = limit ? Math.max(1, Math.ceil(total / limit)) : 1;
 
-      res.json({ success: true, data: words });
+      res.json({
+        success: true,
+        data: words,
+        total,
+        pagination: {
+          page: currentPage,
+          limit: currentLimit,
+          total,
+          totalPages
+        }
+      });
     } catch (err) {
+      console.error('[VocabController getAllWords Error]:', err);
       res.status(500).json({ success: false, error: err.message });
     }
   },

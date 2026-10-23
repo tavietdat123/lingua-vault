@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -15,9 +15,12 @@ import {
   LayoutGrid,
   ListFilter,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import { playAudio } from '../../services/audioService';
+import { api } from '../../services/api';
+import Pagination from '../common/Pagination';
 
 // Helper: Remove Vietnamese Tones for Accent-Insensitive Smart Search
 const removeVietnameseTones = (str) => {
@@ -51,78 +54,75 @@ export default function VocabVault({
   onOpenTopicManager 
 }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
   const [selectedTopic, setSelectedTopic] = useState('all');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grouped'
   const [collapsedTopics, setCollapsedTopics] = useState({});
 
-  // Smart Multi-Field & Accent-Insensitive Filter
-  const filteredWords = words
-    .filter(w => {
-      const q = searchTerm.toLowerCase().trim();
-      if (q) {
-        const qClean = removeVietnameseTones(q);
-        const word = (w.word || '').toLowerCase();
-        const meaningVi = (w.meaning_vi || '').toLowerCase();
-        const meaningEn = (w.meaning_en || '').toLowerCase();
-        const phonetic = (w.phonetic || '').toLowerCase();
-        const pos = (w.part_of_speech || '').toLowerCase();
-        const level = (w.level || '').toLowerCase();
-        const topic = (w.topic_id || '').toLowerCase();
-        const collocationsStr = Array.isArray(w.collocations) ? w.collocations.join(' ').toLowerCase() : (w.collocations || '').toLowerCase();
-        const examplesStr = Array.isArray(w.examples) ? w.examples.join(' ').toLowerCase() : (w.examples || '').toLowerCase();
-        const tagsStr = Array.isArray(w.tags) ? w.tags.join(' ').toLowerCase() : (w.tags || '').toLowerCase();
+  // Pagination & Server State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [serverWords, setServerWords] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-        const matchDirect = 
-          word.includes(q) ||
-          meaningVi.includes(q) ||
-          meaningEn.includes(q) ||
-          phonetic.includes(q) ||
-          pos.includes(q) ||
-          level === q ||
-          topic.includes(q) ||
-          collocationsStr.includes(q) ||
-          examplesStr.includes(q) ||
-          tagsStr.includes(q);
+  // Debounce search input (250ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-        const matchUnaccented =
-          removeVietnameseTones(meaningVi).includes(qClean) ||
-          removeVietnameseTones(collocationsStr).includes(qClean) ||
-          removeVietnameseTones(examplesStr).includes(qClean) ||
-          removeVietnameseTones(topic).includes(qClean);
+  // Auto reset to first page when filtering or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter, levelFilter, selectedTopic]);
 
-        if (!matchDirect && !matchUnaccented) return false;
-      }
+  // Fetch words with BE-level search, filtering, and pagination
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoading(true);
 
-      const matchesStatus = statusFilter === 'all' || w.status === statusFilter;
-      const matchesLevel = levelFilter === 'all' || w.level === levelFilter;
-      const matchesTopic = selectedTopic === 'all' || w.topic_id === selectedTopic;
+    const params = {
+      page: currentPage,
+      limit: pageSize
+    };
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    if (statusFilter !== 'all') params.status = statusFilter;
+    if (levelFilter !== 'all') params.level = levelFilter;
+    if (selectedTopic !== 'all') params.topic_id = selectedTopic;
 
-      return matchesStatus && matchesLevel && matchesTopic;
-    })
-    .sort((a, b) => {
-      // Relevance score when searching
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase().trim();
-        const qClean = removeVietnameseTones(q);
-        const score = (item) => {
-          const w = (item.word || '').toLowerCase();
-          const m = (item.meaning_vi || '').toLowerCase();
-          const mClean = removeVietnameseTones(m);
-          if (w === q) return 100;
-          if (w.startsWith(q)) return 80;
-          if (w.includes(q)) return 60;
-          if (m.startsWith(q) || mClean.startsWith(qClean)) return 50;
-          if (m.includes(q) || mClean.includes(qClean)) return 40;
-          return 10;
-        };
-        const scoreA = score(a);
-        const scoreB = score(b);
-        if (scoreA !== scoreB) return scoreB - scoreA;
-      }
-      return (b.id || 0) - (a.id || 0);
-    });
+    api.getWords(params)
+      .then(res => {
+        if (!isCurrent) return;
+        if (res && res.success) {
+          setServerWords(res.data || []);
+          setTotalItems(res.total ?? (res.data || []).length);
+        } else {
+          setServerWords([]);
+          setTotalItems(0);
+        }
+      })
+      .catch(err => {
+        if (!isCurrent) return;
+        console.error('Error fetching words:', err);
+        setServerWords([]);
+        setTotalItems(0);
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [currentPage, pageSize, debouncedSearch, statusFilter, levelFilter, selectedTopic, words]);
+
+  // Display words: use server-paginated words
+  const displayWords = serverWords;
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -304,7 +304,7 @@ export default function VocabVault({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* 1. TOP BAR: SEARCH & FILTERS & ADD BUTTON */}
-      <div style={{
+      <div className="vault-top-bar" style={{
         display: 'flex',
         flexWrap: 'wrap',
         gap: '1rem',
@@ -316,7 +316,7 @@ export default function VocabVault({
         border: '1px solid var(--border-color)'
       }}>
         {/* Search Box */}
-        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: '420px' }}>
+        <div className="vault-search-box" style={{ position: 'relative', flex: '1 1 280px', maxWidth: '420px' }}>
           <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
@@ -329,7 +329,7 @@ export default function VocabVault({
         </div>
 
         {/* Filter Dropdowns & View Mode & Actions */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem', alignItems: 'center' }}>
+        <div className="vault-filters-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem', alignItems: 'center' }}>
           {/* Status Filter */}
           <select
             className="input-control"
@@ -525,7 +525,12 @@ export default function VocabVault({
 
 
       {/* 4. WORDS LIST / GROUPED VIEW */}
-      {filteredWords.length === 0 ? (
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={32} className="spin-slow" style={{ margin: '0 auto 0.75rem auto', color: 'var(--accent-primary)' }} />
+          <p style={{ fontSize: '0.9rem' }}>Đang tải danh sách từ vựng từ máy chủ...</p>
+        </div>
+      ) : displayWords.length === 0 ? (
         searchTerm.trim() ? (
           <div style={{
             textAlign: 'center',
@@ -560,9 +565,9 @@ export default function VocabVault({
             border: '1px solid var(--border-color)'
           }}>
             <Layers size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 1rem auto', opacity: 0.6 }} />
-            <h4 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Không tìm thấy từ vựng nào trong chủ đề này</h4>
+            <h4 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Không tìm thấy từ vựng nào phù hợp</h4>
             <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', marginBottom: '1.5rem' }}>
-              Hãy thử chọn chủ đề khác hoặc bấm nút dưới đây để thêm từ mới vào chủ đề này.
+              Hãy thử chọn bộ lọc khác hoặc bấm nút dưới đây để thêm từ mới vào kho.
             </p>
             <button onClick={onAddWord} className="btn-primary">
               <Plus size={18} />
@@ -574,7 +579,7 @@ export default function VocabVault({
         /* GROUPED BY TOPIC ACCORDION VIEW */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {topics.map(t => {
-            const topicWords = filteredWords.filter(w => w.topic_id === t.id);
+            const topicWords = displayWords.filter(w => w.topic_id === t.id);
             if (topicWords.length === 0 && selectedTopic !== 'all') return null;
             const isCollapsed = !!collapsedTopics[t.id];
 
@@ -638,10 +643,10 @@ export default function VocabVault({
                   <div style={{ padding: '1.25rem' }}>
                     {topicWords.length === 0 ? (
                       <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                        Chưa có từ vựng nào được gán vào chủ đề này.
+                        Chưa có từ vựng nào trong trang này thuộc chủ đề này.
                       </p>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
+                      <div className="words-grid" style={{ gap: '1rem' }}>
                         {topicWords.map(w => renderWordCard(w))}
                       </div>
                     )}
@@ -650,11 +655,45 @@ export default function VocabVault({
               </div>
             );
           })}
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            pageSizeOptions={[12, 24, 48, 96]}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            itemLabel="từ vựng"
+          />
         </div>
       ) : (
-        /* STANDARD FLAT GRID VIEW */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
-          {filteredWords.map(w => renderWordCard(w))}
+        /* STANDARD FLAT GRID VIEW WITH PAGINATION */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="words-grid">
+            {displayWords.map(w => renderWordCard(w))}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            pageSizeOptions={[12, 24, 48, 96]}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            itemLabel="từ vựng"
+          />
         </div>
       )}
     </div>
